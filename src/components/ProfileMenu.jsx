@@ -3,6 +3,7 @@ import {
   FiGlobe,
   FiHeart,
   FiHelpCircle,
+  FiHome,
   FiLogOut,
   FiMessageSquare,
   FiSettings,
@@ -13,7 +14,11 @@ import "../styles/profile-menu.css";
 
 export default function ProfileMenu({
   isOpen,
+  activeView = "home",
   messageCount = 0,
+  onHome,
+  onProfile,
+  onMessages,
   onBecomeAgent,
   onLogout,
 }) {
@@ -27,16 +32,29 @@ export default function ProfileMenu({
 
   const menuGroups = [
     [
-      { label: "Wishlists", icon: FiHeart, active: true },
+      { label: "Wishlists", icon: FiHeart, active: activeView === "wishlists" },
       { label: "Bookings", icon: FiCalendar },
       {
         label: "Messages",
         icon: FiMessageSquare,
+        active: activeView === "messages",
         badge: normalizedMessageCount,
+        onClick: onMessages,
       },
-      { label: "Profile", icon: FiUser },
+      {
+        label: "Profile",
+        icon: FiUser,
+        active: activeView === "profile",
+        onClick: onProfile,
+      },
     ],
     [
+      {
+        label: "Home",
+        icon: FiHome,
+        active: activeView === "home",
+        onClick: onHome,
+      },
       { label: "Account and Settings", icon: FiSettings },
       { label: "Language & Currency", icon: FiGlobe },
       { label: "Help Center", icon: FiHelpCircle },

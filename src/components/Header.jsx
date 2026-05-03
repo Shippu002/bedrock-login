@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { FiBell, FiChevronDown } from "react-icons/fi";
+import { FiBell, FiChevronDown, FiMenu } from "react-icons/fi";
 import bedrockLogo from "../assets/bedrock-logo.svg";
 import ProfileMenu from "./ProfileMenu";
+import { getUserMessageCount } from "../utils/userMessages";
 import "../styles/header.css";
 
 const residencesMenu = [
@@ -18,24 +19,6 @@ const shopsMenu = [
   "Lifestyle Shop",
   "Accessories Shop",
 ];
-
-function getUserMessageCount(user) {
-  if (!user) return 0;
-
-  if (Array.isArray(user.messages)) return user.messages.length;
-  if (Array.isArray(user.unreadMessages)) return user.unreadMessages.length;
-
-  const count = Number(
-    user.messageCount ??
-      user.messagesCount ??
-      user.unreadMessageCount ??
-      user.unreadMessagesCount ??
-      user.unreadMessages ??
-      0,
-  );
-
-  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
-}
 
 function Dropdown({ label, items, isOpen, onToggle }) {
   return (
@@ -68,15 +51,18 @@ function Dropdown({ label, items, isOpen, onToggle }) {
 
 export default function Header({
   user,
+  activeView = "home",
+  onHome,
   onLogin,
   onSignup,
+  onProfile,
+  onMessages,
   onBecomeAgent,
   onLogout,
 }) {
   const [openMenu, setOpenMenu] = useState(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const messageCount = getUserMessageCount(user);
-
 
   const toggleMenu = (menuName) => {
     setOpenMenu((current) => (current === menuName ? null : menuName));
@@ -86,15 +72,36 @@ export default function Header({
     setIsProfileMenuOpen((current) => !current);
   }
 
+  function handleHome() {
+    setIsProfileMenuOpen(false);
+    onHome?.();
+  }
+
+  function handleProfile() {
+    setIsProfileMenuOpen(false);
+    onProfile?.();
+  }
+
+  function handleMessages() {
+    setIsProfileMenuOpen(false);
+    onMessages?.();
+  }
 
   return (
     <header className="site-header">
       <div className="site-inner">
-        <img
-          src={bedrockLogo}
-          alt="Bedrock Residences"
-          className="brand-logo"
-        />
+        <button
+          type="button"
+          className="brand-button"
+          onClick={handleHome}
+          aria-label="Go to home"
+        >
+          <img
+            src={bedrockLogo}
+            alt="Bedrock Residences"
+            className="brand-logo"
+          />
+        </button>
 
         <nav className="nav-links">
           <Dropdown
@@ -122,11 +129,16 @@ export default function Header({
         {user ? (
           <div className="header-user-area">
             <button
-              className="icon-bell"
+              className={`icon-bell ${messageCount > 0 ? "icon-bell--alert" : ""}`}
               type="button"
-              aria-label="Notifications"
+              onClick={handleMessages}
+              aria-label={
+                messageCount > 0
+                  ? `Open messages, ${messageCount} unread`
+                  : "Open messages"
+              }
             >
-              <span className="bell-dot" />
+              {messageCount > 0 && <span className="bell-dot" />}
               <FiBell className="bell-icon" />
             </button>
 
@@ -134,21 +146,36 @@ export default function Header({
               <button
                 className="user-pill"
                 type="button"
-                onClick={toggleProfileMenu}
-                aria-haspopup="menu"
-                aria-expanded={isProfileMenuOpen}
+                onClick={handleProfile}
               >
                 <span>{user.username || user.name}</span>
 
                 <FiChevronDown className="user-pill-icon" />
               </button>
 
-              <ProfileMenu
-                isOpen={isProfileMenuOpen}
-                messageCount={messageCount}
-                onBecomeAgent={onBecomeAgent}
-                onLogout={onLogout}
-              />
+              <div className="header-menu-wrap">
+                <button
+                  type="button"
+                  className="header-menu-button"
+                  onClick={toggleProfileMenu}
+                  aria-label="Open account menu"
+                  aria-haspopup="menu"
+                  aria-expanded={isProfileMenuOpen}
+                >
+                  <FiMenu />
+                </button>
+
+                <ProfileMenu
+                  isOpen={isProfileMenuOpen}
+                  activeView={activeView}
+                  messageCount={messageCount}
+                  onHome={handleHome}
+                  onProfile={handleProfile}
+                  onMessages={handleMessages}
+                  onBecomeAgent={onBecomeAgent}
+                  onLogout={onLogout}
+                />
+              </div>
             </div>
           </div>
         ) : (

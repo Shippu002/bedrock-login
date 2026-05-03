@@ -16,6 +16,16 @@
 
 
 
+.brand-button {
+  width: 129px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
 .brand-logo {
   width: 129px;
   height: auto;
@@ -125,9 +135,9 @@
 
 .header-user-menu {
   position: relative;
-}
-.header-user-menu {
-  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 
@@ -172,12 +182,16 @@
 }
 
 .icon-bell {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border-radius: 999px;
+  background: transparent;
+  color: #101928;
+  cursor: pointer;
 }
 
 .bell-glyph {
@@ -187,12 +201,17 @@
 
 .bell-dot {
   position: absolute;
-  top: 1px;
-  right: 1px;
+  top: 4px;
+  right: 5px;
   width: 7px;
   height: 7px;
   border-radius: 999px;
   background: #ff3b30;
+}
+
+.bell-icon {
+  width: 18px;
+  height: 18px;
 }
 
 .user-pill {
@@ -207,12 +226,35 @@
   font-size: 14px;
   font-weight: 500;
   color: #101928;
+  cursor: pointer;
 }
 
 .user-pill-icon {
   width: 16px;
   height: 16px;
   stroke-width: 1.9;
+}
+
+.header-menu-wrap {
+  position: relative;
+}
+
+.header-menu-button {
+  width: 33px;
+  height: 33px;
+  border-radius: 8px;
+  background: #f7f4f1;
+  color: #101928;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.header-menu-button svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
 }
 
 
@@ -258,6 +300,10 @@
     width: 118px;
   }
 
+  .brand-button {
+    width: 118px;
+  }
+
   .nav-links {
     grid-column: 1 / -1;
     justify-self: center;
@@ -299,6 +345,10 @@
   }
 
   .brand-logo {
+    width: 110px;
+  }
+
+  .brand-button {
     width: 110px;
   }
 
@@ -397,6 +447,10 @@
   }
 
   .brand-logo {
+    width: 96px;
+  }
+
+  .brand-button {
     width: 96px;
   }
 
