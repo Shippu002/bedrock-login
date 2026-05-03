@@ -290,10 +290,16 @@ export default function AuthModal({
   }
 
   function buildSessionUser(account) {
+    const messages = Array.isArray(account.messages) ? account.messages : [];
+    const messageCount =
+      account.messageCount ?? account.messagesCount ?? messages.length;
+
     return {
       name: account.name,
       username: account.username,
       email: account.email,
+      messages,
+      messageCount,
     };
   }
 
@@ -303,6 +309,8 @@ export default function AuthModal({
       username: chosenUsername,
       email: formData.email.trim(),
       password,
+      messages: [],
+      messageCount: 0,
     };
   }
 

@@ -11,14 +11,29 @@ import {
 } from "react-icons/fi";
 import "../styles/profile-menu.css";
 
-export default function ProfileMenu({ isOpen, onBecomeAgent, onLogout }) {
+export default function ProfileMenu({
+  isOpen,
+  messageCount = 0,
+  onBecomeAgent,
+  onLogout,
+}) {
   if (!isOpen) return null;
+
+  const parsedMessageCount = Number(messageCount);
+  const normalizedMessageCount =
+    Number.isFinite(parsedMessageCount) && parsedMessageCount > 0
+      ? Math.floor(parsedMessageCount)
+      : 0;
 
   const menuGroups = [
     [
       { label: "Wishlists", icon: FiHeart, active: true },
       { label: "Bookings", icon: FiCalendar },
-      { label: "Messages", icon: FiMessageSquare, badge: "45" },
+      {
+        label: "Messages",
+        icon: FiMessageSquare,
+        badge: normalizedMessageCount,
+      },
       { label: "Profile", icon: FiUser },
     ],
     [
@@ -53,7 +68,7 @@ export default function ProfileMenu({ isOpen, onBecomeAgent, onLogout }) {
                   <Icon />
                 </span>
                 <span className="profile-menu__label">{item.label}</span>
-                {item.badge && (
+                {item.badge > 0 && (
                   <span className="profile-menu__badge">{item.badge}</span>
                 )}
               </button>

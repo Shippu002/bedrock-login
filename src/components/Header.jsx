@@ -19,6 +19,24 @@ const shopsMenu = [
   "Accessories Shop",
 ];
 
+function getUserMessageCount(user) {
+  if (!user) return 0;
+
+  if (Array.isArray(user.messages)) return user.messages.length;
+  if (Array.isArray(user.unreadMessages)) return user.unreadMessages.length;
+
+  const count = Number(
+    user.messageCount ??
+      user.messagesCount ??
+      user.unreadMessageCount ??
+      user.unreadMessagesCount ??
+      user.unreadMessages ??
+      0,
+  );
+
+  return Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+}
+
 function Dropdown({ label, items, isOpen, onToggle }) {
   return (
     <div className="nav-dropdown">
@@ -57,6 +75,7 @@ export default function Header({
 }) {
   const [openMenu, setOpenMenu] = useState(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const messageCount = getUserMessageCount(user);
 
 
   const toggleMenu = (menuName) => {
@@ -126,6 +145,7 @@ export default function Header({
 
               <ProfileMenu
                 isOpen={isProfileMenuOpen}
+                messageCount={messageCount}
                 onBecomeAgent={onBecomeAgent}
                 onLogout={onLogout}
               />
