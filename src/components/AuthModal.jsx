@@ -301,6 +301,7 @@ export default function AuthModal({
       phone: account.phone || "",
       country: account.country || "",
       countryCode: account.countryCode || "",
+      profilePhoto: account.profilePhoto || "",
       messages,
       messageCount,
     };
@@ -316,6 +317,7 @@ export default function AuthModal({
       phone,
       country: selectedCountry.name,
       countryCode: selectedCountry.code,
+      profilePhoto: profilePhotoPreview,
       password,
       messages: [],
       messageCount: 0,

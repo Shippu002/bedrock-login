@@ -163,6 +163,21 @@ export function ProfileView({
   onProfileSave,
   onLogout,
 }) {
+  const profilePhoto = user?.profilePhoto || "";
+
+  function handleProfilePhotoChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const nextProfilePhoto = String(reader.result);
+
+      onProfileSave?.({ profilePhoto: nextProfilePhoto });
+    };
+    reader.readAsDataURL(file);
+  }
+
   function handleProfileSubmit(event) {
     event.preventDefault();
 
@@ -178,6 +193,7 @@ export function ProfileView({
       phone: String(formData.get("phone") || "").trim(),
       country,
       countryCode: selectedCountry?.code || user?.countryCode || "",
+      profilePhoto,
     });
   }
 
@@ -208,7 +224,13 @@ export function ProfileView({
           </div>
 
           <div className="profile-summary">
-            <div className="profile-avatar">{getInitials(user)}</div>
+            <div className="profile-avatar">
+              {profilePhoto ? (
+                <img src={profilePhoto} alt="Profile" />
+              ) : (
+                getInitials(user)
+              )}
+            </div>
 
             <div className="profile-summary__text">
               <strong>{user?.name || user?.username || "Bedrock User"}</strong>
@@ -219,9 +241,15 @@ export function ProfileView({
               </em>
             </div>
 
-            <button type="button" className="profile-edit" aria-label="Edit photo">
+            <label className="profile-edit" aria-label="Edit photo">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleProfilePhotoChange}
+                hidden
+              />
               <FiEdit2 />
-            </button>
+            </label>
           </div>
 
           <form className="profile-form" onSubmit={handleProfileSubmit}>
