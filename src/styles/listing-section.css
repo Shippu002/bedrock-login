@@ -1,7 +1,7 @@
 .listing-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .listing-section__header {
@@ -13,45 +13,50 @@
 .listing-section__title {
   font-size: 14px;
   font-weight: 600;
+  line-height: 20px;
   color: #101928;
 }
 
 .listing-section__controls {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 
 .listing-section__controls button {
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   border-radius: 999px;
-  background: #f8f7f4;
+  background: #f0f0f0;
   color: #6b7280;
   border: none;
   cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
 }
 
 .listing-section__grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 16px;
+  column-gap: 24px;
+  row-gap: 34px;
 }
 
 @media (max-width: 1200px) {
   .listing-section__grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 760px) {
-  .listing-section__grid {
-    grid-template-columns: 1fr;
+    gap: 24px;
   }
 }
 
 @media (max-width: 960px) {
   .listing-section__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .listing-section__grid {
+    grid-template-columns: 1fr;
   }
 }
 

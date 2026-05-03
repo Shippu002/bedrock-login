@@ -1,14 +1,14 @@
 .listing-card {
   background: #ffffff;
   border: 1px solid #ede6de;
-  border-radius: 18px;
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 6px 18px rgba(16, 25, 40, 0.04);
+  box-shadow: 0 8px 22px rgba(16, 25, 40, 0.05);
 }
 
 .listing-card__image-wrapper {
   position: relative;
-  height: 152px;
+  height: 162px;
   overflow: hidden;
   background: #f5f2ed;
 }
@@ -41,49 +41,50 @@
 }
 
 .listing-card__body {
-  padding: 12px 14px 14px;
+  padding: 14px 16px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 13px;
 }
 
 .listing-card__top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
 }
 
 .listing-card__heading-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
 .listing-card__title {
   color: #101928;
   font-family: "Urbanist", Arial, sans-serif;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
-  line-height: 16px;
+  line-height: 20px;
+  margin: 0;
 }
 
 .listing-card__location {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   color: #98a2b3;
   font-family: "Urbanist", Arial, sans-serif;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
-  line-height: 12px;
+  line-height: 14px;
   white-space: nowrap;
 }
 
 .listing-card__location-icon {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
   color: #98a2b3;
 }
@@ -91,22 +92,20 @@
 .listing-card__rating {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   color: #c58a68;
   font-family: "Urbanist", Arial, sans-serif;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
-  line-height: 1;
+  line-height: 14px;
   white-space: nowrap;
   flex-shrink: 0;
-  padding-top: 1px;
-  margin-top: 15px;
-
+  margin-top: 2px;
 }
 
 .listing-card__rating-icon {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   flex-shrink: 0;
   fill: #DFCB1C;
 }
@@ -115,10 +114,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 5px;
   flex-wrap: nowrap;
   width: 100%;
-  
 }
 
 .listing-card__meta-item {
@@ -133,13 +131,13 @@
   white-space: nowrap;
   flex-shrink: 0;
   border: 1px solid #DFDFDF;
-  padding: 2px;
+  padding: 4px 5px;
   border-radius: 20px;
 }
 
 .listing-card__meta-icon {
-  width: 11px;
-  height: 11px;
+  width: 12px;
+  height: 12px;
   flex-shrink: 0;
   color: #1A1A1A;
 }
@@ -148,14 +146,15 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  flex-wrap: nowrap;
 }
 
 .listing-card__button {
-  min-height: 32px;
-  padding: 0 13px;
+  min-height: 34px;
+  padding: 0 15px;
   border: 1px solid #efc6af;
-  border-radius: 9px;
+  border-radius: 10px;
   background: #ffffff;
   color: #c58a68;
   font-family: "Inter", Arial, sans-serif;
@@ -174,24 +173,25 @@
 .listing-card__price-block strong {
   color: #cc400c;
   font-family: "Urbanist", Arial, sans-serif;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 14px;
+  line-height: 16px;
   white-space: nowrap;
 }
 
 .listing-card__price-block span {
   color: #98a2b3;
   font-family: "Urbanist", Arial, sans-serif;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
-  line-height: 12px;
+  line-height: 13px;
   white-space: nowrap;
 }
 
 @media (max-width: 960px) {
   .listing-card__meta {
     flex-wrap: wrap;
+    justify-content: flex-start;
   }
 }
 
@@ -205,25 +205,26 @@
   }
 
   .listing-card__body {
-    padding: 12px;
-    gap: 10px;
+    padding: 16px;
+    gap: 14px;
   }
 
   .listing-card__title {
-    font-size: 14px;
-    line-height: 18px;
+    font-size: 17px;
+    line-height: 22px;
   }
 
   .listing-card__location,
   .listing-card__rating,
   .listing-card__price-block span {
-    font-size: 10px;
-    line-height: 14px;
+    font-size: 12px;
+    line-height: 16px;
   }
 
   .listing-card__meta-item {
-    font-size: 9px;
-    line-height: 12px;
+    font-size: 11px;
+    line-height: 15px;
+    padding: 6px 9px;
   }
 
   .listing-card__bottom {
