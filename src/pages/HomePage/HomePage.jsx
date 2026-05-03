@@ -8,6 +8,8 @@ import AuthModal from "../../components/AuthModal";
 import { MessagesView, ProfileView } from "../../components/AccountViews";
 import { getUserMessageCount } from "../../utils/userMessages";
 
+const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
+
 function HomePage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authEntry, setAuthEntry] = useState("login");
@@ -60,6 +62,31 @@ function HomePage() {
     setActiveView("messages");
   }
 
+  function handleProfileSave(profileUpdates) {
+    setCurrentUser((current) => {
+      if (!current) return current;
+
+      const updatedUser = {
+        ...current,
+        ...profileUpdates,
+      };
+
+      const savedAccount = JSON.parse(
+        localStorage.getItem(ACCOUNT_STORAGE_KEY) || "null",
+      );
+
+      localStorage.setItem(
+        ACCOUNT_STORAGE_KEY,
+        JSON.stringify({
+          ...(savedAccount || {}),
+          ...updatedUser,
+        }),
+      );
+
+      return updatedUser;
+    });
+  }
+
   function handleBecomeAgent() {
     console.log("Become agent clicked");
   }
@@ -91,6 +118,7 @@ function HomePage() {
             onHome={showHome}
             onMessages={showMessages}
             onProfile={showProfile}
+            onProfileSave={handleProfileSave}
             onLogout={handleLogout}
           />
         ) : activeView === "messages" && currentUser ? (

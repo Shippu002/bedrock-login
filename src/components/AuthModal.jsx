@@ -30,9 +30,9 @@ import "../styles/auth-modal.css";
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
 
 const countryOptions = [
-  { code: "+1", flag: "🇺🇸" },
-  { code: "+234", flag: "🇳🇬" },
-  { code: "+44", flag: "🇬🇧" },
+  { code: "+1", flag: "🇺🇸", name: "United States" },
+  { code: "+234", flag: "🇳🇬", name: "Nigeria" },
+  { code: "+44", flag: "🇬🇧", name: "United Kingdom" },
 ];
 
 const initialFormData = {
@@ -298,16 +298,24 @@ export default function AuthModal({
       name: account.name,
       username: account.username,
       email: account.email,
+      phone: account.phone || "",
+      country: account.country || "",
+      countryCode: account.countryCode || "",
       messages,
       messageCount,
     };
   }
 
   function buildRegisteredUser() {
+    const phone = formData.phone.trim();
+
     return {
       name: formData.fullName.trim(),
       username: chosenUsername,
       email: formData.email.trim(),
+      phone,
+      country: selectedCountry.name,
+      countryCode: selectedCountry.code,
       password,
       messages: [],
       messageCount: 0,

@@ -18,6 +18,21 @@ import bedrockLogo from "../assets/bedrock-logo.svg";
 import { getUserMessages } from "../utils/userMessages";
 import "../styles/account-views.css";
 
+const profileCountryOptions = [
+  { code: "+234", name: "Nigeria" },
+  { code: "+44", name: "United Kingdom" },
+  { code: "+1", name: "United States" },
+];
+
+function getProfileCountry(user) {
+  if (user?.country) return user.country;
+
+  return (
+    profileCountryOptions.find((country) => country.code === user?.countryCode)
+      ?.name || "Nigeria"
+  );
+}
+
 function getInitials(user) {
   const source = user?.name || user?.username || user?.email || "User";
   return source
@@ -145,8 +160,27 @@ export function ProfileView({
   onHome,
   onMessages,
   onProfile,
+  onProfileSave,
   onLogout,
 }) {
+  function handleProfileSubmit(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.currentTarget);
+    const country = String(formData.get("country") || "");
+    const selectedCountry = profileCountryOptions.find(
+      (option) => option.name === country,
+    );
+
+    onProfileSave?.({
+      name: String(formData.get("name") || "").trim(),
+      email: String(formData.get("email") || "").trim(),
+      phone: String(formData.get("phone") || "").trim(),
+      country,
+      countryCode: selectedCountry?.code || user?.countryCode || "",
+    });
+  }
+
   return (
     <section className="account-view">
       <AccountSidebar
@@ -190,34 +224,39 @@ export function ProfileView({
             </button>
           </div>
 
-          <form className="profile-form">
+          <form className="profile-form" onSubmit={handleProfileSubmit}>
             <span className="profile-form__label">Personal info:</span>
 
             <label className="profile-field">
               <span>Full Name</span>
-              <input defaultValue={user?.name || ""} />
+              <input name="name" defaultValue={user?.name || ""} />
             </label>
 
             <label className="profile-field">
               <span>Email</span>
-              <input defaultValue={user?.email || ""} type="email" />
+              <input name="email" defaultValue={user?.email || ""} type="email" />
             </label>
 
             <label className="profile-field">
               <span>Phone Number</span>
-              <input defaultValue={user?.phone || ""} placeholder="Add phone number" />
+              <input
+                name="phone"
+                defaultValue={user?.phone || ""}
+                placeholder="Add phone number"
+                type="tel"
+              />
             </label>
 
             <label className="profile-field profile-field--select">
               <span>Select Country</span>
-              <select defaultValue={user?.country || "Nigeria"}>
-                <option>Nigeria</option>
-                <option>United Kingdom</option>
-                <option>United States</option>
+              <select name="country" defaultValue={getProfileCountry(user)}>
+                {profileCountryOptions.map((country) => (
+                  <option key={country.code}>{country.name}</option>
+                ))}
               </select>
             </label>
 
-            <button type="button" className="profile-save">
+            <button type="submit" className="profile-save">
               Save
             </button>
           </form>
