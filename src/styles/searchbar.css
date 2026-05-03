@@ -1,0 +1,177 @@
+.search-bar-section {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.search-bar {
+  width: 789px;
+  min-height: 76px;
+  padding: 10px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  background: #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 10px 24px rgba(16, 25, 40, 0.08);
+}
+
+.search-bar__field {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.search-bar__field--residence {
+  width: 153px;
+}
+
+.search-bar__field--date {
+  width: 215px;
+}
+
+.search-bar__field--guest {
+  width: 136px;
+}
+
+.search-bar__label {
+  margin-bottom: 4px;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 17px;
+  color: #101928;
+}
+
+.search-bar__field select,
+.search-bar__field input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 15px;
+  color: #98a2b3;
+}
+
+.search-bar__field select {
+  cursor: pointer;
+}
+
+.search-bar__date-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.search-bar__date-range input {
+  width: 92px;
+}
+
+.search-bar__date-separator {
+  font-size: 11px;
+  color: #98a2b3;
+}
+
+.search-bar__divider {
+  width: 1px;
+  height: 44px;
+  background: #ece8e2;
+  border-radius: 999px;
+}
+
+.search-bar__button {
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 999px;
+  background: #202a45;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.search-bar__button svg {
+  width: 24px;
+  height: 24px;
+}
+
+@media (max-width: 900px) {
+  .search-bar {
+    width: min(100%, calc(100% - 24px));
+    min-height: auto;
+    border-radius: 28px;
+    padding: 18px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .search-bar__field--residence,
+  .search-bar__field--date,
+  .search-bar__field--guest {
+    width: 100%;
+  }
+
+  .search-bar__date-range {
+    flex-wrap: wrap;
+  }
+
+  .search-bar__date-range input {
+    width: 100%;
+  }
+
+  .search-bar__divider {
+    display: none;
+  }
+
+  .search-bar__button {
+    align-self: flex-end;
+  }
+}
+
+
+@media (max-width: 560px) {
+  .search-bar-section {
+    margin-top: 16px;
+    padding: 0 12px;
+  }
+
+  .search-bar {
+    width: 100%;
+    padding: 16px 14px;
+    border-radius: 24px;
+    gap: 12px;
+  }
+
+  .search-bar__label {
+    font-size: 13px;
+  }
+
+  .search-bar__button {
+    width: 100%;
+    height: 48px;
+    border-radius: 14px;
+  }
+}
+
+@media (max-width: 390px) {
+  .search-bar-section {
+    padding: 0 10px;
+  }
+
+  .search-bar {
+    padding: 14px 12px;
+    border-radius: 20px;
+  }
+
+  .search-bar__field select,
+  .search-bar__field input {
+    font-size: 11px;
+  }
+}

@@ -1,0 +1,418 @@
+.site-header {
+  background: var(--white);
+}
+
+.site-inner {
+  width: min(1288px, calc(100% - 64px));
+  margin: 0 auto;
+  min-height: 104px;
+  display: grid;
+  grid-template-columns: 129px 1fr auto;
+  align-items: center;
+  column-gap: 24px;
+  padding: 24px 0;
+}
+
+
+
+
+.brand-logo {
+  width: 129px;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  justify-self: center;
+  gap: 44px;
+  margin-right: 350px
+}
+
+.nav-dropdown {
+  position: relative;
+}
+
+.nav-link {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: #101928;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  padding: 0;
+  cursor: pointer;
+  border: none;
+}
+
+.nav-link-label {
+  line-height: 24px;
+}
+
+.nav-link-icon-wrap {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-link-icon-wrap-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.nav-icon {
+  width: 16px;
+  height: 16px;
+  color: #101928;
+  stroke-width: 1.9;
+}
+
+.nav-link-orders {
+  gap: 8px;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 14px);
+  left: 0;
+  min-width: 220px;
+  background: #ffffff;
+  border: 1px solid #ece8e2;
+  border-radius: 12px;
+  box-shadow: 0 18px 40px rgba(16, 25, 40, 0.08);
+  padding: 8px;
+  z-index: 30;
+  
+}
+
+.dropdown-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: #101928;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: pointer;
+  border: none;
+}
+
+
+.dropdown-item:hover {
+  background: #faf6f2;
+}
+
+.header-actions,
+.header-user-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-self: end;
+}
+
+.header-user-menu {
+  position: relative;
+}
+.header-user-menu {
+  position: relative;
+}
+
+
+.btn {
+  min-height: 56px;
+  padding: 10px 10px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Inter", Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 24px;
+  transition: 0.2s ease;
+  cursor: pointer;
+}
+
+.btn-outline {
+  width: 91px;
+  background: #ffffff;
+  color: #c58a68;
+  border: 1.5px solid #c58a68;
+}
+.btn-outline:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #f3f4f6 40%, #e5e7eb 100%);
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+}
+
+.btn-accent {
+  width: 107px;
+  background: #c58a68;
+  color: #ffffff;
+  border: 1.5px solid #c58a68;
+}
+
+.btn-accent:hover {
+  background: #7b7373;
+}
+
+.icon-bell {
+  width: 24px;
+  height: 24px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bell-glyph {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.bell-dot {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #ff3b30;
+}
+
+.user-pill {
+  min-height: 33px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #f7f4f1;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #101928;
+}
+
+.user-pill-icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.9;
+}
+
+
+@media (max-width: 1200px) {
+  .site-inner {
+    width: min(100%, calc(100% - 40px));
+    grid-template-columns: 129px 1fr auto;
+    column-gap: 18px;
+  }
+
+  .nav-links {
+    gap: 18px;
+  }
+
+  .nav-link {
+    font-size: 13px;
+  }
+
+  .btn {
+    min-height: 48px;
+    padding: 12px 18px;
+    font-size: 15px;
+  }
+
+  .btn-outline {
+    width: 84px;
+  }
+
+  .btn-accent {
+    width: 96px;
+  }
+}
+
+@media (max-width: 980px) {
+  .site-inner {
+    width: min(100%, calc(100% - 32px));
+    grid-template-columns: 1fr auto;
+    row-gap: 16px;
+    padding: 20px 0;
+  }
+
+  .brand-logo {
+    width: 118px;
+  }
+
+  .nav-links {
+    grid-column: 1 / -1;
+    justify-self: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  .header-actions,
+  .header-user-area {
+    justify-self: end;
+    gap: 10px;
+  }
+
+  .btn {
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  .btn-outline,
+  .btn-accent {
+    width: auto;
+  }
+
+  .dropdown-menu {
+    min-width: 200px;
+  }
+}
+
+@media (max-width: 760px) {
+  .site-inner {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    row-gap: 14px;
+    padding: 18px 0;
+  }
+
+  .brand-logo {
+    width: 110px;
+  }
+
+  .nav-links {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  .nav-link {
+    font-size: 13px;
+    gap: 6px;
+  }
+
+  .header-actions,
+  .header-user-area {
+    margin-left: auto;
+  }
+
+  .btn {
+    min-height: 40px;
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 560px) {
+  .site-inner {
+    width: min(100%, calc(100% - 24px));
+  }
+
+  .nav-links {
+    justify-content: flex-start;
+  }
+
+  .header-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: stretch;
+    gap: 8px;
+  }
+
+  .header-actions .btn {
+    flex: 1;
+  }
+
+  .header-user-area {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+
+  .dropdown-menu {
+    left: 0;
+    right: auto;
+    min-width: 180px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .nav-links {
+    margin-right: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .site-inner {
+    row-gap: 12px;
+  }
+
+  .nav-links {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+    margin-right: 0;
+  }
+
+  .nav-links::-webkit-scrollbar {
+    display: none;
+  }
+
+  .header-actions,
+  .header-user-area {
+    width: 100%;
+  }
+}
+
+@media (max-width: 390px) {
+  .site-inner {
+    width: min(100%, calc(100% - 20px));
+  }
+
+  .brand-logo {
+    width: 96px;
+  }
+
+  .nav-link {
+    font-size: 12px;
+  }
+
+  .btn {
+    min-height: 38px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .user-pill {
+    max-width: calc(100vw - 110px);
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+}

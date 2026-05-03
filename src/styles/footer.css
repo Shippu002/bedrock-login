@@ -1,0 +1,225 @@
+.site-footer {
+  margin-top: 72px;
+  background: #ffffff;
+  padding: 64px 0 32px;
+}
+
+.site-footer__inner {
+  width: min(1288px, calc(100% - 224px));
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+}
+
+.site-footer__links {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 32px;
+}
+
+.site-footer__column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.site-footer__column h3 {
+  margin: 0 0 6px;
+  color: #98a2b3;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 24px;
+}
+
+.site-footer__column a {
+  color: #101928;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 24px;
+  text-decoration: none;
+}
+
+.site-footer__newsletter {
+  border-top: 1px solid #ece8e2;
+  border-bottom: 1px solid #ece8e2;
+  padding: 32px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+.site-footer__newsletter-copy {
+  max-width: 520px;
+}
+
+.site-footer__newsletter-label {
+  margin: 0 0 8px;
+  color: #98a2b3;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  letter-spacing: 0.12em;
+}
+
+.site-footer__newsletter-text {
+  margin: 0;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 24px;
+}
+
+.site-footer__newsletter-form {
+  width: 628px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.site-footer__newsletter-form input {
+  flex: 1;
+  height: 56px;
+  border: 1px solid #ece8e2;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0 16px;
+  outline: none;
+  color: #101928;
+  font-family: "Inter", Arial, sans-serif;
+  font-size: 14px;
+}
+
+.site-footer__newsletter-form input::placeholder {
+  color: #98a2b3;
+}
+
+.site-footer__newsletter-form button {
+  width: 160px;
+  height: 56px;
+  border: none;
+  border-radius: 6px;
+  background: #c58a68;
+  color: #ffffff;
+  font-family: "Inter", Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.site-footer__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.site-footer__logo {
+  width: 129px;
+  height: 28px;
+  object-fit: contain;
+  display: block;
+}
+
+.site-footer__bottom p {
+  margin: 0;
+  color: #98a2b3;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 24px;
+}
+
+@media (max-width: 1100px) {
+  .site-footer__inner {
+    width: min(100%, calc(100% - 32px));
+  }
+
+  .site-footer__links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .site-footer__newsletter {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .site-footer__newsletter-form {
+    width: 100%;
+  }
+}
+
+@media (max-width: 700px) {
+  .site-footer {
+    padding: 48px 0 24px;
+  }
+
+  .site-footer__links {
+    grid-template-columns: 1fr;
+  }
+
+  .site-footer__newsletter-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .site-footer__newsletter-form button {
+    width: 100%;
+  }
+
+  .site-footer__bottom {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 560px) {
+  .site-footer {
+    margin-top: 48px;
+    padding: 40px 0 20px;
+  }
+
+  .site-footer__inner {
+    width: min(100%, calc(100% - 24px));
+    gap: 40px;
+  }
+
+  .site-footer__newsletter {
+    gap: 20px;
+    padding: 24px 0;
+  }
+
+  .site-footer__newsletter-form input,
+  .site-footer__newsletter-form button {
+    height: 48px;
+  }
+
+  .site-footer__column h3,
+  .site-footer__column a,
+  .site-footer__newsletter-text {
+    font-size: 12px;
+    line-height: 20px;
+  }
+}
+
+@media (max-width: 390px) {
+  .site-footer__inner {
+    width: min(100%, calc(100% - 20px));
+  }
+
+  .site-footer__newsletter {
+    padding: 20px 0;
+  }
+
+  .site-footer__newsletter-form input,
+  .site-footer__newsletter-form button {
+    height: 44px;
+    font-size: 13px;
+  }
+}
+
