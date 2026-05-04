@@ -38,8 +38,8 @@ import {
   FaXTwitter,
 } from "react-icons/fa6";
 import bedrockLogo from "../../assets/bedrock-logo.svg";
-import bookingsImage from "../../assets/bookings.jpg";
 import wishlistImage from "../../assets/wishlist.jpg";
+import { shopCategories } from "../../data/shopCategories";
 import {
   countryOptions,
   findCountryByDialCode,
@@ -47,6 +47,12 @@ import {
   getDialCodeDigits,
   normalizeLocalPhoneNumber,
 } from "../../utils/countries";
+import {
+  formatShortDate,
+  getGuestLabel,
+  getNightLabel,
+  isPastBooking,
+} from "../../utils/bookings";
 import { getUserMessageCount } from "../../utils/userMessages";
 import "./ProfilePage.css";
 
@@ -70,21 +76,6 @@ const wishlistItems = Array.from({ length: 6 }, (_, index) => ({
   image: wishlistImage,
   price: index % 2 === 0 ? "NGN200,000" : "NGN225,000",
 }));
-
-const bookingItems = [
-  {
-    id: "BK1345689",
-    title: "4 Bedroom apartment",
-    image: bookingsImage,
-    price: "NGN200,000",
-  },
-  {
-    id: "BK1345690",
-    title: "4 Bedroom apartment",
-    image: bookingsImage,
-    price: "NGN200,000",
-  },
-];
 
 const messageRows = Array.from({ length: 10 }, (_, index) => ({
   id: `message-${index + 1}`,
@@ -544,15 +535,17 @@ function BookingCard({ booking, isPast }) {
 
         <p className="booking-card__location">
           <FiMapPin />
-          Oduduwa, Ikeja GRA
+          {booking.location}
         </p>
 
         <div className="booking-card__meta">
           <span>
-            <FiUsers />8 Guest
+            <FiUsers />
+            {getGuestLabel(booking.guests)}
           </span>
           <span>
-            <FiClock />3 Night
+            <FiClock />
+            {getNightLabel(booking.nights)}
           </span>
         </div>
 
@@ -561,14 +554,14 @@ function BookingCard({ booking, isPast }) {
             <em>Check-in</em>
             <b>
               <FiCalendar />
-              Oct 24, 2025
+              {formatShortDate(booking.checkIn)}
             </b>
           </span>
           <span>
             <em>Check-out</em>
             <b>
               <FiCalendar />
-              Oct 24, 2025
+              {formatShortDate(booking.checkOut)}
             </b>
           </span>
         </div>
@@ -576,7 +569,7 @@ function BookingCard({ booking, isPast }) {
         <div className="booking-card__footer">
           <strong>
             Total Amount
-            <b>{booking.price}</b>
+            <b>NGN{Number(booking.totalAmount || 0).toLocaleString()}</b>
           </strong>
 
           {!isPast && (
@@ -595,8 +588,16 @@ function BookingCard({ booking, isPast }) {
   );
 }
 
-function BookingsView({ onBack }) {
+function BookingsView({ bookings, onBack }) {
   const [bookingTab, setBookingTab] = useState("upcoming");
+  const upcomingBookings = bookings.filter(
+    (booking) => !isPastBooking(booking.checkOut),
+  );
+  const pastBookings = bookings.filter((booking) =>
+    isPastBooking(booking.checkOut),
+  );
+  const visibleBookings =
+    bookingTab === "upcoming" ? upcomingBookings : pastBookings;
 
   return (
     <section className="profile-panel profile-panel--soft">
@@ -623,13 +624,24 @@ function BookingsView({ onBack }) {
       </div>
 
       <div className="booking-list">
-        {bookingItems.map((booking) => (
-          <BookingCard
-            booking={booking}
-            isPast={bookingTab === "past"}
-            key={booking.id}
-          />
-        ))}
+        {visibleBookings.length > 0 ? (
+          visibleBookings.map((booking) => (
+            <BookingCard
+              booking={booking}
+              isPast={bookingTab === "past"}
+              key={booking.id}
+            />
+          ))
+        ) : (
+          <div className="bookings-empty">
+            <strong>No bookings yet</strong>
+            <p>
+              {bookingTab === "upcoming"
+                ? "Booked apartments will show up here once a user completes a booking."
+                : "Past bookings will appear here after your completed stays."}
+            </p>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -676,13 +688,29 @@ function MessagesView() {
 }
 
 function ShopView({ onBack }) {
-  return (
-    <section className="profile-panel">
-      <ViewHeading title="Shop" onBack={onBack} />
+  const [selectedShopId, setSelectedShopId] = useState("foods");
 
-      <div className="profile-card-grid">
-        {wishlistItems.map((item) => (
-          <FoodCard item={item} key={`shop-${item.id}`} />
+  return (
+    <section className="profile-panel profile-panel--soft profile-shop-panel">
+      <ViewHeading title="Shops" onBack={onBack} />
+
+      <div className="profile-shop-card">
+        {shopCategories.map((item) => (
+          <button
+            type="button"
+            className={`profile-shop-card__item ${
+              selectedShopId === item.id ? "profile-shop-card__item--active" : ""
+            }`}
+            aria-pressed={selectedShopId === item.id}
+            onClick={() => setSelectedShopId(item.id)}
+            key={item.id}
+          >
+            <img src={item.image} alt="" />
+            <span>
+              <strong>{item.title}</strong>
+              <em>{item.location}</em>
+            </span>
+          </button>
         ))}
       </div>
     </section>
@@ -1020,6 +1048,7 @@ function HelpCenterView({ onBack }) {
 
 export default function ProfilePage({
   user,
+  bookings = [],
   initialView = "profile",
   onGoHome,
   onProfileSave,
@@ -1055,7 +1084,7 @@ export default function ProfilePage({
       case "wishlists":
         return <WishlistView onBack={goBack} />;
       case "bookings":
-        return <BookingsView onBack={goBack} />;
+        return <BookingsView bookings={bookings} onBack={goBack} />;
       case "messages":
         return <MessagesView />;
       case "shop":

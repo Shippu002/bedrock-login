@@ -2,7 +2,15 @@ import { FiMapPin, FiStar, FiUsers, FiWifi, FiTruck } from "react-icons/fi";
 import { LuBedSingle } from "react-icons/lu";
 import "../styles/listing-card.css";
 
-function ListingCard({ item, showAvailableBadge = false }) {
+function ListingCard({
+  item,
+  showAvailableBadge = false,
+  onApartmentSelect,
+}) {
+  function handleSelect() {
+    onApartmentSelect?.(item);
+  }
+
   return (
     <article className="listing-card">
       <div className="listing-card__image-wrapper">
@@ -57,7 +65,11 @@ function ListingCard({ item, showAvailableBadge = false }) {
         </div>
 
         <div className="listing-card__bottom">
-          <button className="listing-card__button" type="button">
+          <button
+            className="listing-card__button"
+            type="button"
+            onClick={handleSelect}
+          >
             Book apartment
           </button>
 

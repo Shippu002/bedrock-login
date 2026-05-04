@@ -1,0 +1,770 @@
+.apartment-flow {
+  width: min(1512px, calc(100% - 72px));
+  margin: 56px auto 0;
+}
+
+.apartment-flow__panel {
+  background: #f7f7f7;
+  border-radius: 32px;
+  padding: 28px 22px 28px;
+}
+
+.apartment-flow__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+}
+
+.apartment-flow__heading h1 {
+  margin: 0;
+  color: #1a1a1a;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 30px;
+}
+
+.apartment-flow__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.apartment-flow__actions button,
+.apartment-back-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #ece8e1;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #667085;
+  cursor: pointer;
+}
+
+.apartment-flow__actions button {
+  width: 34px;
+  padding: 0;
+}
+
+.apartment-back-button {
+  margin-bottom: 28px;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.apartment-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 312px;
+  gap: 34px;
+  align-items: start;
+}
+
+.apartment-detail-main {
+  min-width: 0;
+}
+
+.apartment-gallery {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.apartment-gallery__hero,
+.apartment-gallery__thumb {
+  overflow: hidden;
+  border: none;
+  border-radius: 22px;
+  background: #ebe6df;
+}
+
+.apartment-gallery__hero img,
+.apartment-gallery__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.apartment-gallery__hero {
+  min-height: 300px;
+}
+
+.apartment-gallery__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.apartment-gallery__thumb {
+  min-height: 140px;
+  cursor: pointer;
+}
+
+.apartment-gallery__thumb--active {
+  outline: 3px solid rgba(197, 138, 104, 0.35);
+}
+
+.apartment-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.apartment-copy__section h2,
+.apartment-copy__section h3 {
+  margin: 0 0 10px;
+  color: #1a1a1a;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.apartment-copy__lead,
+.apartment-copy__section p {
+  margin: 0;
+  color: #98a2b3;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.apartment-copy__section p button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: #1d4ed8;
+  font: inherit;
+  cursor: pointer;
+}
+
+.apartment-copy__section--summary {
+  margin-top: 18px;
+}
+
+.apartment-copy__rules {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #98a2b3;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+  line-height: 22px;
+}
+
+.apartment-meta-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.apartment-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid #e6e6e6;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1a1a1a;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.apartment-meta-pill__icon {
+  width: 16px;
+  height: 16px;
+}
+
+.apartment-reviews {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.apartment-review {
+  min-width: 0;
+}
+
+.apartment-review__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: #98a2b3;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 11px;
+}
+
+.apartment-review__stars {
+  display: inline-flex;
+  gap: 2px;
+  color: #dfcb1c;
+}
+
+.apartment-review p {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.apartment-review__author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.apartment-review__avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #d7c1b2;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.apartment-review__author span {
+  display: flex;
+  flex-direction: column;
+}
+
+.apartment-review__author strong,
+.apartment-review__author em {
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.apartment-review__author strong {
+  color: #1a1a1a;
+  font-style: normal;
+}
+
+.apartment-review__author em {
+  color: #98a2b3;
+  font-style: normal;
+}
+
+.apartment-booking-card,
+.apartment-payment-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 16px;
+}
+
+.apartment-booking-card {
+  position: sticky;
+  top: 24px;
+}
+
+.apartment-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.apartment-form-group label {
+  color: #1a1a1a;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.apartment-select,
+.apartment-guest-input,
+.apartment-text-input {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #ece8e1;
+  border-radius: 12px;
+  background: #f8f8f8;
+  color: #667085;
+  box-sizing: border-box;
+}
+
+.apartment-select {
+  display: grid;
+  grid-template-columns: 18px 1fr 18px;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+}
+
+.apartment-select select {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #98a2b3;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  outline: none;
+  appearance: none;
+}
+
+.apartment-select input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  outline: none;
+}
+
+.apartment-select input::-webkit-calendar-picker-indicator {
+  opacity: 0;
+}
+
+.apartment-guest-input {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  color: #98a2b3;
+}
+
+.apartment-guest-input__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #1a1a1a;
+}
+
+.apartment-guest-input__actions button {
+  width: 22px;
+  height: 22px;
+  border: 1px solid #d9d9d9;
+  border-radius: 999px;
+  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.apartment-text-input {
+  padding: 0 14px;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  outline: none;
+}
+
+.apartment-primary-button {
+  width: 100%;
+  min-height: 48px;
+  border: none;
+  border-radius: 10px;
+  background: #c58a68;
+  color: #ffffff;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.apartment-primary-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.apartment-policy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.apartment-policy-row p {
+  margin: 0;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.apartment-toggle {
+  width: 34px;
+  height: 20px;
+  border: none;
+  border-radius: 999px;
+  background: #d9d9d9;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.apartment-toggle span {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #ffffff;
+  transition: transform 160ms ease;
+}
+
+.apartment-toggle--on {
+  background: #22c55e;
+}
+
+.apartment-toggle--on span {
+  transform: translateX(14px);
+}
+
+.apartment-payment-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 40px;
+}
+
+.apartment-payment-methods__title {
+  margin: 0 0 20px;
+  color: #1a1a1a;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 30px;
+}
+
+.apartment-payment-methods__list {
+  display: flex;
+  flex-direction: column;
+  max-width: 360px;
+  background: #ffffff;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.apartment-payment-option {
+  width: 100%;
+  min-height: 48px;
+  border: none;
+  border-bottom: 1px solid #ece8e1;
+  background: #ffffff;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.apartment-payment-option:last-child {
+  border-bottom: none;
+}
+
+.apartment-payment-option__left {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #1a1a1a;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 16px;
+}
+
+.apartment-payment-option__radio {
+  width: 18px;
+  height: 18px;
+  border: 1px solid #d8d8d8;
+  border-radius: 999px;
+}
+
+.apartment-payment-option--active .apartment-payment-option__radio {
+  border: 5px solid #c58a68;
+}
+
+.apartment-payment-card__preview {
+  background: #ffffff;
+  border: 1px solid #ece8e1;
+  border-radius: 18px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.apartment-payment-card__preview img {
+  width: 100%;
+  height: 92px;
+  object-fit: cover;
+  display: block;
+}
+
+.apartment-payment-card__preview-copy {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 10px 8px;
+}
+
+.apartment-payment-card__preview-copy h3,
+.apartment-status-card__body h3 {
+  margin: 0 0 6px;
+  color: #1a1a1a;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.apartment-payment-card__preview-copy p,
+.apartment-status-card__body p {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #98a2b3;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 10px;
+}
+
+.apartment-payment-card__rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #c58a68;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 10px;
+}
+
+.apartment-payment-card__night-price {
+  display: block;
+  padding: 0 10px 10px;
+  color: #cc400c;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.apartment-payment-breakdown {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 12px 12px 8px;
+  margin: 12px 0 16px;
+}
+
+.apartment-payment-breakdown > div {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0ebe5;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+}
+
+.apartment-payment-breakdown > div:last-child {
+  border-bottom: none;
+}
+
+.apartment-payment-breakdown strong {
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+.apartment-payment-breakdown__total strong {
+  color: #1a1a1a;
+  font-size: 16px;
+}
+
+.apartment-status {
+  max-width: 420px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.apartment-status h1 {
+  margin: 0 0 8px;
+  color: #1a1a1a;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 30px;
+}
+
+.apartment-status > p {
+  margin: 0 0 18px;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.apartment-status-card {
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 10px;
+}
+
+.apartment-status-card img {
+  width: 100%;
+  height: 196px;
+  border-radius: 18px;
+  object-fit: cover;
+  display: block;
+}
+
+.apartment-status-card__body {
+  padding: 16px 2px 4px;
+  text-align: left;
+}
+
+.apartment-status-card__summary {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0;
+  color: #98a2b3;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+}
+
+.apartment-status-card__price-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.apartment-status-card__price-group strong {
+  color: #cc400c;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.apartment-status-card__price-group span {
+  color: #1a1a1a;
+  font-size: 12px;
+}
+
+.apartment-status-card__footer {
+  margin-bottom: 16px;
+}
+
+.apartment-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  min-height: 28px;
+  border-radius: 10px;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.apartment-status-badge--pending {
+  color: #c58a68;
+  background: #fdf1e7;
+  border: 1px solid #efc6af;
+}
+
+.apartment-status-badge--complete {
+  color: #16a34a;
+  background: #ecfdf3;
+  border: 1px solid #b7e4c7;
+}
+
+@media (max-width: 1200px) {
+  .apartment-detail-layout,
+  .apartment-payment-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .apartment-booking-card {
+    position: static;
+  }
+
+  .apartment-reviews {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .apartment-flow {
+    width: min(100%, calc(100% - 24px));
+    margin-top: 28px;
+  }
+
+  .apartment-flow__panel {
+    padding: 20px 14px;
+    border-radius: 22px;
+  }
+
+  .apartment-flow__heading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .apartment-gallery {
+    grid-template-columns: 1fr;
+  }
+
+  .apartment-gallery__hero {
+    min-height: 220px;
+  }
+
+  .apartment-gallery__grid {
+    gap: 12px;
+  }
+
+  .apartment-reviews {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .apartment-detail-layout,
+  .apartment-payment-layout {
+    gap: 22px;
+  }
+
+  .apartment-gallery__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .apartment-gallery__thumb {
+    min-height: 110px;
+  }
+
+  .apartment-payment-methods__title,
+  .apartment-status h1,
+  .apartment-flow__heading h1 {
+    font-size: 18px;
+    line-height: 26px;
+  }
+
+  .apartment-guest-input {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px 14px;
+  }
+
+  .apartment-status-card__summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .apartment-status-card__price-group {
+    align-items: flex-start;
+  }
+}

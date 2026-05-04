@@ -6,8 +6,32 @@ import { listingSections } from "../../data/listings";
 import Footer from "../../components/Footer";
 import AuthModal from "../../components/AuthModal";
 import ProfilePage from "../Profile/ProfilePage";
+import ResidencePage from "../Residence/ResidencePage";
+import ApartmentPage from "../Apartment/ApartmentPage";
+import { decorateApartmentWithMedia } from "../../utils/apartmentMedia";
+import {
+  addDays,
+  calculateBookingTotals,
+  createBookingId,
+  ensureCheckoutDate,
+  getTodayDateValue,
+} from "../../utils/bookings";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
+
+function createDefaultBookingDetails() {
+  const checkIn = getTodayDateValue();
+
+  return {
+    checkIn,
+    checkOut: addDays(checkIn, 1),
+    guests: 1,
+    promo: "",
+    paymentMethod: "card",
+    agreedToPolicy: true,
+    useRockPoints: true,
+  };
+}
 
 function HomePage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -16,6 +40,42 @@ function HomePage() {
   const [currentUser, setCurrentUser] = useState(null);
   const [activePage, setActivePage] = useState("home");
   const [profileInitialView, setProfileInitialView] = useState("profile");
+  const [selectedResidenceId, setSelectedResidenceId] = useState("opebi");
+  const [selectedApartment, setSelectedApartment] = useState(null);
+  const [bookingDetails, setBookingDetails] = useState(() =>
+    createDefaultBookingDetails(),
+  );
+
+  function syncSavedAccount(nextUser) {
+    const savedAccount = JSON.parse(
+      localStorage.getItem(ACCOUNT_STORAGE_KEY) || "null",
+    );
+
+    if (!savedAccount || !nextUser) {
+      return;
+    }
+
+    localStorage.setItem(
+      ACCOUNT_STORAGE_KEY,
+      JSON.stringify({
+        ...savedAccount,
+        ...nextUser,
+      }),
+    );
+  }
+
+  function updateCurrentUser(nextUserOrUpdater) {
+    setCurrentUser((currentUserValue) => {
+      const nextUser =
+        typeof nextUserOrUpdater === "function"
+          ? nextUserOrUpdater(currentUserValue)
+          : nextUserOrUpdater;
+
+      syncSavedAccount(nextUser);
+
+      return nextUser;
+    });
+  }
 
   function openLogin() {
     setAuthEntry("login");
@@ -34,13 +94,26 @@ function HomePage() {
   }
 
   function handleAuthComplete(authenticatedUser) {
-    setCurrentUser(authenticatedUser);
+    updateCurrentUser(authenticatedUser);
     setActivePage("home");
     setIsAuthModalOpen(false);
   }
 
   function showHome() {
     setActivePage("home");
+    setProfileInitialView("profile");
+  }
+
+  function showResidence(residenceId) {
+    setSelectedResidenceId(residenceId);
+    setActivePage("residence");
+    setProfileInitialView("profile");
+  }
+
+  function showApartment(apartment) {
+    setSelectedApartment(decorateApartmentWithMedia(apartment));
+    setBookingDetails(createDefaultBookingDetails());
+    setActivePage("apartment");
     setProfileInitialView("profile");
   }
 
@@ -59,27 +132,13 @@ function HomePage() {
   }
 
   function handleProfileSave(profileUpdates) {
-    setCurrentUser((current) => {
+    updateCurrentUser((current) => {
       if (!current) return current;
 
-      const updatedUser = {
+      return {
         ...current,
         ...profileUpdates,
       };
-
-      const savedAccount = JSON.parse(
-        localStorage.getItem(ACCOUNT_STORAGE_KEY) || "null",
-      );
-
-      localStorage.setItem(
-        ACCOUNT_STORAGE_KEY,
-        JSON.stringify({
-          ...(savedAccount || {}),
-          ...updatedUser,
-        }),
-      );
-
-      return updatedUser;
     });
   }
 
@@ -126,6 +185,89 @@ function HomePage() {
     setProfileInitialView("profile");
   }
 
+  function handleBookingChange(field, value) {
+    setBookingDetails((current) => ({
+      ...current,
+      ...(field === "checkIn"
+        ? {
+            checkIn: value,
+            checkOut: ensureCheckoutDate(value, current.checkOut),
+          }
+        : field === "checkOut"
+          ? {
+              checkOut: ensureCheckoutDate(current.checkIn, value),
+            }
+          : field === "guests"
+            ? {
+                guests: Math.max(1, Number(value) || 1),
+              }
+            : {
+                [field]: value,
+              }),
+    }));
+  }
+
+  function openPaymentStep() {
+    setActivePage("payment");
+  }
+
+  function openPendingStep() {
+    setActivePage("pending");
+  }
+
+  function openConfirmedStep() {
+    setActivePage("confirmed");
+  }
+
+  function finishApartmentFlow() {
+    if (!selectedApartment || !currentUser) {
+      setActivePage("home");
+      return;
+    }
+
+    const totals = calculateBookingTotals(
+      selectedApartment.price,
+      bookingDetails.checkIn,
+      bookingDetails.checkOut,
+      bookingDetails.useRockPoints,
+    );
+
+    const nextBooking = {
+      id: createBookingId(),
+      title: selectedApartment.title,
+      residenceName: selectedApartment.residenceName,
+      location: selectedApartment.location,
+      image:
+        selectedApartment.statusImage ||
+        selectedApartment.paymentImage ||
+        selectedApartment.previewImage ||
+        selectedApartment.image,
+      checkIn: bookingDetails.checkIn,
+      checkOut: bookingDetails.checkOut,
+      guests: bookingDetails.guests,
+      nights: totals.nights,
+      nightlyRate: selectedApartment.price,
+      subtotal: totals.subtotal,
+      taxesAndFees: totals.taxesAndFees,
+      cautionFee: totals.cautionFee,
+      rockPointValue: totals.rockPointValue,
+      totalAmount: totals.payable,
+      createdAt: new Date().toISOString(),
+    };
+
+    updateCurrentUser((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        bookings: [nextBooking, ...(current.bookings || [])],
+      };
+    });
+
+    setProfileInitialView("bookings");
+    setActivePage("profile");
+  }
+
   return (
     <div
       className={`home-page ${
@@ -135,6 +277,7 @@ function HomePage() {
       {activePage === "profile" && currentUser ? (
         <ProfilePage
           user={currentUser}
+          bookings={currentUser?.bookings || []}
           initialView={profileInitialView}
           onGoHome={showHome}
           onProfileSave={handleProfileSave}
@@ -152,18 +295,65 @@ function HomePage() {
             onProfile={() => showProfile("profile")}
             onProfileView={showProfile}
             onMessages={showMessages}
+            onResidenceSelect={showResidence}
             onBecomeAgent={handleBecomeAgent}
             onLogout={handleLogout}
           />
 
           <main className="home-page__main">
-            <SearchBar />
+            {["home", "residence", "apartment"].includes(activePage) && (
+              <SearchBar onResidenceSelect={showResidence} />
+            )}
 
-            <section className="home-page__listings">
-              {listingSections.map((section) => (
-                <ListingSection key={section.id} section={section} />
-              ))}
-            </section>
+            {activePage === "residence" ? (
+              <ResidencePage
+                residenceId={selectedResidenceId}
+                onApartmentSelect={showApartment}
+              />
+            ) : activePage === "apartment" ? (
+              <ApartmentPage
+                mode="details"
+                apartment={selectedApartment}
+                bookingDetails={bookingDetails}
+                onBookingChange={handleBookingChange}
+                onOpenPayment={openPaymentStep}
+              />
+            ) : activePage === "payment" ? (
+              <ApartmentPage
+                mode="payment"
+                apartment={selectedApartment}
+                bookingDetails={bookingDetails}
+                onBookingChange={handleBookingChange}
+                onPaymentContinue={openPendingStep}
+                onBackToApartment={() => setActivePage("apartment")}
+              />
+            ) : activePage === "pending" ? (
+              <ApartmentPage
+                mode="pending"
+                apartment={selectedApartment}
+                bookingDetails={bookingDetails}
+                onBackToPayment={() => setActivePage("payment")}
+                onMoveToConfirmed={openConfirmedStep}
+              />
+            ) : activePage === "confirmed" ? (
+              <ApartmentPage
+                mode="confirmed"
+                apartment={selectedApartment}
+                bookingDetails={bookingDetails}
+                onBackToPayment={() => setActivePage("pending")}
+                onFinishBooking={finishApartmentFlow}
+              />
+            ) : (
+              <section className="home-page__listings">
+                {listingSections.map((section) => (
+                  <ListingSection
+                    key={section.id}
+                    section={section}
+                    onApartmentSelect={showApartment}
+                  />
+                ))}
+              </section>
+            )}
           </main>
 
           <Footer />

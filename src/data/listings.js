@@ -29,6 +29,7 @@ function makeItem(sectionIndex, itemIndex) {
   return {
     id: `${sectionIndex + 1}-${itemIndex + 1}`,
     title: titles[itemIndex % titles.length],
+    residenceName: sectionNames[sectionIndex],
     location: locations[itemIndex % locations.length],
     guests: 8,
     rooms: 4,
@@ -63,9 +64,15 @@ const residenceBedroomSections = [
 ];
 
 function makeResidenceItem(residenceId, sectionIndex, itemIndex) {
+  const residenceName = residencePageTitles[residenceId].replace(
+    "Residences",
+    "Residence",
+  );
+
   return {
     id: `${residenceId}-${sectionIndex + 1}-${itemIndex + 1}`,
     title: titles[itemIndex % titles.length],
+    residenceName,
     location: "Oduduwa, Ikeja GRA",
     guests: 8,
     rooms: 4,

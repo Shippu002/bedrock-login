@@ -306,6 +306,7 @@ export default function AuthModal({
 
   function buildSessionUser(account) {
     const messages = Array.isArray(account.messages) ? account.messages : [];
+    const bookings = Array.isArray(account.bookings) ? account.bookings : [];
     const messageCount =
       account.messageCount ?? account.messagesCount ?? messages.length;
     const accountCountry =
@@ -323,6 +324,7 @@ export default function AuthModal({
       currency: account.currency || "",
       profilePhoto: account.profilePhoto || "",
       messages,
+      bookings,
       messageCount,
     };
   }
@@ -342,6 +344,7 @@ export default function AuthModal({
       profilePhoto: profilePhotoPreview,
       password,
       messages: [],
+      bookings: [],
       messageCount: 0,
     };
   }

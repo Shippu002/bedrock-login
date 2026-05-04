@@ -6,6 +6,7 @@ import {
   FiLogOut,
   FiMessageSquare,
   FiSettings,
+  FiShoppingBag,
   FiUser,
   FiUserPlus,
 } from "react-icons/fi";
@@ -40,6 +41,7 @@ export default function ProfileMenu({
         badge: normalizedMessageCount,
         onClick: onMessages,
       },
+      { id: "shop", label: "Shop", icon: FiShoppingBag, view: "shop" },
       { id: "profile", label: "Profile", icon: FiUser, onClick: onProfile },
     ],
     [

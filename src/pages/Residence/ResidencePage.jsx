@@ -2,7 +2,7 @@ import ListingSection from "../../components/ListingSection";
 import { getResidencePage } from "../../data/listings";
 import "./ResidencePage.css";
 
-function ResidencePage({ residenceId }) {
+function ResidencePage({ residenceId, onApartmentSelect }) {
   const residence = getResidencePage(residenceId);
 
   return (
@@ -11,7 +11,11 @@ function ResidencePage({ residenceId }) {
 
       <div className="residence-page__sections">
         {residence.sections.map((section) => (
-          <ListingSection key={section.id} section={section} />
+          <ListingSection
+            key={section.id}
+            section={section}
+            onApartmentSelect={onApartmentSelect}
+          />
         ))}
       </div>
     </section>

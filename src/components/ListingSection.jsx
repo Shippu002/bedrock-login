@@ -1,7 +1,7 @@
 import ListingCard from "./ListingCard";
 import "../styles/listing-section.css";
 
-function ListingSection({ section }) {
+function ListingSection({ section, onApartmentSelect }) {
   return (
     <section className="listing-section">
       <div className="listing-section__header">
@@ -23,6 +23,7 @@ function ListingSection({ section }) {
             key={item.id}
             item={item}
             showAvailableBadge={index === 0}
+            onApartmentSelect={onApartmentSelect}
           />
         ))}
       </div>

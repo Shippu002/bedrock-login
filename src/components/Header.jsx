@@ -5,11 +5,8 @@ import opebiImage from "../assets/opebi.jpg";
 import oduduwaImage from "../assets/oduduwa.jpg";
 import bateyeImage from "../assets/bateye.png";
 import communityImage from "../assets/community.jpg";
-import foodImage from "../assets/food.png";
-import shopImage from "../assets/shop.png";
-import servicesImage from "../assets/services.png";
-import requestImage from "../assets/request.png";
 import ProfileMenu from "./ProfileMenu";
+import { shopCategories } from "../data/shopCategories";
 import { getUserMessageCount } from "../utils/userMessages";
 import "../styles/header.css";
 
@@ -62,13 +59,6 @@ const residencesMenu = [
       "Serviced Studio",
     ],
   },
-];
-
-const shopsMenu = [
-  { id: "foods", title: "Foods", location: "Ikeja GRA Lagos Nigeria", image: foodImage },
-  { id: "shop", title: "Shop", location: "Ikeja GRA Lagos Nigeria", image: shopImage },
-  { id: "services", title: "Services", location: "Ikeja GRA Lagos Nigeria", image: servicesImage },
-  { id: "request", title: "Request", location: "Ikeja GRA Lagos Nigeria", image: requestImage },
 ];
 
 function Dropdown({
@@ -170,7 +160,7 @@ function Dropdown({
           <h3>Shops</h3>
 
           <div className="nav-mega__list nav-mega__list--shops">
-            {shopsMenu.map((item) => (
+            {shopCategories.map((item) => (
               <button
                 type="button"
                 className={`nav-mega__item ${
