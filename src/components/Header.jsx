@@ -1,26 +1,84 @@
 import { useState } from "react";
 import { FiBell, FiChevronDown, FiMenu } from "react-icons/fi";
 import bedrockLogo from "../assets/bedrock-logo.svg";
+import opebiImage from "../assets/opebi.jpg";
+import oduduwaImage from "../assets/oduduwa.jpg";
+import bateyeImage from "../assets/bateye.png";
+import communityImage from "../assets/community.jpg";
+import foodImage from "../assets/food.png";
+import shopImage from "../assets/shop.png";
+import servicesImage from "../assets/services.png";
+import requestImage from "../assets/request.png";
 import ProfileMenu from "./ProfileMenu";
 import { getUserMessageCount } from "../utils/userMessages";
 import "../styles/header.css";
 
 const residencesMenu = [
-  "Oduduwa's Residence",
-  "Bateye's Residence",
-  "Opebi I",
-  "Opebi II",
-  "Community",
+  {
+    id: "opebi",
+    title: "Opebi's Apartments",
+    location: "Ikeja GRA Lagos Nigeria",
+    image: opebiImage,
+    apartments: [
+      "1 Bedroom Apartment",
+      "2 Bedroom Apartment",
+      "3 Bedroom Apartment",
+      "Studio Apartment",
+    ],
+  },
+  {
+    id: "oduduwa",
+    title: "Oduduwa's Apartments",
+    location: "Ikeja GRA Lagos Nigeria",
+    image: oduduwaImage,
+    apartments: [
+      "2 Bedroom Deluxe",
+      "3 Bedroom Family Apartment",
+      "4 Bedroom Duplex",
+      "Penthouse Suite",
+    ],
+  },
+  {
+    id: "bateye",
+    title: "Bateye's Apartments",
+    location: "Ikeja GRA Lagos Nigeria",
+    image: bateyeImage,
+    apartments: [
+      "Single Room Apartment",
+      "Studio Apartment",
+      "1 Bedroom Apartment",
+      "2 Bedroom Apartment",
+    ],
+  },
+  {
+    id: "community",
+    title: "Community Apartments",
+    location: "Ikeja GRA Lagos Nigeria",
+    image: communityImage,
+    apartments: [
+      "Shared Apartment",
+      "1 Bedroom Apartment",
+      "2 Bedroom Apartment",
+      "Serviced Studio",
+    ],
+  },
 ];
 
 const shopsMenu = [
-  "Interior Shop",
-  "Furniture Shop",
-  "Lifestyle Shop",
-  "Accessories Shop",
+  { id: "foods", title: "Foods", location: "Ikeja GRA Lagos Nigeria", image: foodImage },
+  { id: "shop", title: "Shop", location: "Ikeja GRA Lagos Nigeria", image: shopImage },
+  { id: "services", title: "Services", location: "Ikeja GRA Lagos Nigeria", image: servicesImage },
+  { id: "request", title: "Request", location: "Ikeja GRA Lagos Nigeria", image: requestImage },
 ];
 
-function Dropdown({ label, items, isOpen, onToggle }) {
+function Dropdown({ label, type, isOpen, onToggle }) {
+  const [selectedResidenceId, setSelectedResidenceId] = useState(null);
+  const [selectedApartment, setSelectedApartment] = useState(null);
+  const [selectedShopId, setSelectedShopId] = useState(null);
+  const selectedResidence = residencesMenu.find(
+    (item) => item.id === selectedResidenceId,
+  );
+
   return (
     <div className="nav-dropdown">
       <button
@@ -36,13 +94,82 @@ function Dropdown({ label, items, isOpen, onToggle }) {
         </span>
       </button>
 
-      {isOpen && (
-        <div className="dropdown-menu">
-          {items.map((item) => (
-            <button key={item} className="dropdown-item" type="button">
-              {item}
-            </button>
-          ))}
+      {isOpen && type === "residences" && (
+        <div className="nav-mega nav-mega--residences">
+          <div className="nav-mega__column">
+            <h3>Residences</h3>
+
+            <div className="nav-mega__list">
+              {residencesMenu.map((item) => (
+                <button
+                  type="button"
+                  className={`nav-mega__item ${
+                    selectedResidenceId === item.id ? "nav-mega__item--active" : ""
+                  }`}
+                  onClick={() => {
+                    setSelectedResidenceId(item.id);
+                    setSelectedApartment(null);
+                  }}
+                  key={item.title}
+                >
+                  <img src={item.image} alt="" />
+                  <span>
+                    <strong>{item.title}</strong>
+                    <em>{item.location}</em>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="nav-mega__column nav-mega__column--types">
+            <h3>
+              {selectedResidence
+                ? `Apartment at ${selectedResidence.title.replace(" Apartments", "")}`
+                : "Select a residence"}
+            </h3>
+
+            <div className="nav-mega__types">
+              {(selectedResidence?.apartments || []).map((item) => (
+                <button
+                  type="button"
+                  className={`nav-mega__type ${
+                    selectedApartment === item ? "nav-mega__type--active" : ""
+                  }`}
+                  onClick={() => setSelectedApartment(item)}
+                  key={item}
+                >
+                  <strong>{item}</strong>
+                  <span>Find the best template for your business</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isOpen && type === "shops" && (
+        <div className="nav-mega nav-mega--shops">
+          <h3>Shops</h3>
+
+          <div className="nav-mega__list nav-mega__list--shops">
+            {shopsMenu.map((item) => (
+              <button
+                type="button"
+                className={`nav-mega__item ${
+                  selectedShopId === item.id ? "nav-mega__item--shop-active" : ""
+                }`}
+                onClick={() => setSelectedShopId(item.id)}
+                key={item.title}
+              >
+                <img src={item.image} alt="" />
+                <span>
+                  <strong>{item.title}</strong>
+                  <em>{item.location}</em>
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -56,6 +183,7 @@ export default function Header({
   onLogin,
   onSignup,
   onProfile,
+  onProfileView,
   onMessages,
   onBecomeAgent,
   onLogout,
@@ -87,6 +215,11 @@ export default function Header({
     onMessages?.();
   }
 
+  function handleProfileView(view) {
+    setIsProfileMenuOpen(false);
+    onProfileView?.(view);
+  }
+
   return (
     <header className="site-header">
       <div className="site-inner">
@@ -106,14 +239,14 @@ export default function Header({
         <nav className="nav-links">
           <Dropdown
             label="Residences"
-            items={residencesMenu}
+            type="residences"
             isOpen={openMenu === "residences"}
             onToggle={() => toggleMenu("residences")}
           />
 
           <Dropdown
             label="Shops"
-            items={shopsMenu}
+            type="shops"
             isOpen={openMenu === "shops"}
             onToggle={() => toggleMenu("shops")}
           />
@@ -171,6 +304,7 @@ export default function Header({
                   messageCount={messageCount}
                   onHome={handleHome}
                   onProfile={handleProfile}
+                  onProfileView={handleProfileView}
                   onMessages={handleMessages}
                   onBecomeAgent={onBecomeAgent}
                   onLogout={onLogout}

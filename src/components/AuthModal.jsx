@@ -25,15 +25,16 @@ import {
   FaUtensils,
 } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
+import {
+  countryOptions,
+  findCountryByDialCode,
+  findCountryById,
+  findCountryByName,
+  normalizeLocalPhoneNumber,
+} from "../utils/countries";
 import "../styles/auth-modal.css";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
-
-const countryOptions = [
-  { code: "+1", flag: "🇺🇸", name: "United States" },
-  { code: "+234", flag: "🇳🇬", name: "Nigeria" },
-  { code: "+44", flag: "🇬🇧", name: "United Kingdom" },
-];
 
 const initialFormData = {
   fullName: "",
@@ -88,7 +89,7 @@ export default function AuthModal({
   onAppleSignup,
   onAuthComplete,
 }) {
-  const [countryCode, setCountryCode] = useState("+1");
+  const [selectedCountryId, setSelectedCountryId] = useState("US");
   const [formData, setFormData] = useState(initialFormData);
   const [loginData, setLoginData] = useState(initialLoginData);
   const [isReferralActive, setIsReferralActive] = useState(false);
@@ -121,8 +122,9 @@ export default function AuthModal({
   const [referralCopied, setReferralCopied] = useState(false);
 
   const selectedCountry =
-    countryOptions.find((country) => country.code === countryCode) ||
+    findCountryById(selectedCountryId) ||
     countryOptions[0];
+  const selectedCurrency = selectedCountry.currency;
 
   const showReferralTip = isReferralActive || formData.referral.trim() !== "";
   const formattedResendTimer = `00:${String(resendTimer).padStart(2, "0")}`;
@@ -172,11 +174,24 @@ export default function AuthModal({
   }, [isOpen, currentStep, resendTimer]);
 
   function handleFieldChange(field, value) {
-    const nextValue = field === "phone" ? value.replace(/\D/g, "") : value;
+    const nextValue =
+      field === "phone"
+        ? normalizeLocalPhoneNumber(value, selectedCountry)
+        : value;
 
     setFormData((currentData) => ({
       ...currentData,
       [field]: nextValue,
+    }));
+  }
+
+  function handleCountryChange(countryId) {
+    const nextCountry = findCountryById(countryId) || countryOptions[0];
+
+    setSelectedCountryId(nextCountry.id);
+    setFormData((currentData) => ({
+      ...currentData,
+      phone: normalizeLocalPhoneNumber(currentData.phone, nextCountry),
     }));
   }
 
@@ -293,14 +308,19 @@ export default function AuthModal({
     const messages = Array.isArray(account.messages) ? account.messages : [];
     const messageCount =
       account.messageCount ?? account.messagesCount ?? messages.length;
+    const accountCountry =
+      findCountryByName(account.country) ||
+      findCountryByDialCode(account.countryCode);
 
     return {
       name: account.name,
       username: account.username,
       email: account.email,
-      phone: account.phone || "",
+      phone: normalizeLocalPhoneNumber(account.phone || "", accountCountry),
+      state: account.state || "",
       country: account.country || "",
       countryCode: account.countryCode || "",
+      currency: account.currency || "",
       profilePhoto: account.profilePhoto || "",
       messages,
       messageCount,
@@ -308,15 +328,17 @@ export default function AuthModal({
   }
 
   function buildRegisteredUser() {
-    const phone = formData.phone.trim();
+    const phone = normalizeLocalPhoneNumber(formData.phone, selectedCountry);
 
     return {
       name: formData.fullName.trim(),
       username: chosenUsername,
       email: formData.email.trim(),
       phone,
+      state: "",
       country: selectedCountry.name,
-      countryCode: selectedCountry.code,
+      countryCode: selectedCountry.dialCode,
+      currency: selectedCountry.currency,
       profilePhoto: profilePhotoPreview,
       password,
       messages: [],
@@ -373,7 +395,7 @@ export default function AuthModal({
   }
 
   function resetModalState() {
-    setCountryCode("+1");
+    setSelectedCountryId("US");
     setFormData(initialFormData);
     setLoginData(initialLoginData);
     setIsReferralActive(false);
@@ -653,13 +675,13 @@ export default function AuthModal({
                     </span>
 
                     <select
-                      value={countryCode}
-                      onChange={(event) => setCountryCode(event.target.value)}
+                      value={selectedCountryId}
+                      onChange={(event) => handleCountryChange(event.target.value)}
                       aria-label="Country code"
                     >
                       {countryOptions.map((country) => (
-                        <option key={country.code} value={country.code}>
-                          {country.code}
+                        <option key={country.id} value={country.id}>
+                          {country.dialCode} {country.name}
                         </option>
                       ))}
                     </select>
@@ -672,8 +694,9 @@ export default function AuthModal({
                       type="tel"
                       inputMode="numeric"
                       autoComplete="tel-national"
-                      placeholder="Placeholder"
+                      placeholder="9128671676"
                       value={formData.phone}
+                      maxLength={selectedCountry.localPhoneLength}
                       onChange={(event) =>
                         handleFieldChange("phone", event.target.value)
                       }
@@ -1185,9 +1208,11 @@ export default function AuthModal({
                   onChange={(event) => setBudgetRange(event.target.value)}
                 >
                   <option value="">Select</option>
-                  <option value="budget">Below NGN 100,000</option>
-                  <option value="mid">NGN 100,000 - NGN 250,000</option>
-                  <option value="luxury">Above NGN 250,000</option>
+                  <option value="budget">Below {selectedCurrency} 100,000</option>
+                  <option value="mid">
+                    {selectedCurrency} 100,000 - {selectedCurrency} 250,000
+                  </option>
+                  <option value="luxury">Above {selectedCurrency} 250,000</option>
                 </select>
 
                 <FiChevronDown className="auth-select-arrow" />

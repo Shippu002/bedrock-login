@@ -1,0 +1,105 @@
+.residence-page {
+  width: min(1512px, calc(100% - 72px));
+  margin: 56px auto 0;
+  padding: 36px 38px 56px;
+  border-radius: 34px;
+  background: #f7f7f7;
+}
+
+.residence-page__title {
+  margin: 0 0 26px;
+  color: #1a1a1a;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 36px;
+  font-weight: 500;
+  line-height: 44px;
+  text-align: center;
+}
+
+.residence-page__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+
+.residence-page .listing-section {
+  gap: 20px;
+}
+
+.residence-page .listing-section__title {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.residence-page .listing-section__controls {
+  gap: 8px;
+}
+
+.residence-page .listing-section__controls button {
+  width: 24px;
+  height: 24px;
+  color: #101928;
+  background: #e4e4e4;
+  font-size: 20px;
+}
+
+.residence-page .listing-section__grid {
+  column-gap: 24px;
+  row-gap: 34px;
+}
+
+@media (max-width: 1200px) {
+  .residence-page {
+    width: min(100%, calc(100% - 40px));
+    margin-top: 40px;
+    padding: 30px 24px 44px;
+  }
+
+  .residence-page__title {
+    font-size: 30px;
+    line-height: 38px;
+  }
+
+  .residence-page__sections {
+    gap: 44px;
+  }
+}
+
+@media (max-width: 760px) {
+  .residence-page {
+    width: min(100%, calc(100% - 24px));
+    margin-top: 28px;
+    padding: 24px 16px 34px;
+    border-radius: 24px;
+  }
+
+  .residence-page__title {
+    margin-bottom: 22px;
+    font-size: 26px;
+    line-height: 34px;
+  }
+
+  .residence-page__sections {
+    gap: 34px;
+  }
+
+  .residence-page .listing-section__title {
+    font-size: 16px;
+    line-height: 22px;
+  }
+}
+
+@media (max-width: 390px) {
+  .residence-page {
+    width: min(100%, calc(100% - 20px));
+    margin-top: 20px;
+    padding: 20px 12px 28px;
+    border-radius: 18px;
+  }
+
+  .residence-page__title {
+    font-size: 24px;
+    line-height: 30px;
+  }
+}

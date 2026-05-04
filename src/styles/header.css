@@ -125,6 +125,152 @@
   background: #faf6f2;
 }
 
+.nav-mega {
+  position: absolute;
+  top: calc(100% + 34px);
+  z-index: 70;
+  border: 1px solid #ece8e2;
+  background: #ffffff;
+  box-shadow: 0 22px 54px rgba(16, 25, 40, 0.12);
+  overflow: hidden;
+}
+
+.nav-mega--residences {
+  left: 50%;
+  width: min(1001px, calc(100vw - 48px));
+  min-height: 520px;
+  border-radius: 0 0 34px 34px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  transform: translateX(-42%);
+}
+
+.nav-mega--shops {
+  left: 50%;
+  width: min(540px, calc(100vw - 48px));
+  min-height: 560px;
+  padding: 44px 48px;
+  border-radius: 0 0 34px 34px;
+  transform: translateX(-45%);
+}
+
+.nav-mega__column {
+  padding: 34px 46px 42px;
+}
+
+.nav-mega__column--types {
+  background: #fafafa;
+  border-left: 1px solid #f2f2f2;
+}
+
+.nav-mega h3 {
+  margin: 0 0 30px;
+  color: #101928;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 28px;
+}
+
+.nav-mega__list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.nav-mega__list--shops {
+  gap: 36px;
+}
+
+.nav-mega__item {
+  width: 100%;
+  min-height: 82px;
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #101928;
+  display: grid;
+  grid-template-columns: 68px 1fr;
+  align-items: center;
+  gap: 20px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-mega__item--active {
+  background: #202a45;
+  color: #ffffff;
+}
+
+.nav-mega__item--shop-active {
+  border-color: #c58a68;
+  background: #c58a68;
+  color: #ffffff;
+}
+
+.nav-mega__item--active strong,
+.nav-mega__item--active em,
+.nav-mega__item--shop-active strong,
+.nav-mega__item--shop-active em {
+  color: #ffffff;
+}
+
+.nav-mega__item img {
+  width: 68px;
+  height: 68px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.nav-mega__item span,
+.nav-mega__types button {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nav-mega__item strong,
+.nav-mega__types strong {
+  color: #101928;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 26px;
+}
+
+.nav-mega__item em,
+.nav-mega__types span {
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 22px;
+}
+
+.nav-mega__types {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  margin-top: 72px;
+}
+
+.nav-mega__types button {
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-mega__type--active {
+  border-color: #d5dbea;
+  background: #eef2ff;
+}
+
 .header-actions,
 .header-user-area {
   display: flex;
@@ -332,6 +478,36 @@
   .dropdown-menu {
     min-width: 200px;
   }
+
+  .nav-mega--residences {
+    width: min(760px, calc(100vw - 32px));
+    min-height: auto;
+    max-height: calc(100vh - 180px);
+    overflow-y: auto;
+    transform: translateX(-36%);
+  }
+
+  .nav-mega--shops {
+    max-height: calc(100vh - 180px);
+    overflow-y: auto;
+    transform: translateX(-42%);
+  }
+
+  .nav-mega__column {
+    padding: 28px;
+  }
+
+  .nav-mega__item strong,
+  .nav-mega__types strong {
+    font-size: 16px;
+    line-height: 22px;
+  }
+
+  .nav-mega__item em,
+  .nav-mega__types span {
+    font-size: 13px;
+    line-height: 18px;
+  }
 }
 
 @media (max-width: 760px) {
@@ -407,6 +583,35 @@
     right: auto;
     min-width: 180px;
   }
+
+  .nav-mega,
+  .nav-mega--residences,
+  .nav-mega--shops {
+    left: 0;
+    right: auto;
+    width: min(520px, calc(100vw - 24px));
+    max-height: min(720px, calc(100vh - 160px));
+    transform: none;
+  }
+
+  .nav-mega--residences {
+    grid-template-columns: 1fr;
+  }
+
+  .nav-mega__column--types {
+    border-left: 0;
+    border-top: 1px solid #f2f2f2;
+  }
+
+  .nav-mega--shops,
+  .nav-mega__column {
+    padding: 22px;
+  }
+
+  .nav-mega__types {
+    margin-top: 28px;
+    gap: 22px;
+  }
 }
 
 @media (max-width: 1200px) {
@@ -456,6 +661,28 @@
 
   .nav-link {
     font-size: 12px;
+  }
+
+  .nav-mega,
+  .nav-mega--residences,
+  .nav-mega--shops {
+    width: calc(100vw - 20px);
+  }
+
+  .nav-mega__item {
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .nav-mega__item img {
+    width: 52px;
+    height: 52px;
+  }
+
+  .nav-mega--shops,
+  .nav-mega__column {
+    padding: 18px;
   }
 
   .btn {

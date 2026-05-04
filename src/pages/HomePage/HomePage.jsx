@@ -5,8 +5,7 @@ import ListingSection from "../../components/ListingSection";
 import { listingSections } from "../../data/listings";
 import Footer from "../../components/Footer";
 import AuthModal from "../../components/AuthModal";
-import { MessagesView, ProfileView } from "../../components/AccountViews";
-import { getUserMessageCount } from "../../utils/userMessages";
+import ProfilePage from "../Profile/ProfilePage";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
 
@@ -15,8 +14,8 @@ function HomePage() {
   const [authEntry, setAuthEntry] = useState("login");
   const [authModalKey, setAuthModalKey] = useState(0);
   const [currentUser, setCurrentUser] = useState(null);
-  const [activeView, setActiveView] = useState("home");
-  const messageCount = getUserMessageCount(currentUser);
+  const [activePage, setActivePage] = useState("home");
+  const [profileInitialView, setProfileInitialView] = useState("profile");
 
   function openLogin() {
     setAuthEntry("login");
@@ -36,30 +35,27 @@ function HomePage() {
 
   function handleAuthComplete(authenticatedUser) {
     setCurrentUser(authenticatedUser);
-    setActiveView("home");
+    setActivePage("home");
     setIsAuthModalOpen(false);
   }
 
   function showHome() {
-    setActiveView("home");
+    setActivePage("home");
+    setProfileInitialView("profile");
   }
 
-  function showProfile() {
+  function showProfile(profileView = "profile") {
     if (!currentUser) {
       openLogin();
       return;
     }
 
-    setActiveView("profile");
+    setProfileInitialView(profileView);
+    setActivePage("profile");
   }
 
   function showMessages() {
-    if (!currentUser) {
-      openLogin();
-      return;
-    }
-
-    setActiveView("messages");
+    showProfile("messages");
   }
 
   function handleProfileSave(profileUpdates) {
@@ -87,51 +83,80 @@ function HomePage() {
     });
   }
 
+  function handlePasswordChange({ currentPassword, nextPassword }) {
+    const savedAccount = JSON.parse(
+      localStorage.getItem(ACCOUNT_STORAGE_KEY) || "null",
+    );
+
+    if (!savedAccount?.password) {
+      return {
+        ok: false,
+        message: "No saved password found for this account.",
+      };
+    }
+
+    if (savedAccount.password !== currentPassword) {
+      return {
+        ok: false,
+        message: "Current password is incorrect.",
+      };
+    }
+
+    localStorage.setItem(
+      ACCOUNT_STORAGE_KEY,
+      JSON.stringify({
+        ...savedAccount,
+        password: nextPassword,
+      }),
+    );
+
+    return {
+      ok: true,
+      message: "Password updated successfully.",
+    };
+  }
+
   function handleBecomeAgent() {
     console.log("Become agent clicked");
   }
 
   function handleLogout() {
     setCurrentUser(null);
-    setActiveView("home");
+    setActivePage("home");
+    setProfileInitialView("profile");
   }
 
   return (
-    <div className="home-page">
-      <Header
-        user={currentUser}
-        activeView={activeView}
-        onHome={showHome}
-        onLogin={openLogin}
-        onSignup={openSignup}
-        onProfile={showProfile}
-        onMessages={showMessages}
-        onBecomeAgent={handleBecomeAgent}
-        onLogout={handleLogout}
-      />
+    <div
+      className={`home-page ${
+        activePage === "profile" ? "home-page--profile" : ""
+      }`}
+    >
+      {activePage === "profile" && currentUser ? (
+        <ProfilePage
+          user={currentUser}
+          initialView={profileInitialView}
+          onGoHome={showHome}
+          onProfileSave={handleProfileSave}
+          onPasswordChange={handlePasswordChange}
+          onLogout={handleLogout}
+        />
+      ) : (
+        <>
+          <Header
+            user={currentUser}
+            activeView="home"
+            onHome={showHome}
+            onLogin={openLogin}
+            onSignup={openSignup}
+            onProfile={() => showProfile("profile")}
+            onProfileView={showProfile}
+            onMessages={showMessages}
+            onBecomeAgent={handleBecomeAgent}
+            onLogout={handleLogout}
+          />
 
-      <main className="home-page__main">
-        {activeView === "profile" && currentUser ? (
-          <ProfileView
-            user={currentUser}
-            messageCount={messageCount}
-            onHome={showHome}
-            onMessages={showMessages}
-            onProfile={showProfile}
-            onProfileSave={handleProfileSave}
-            onLogout={handleLogout}
-          />
-        ) : activeView === "messages" && currentUser ? (
-          <MessagesView
-            user={currentUser}
-            messageCount={messageCount}
-            onHome={showHome}
-            onMessages={showMessages}
-            onProfile={showProfile}
-            onLogout={handleLogout}
-          />
-        ) : (
-          <>
+          <main className="home-page__main">
             <SearchBar />
 
             <section className="home-page__listings">
@@ -139,11 +164,11 @@ function HomePage() {
                 <ListingSection key={section.id} section={section} />
               ))}
             </section>
-          </>
-        )}
-      </main>
+          </main>
 
-      {activeView === "home" && <Footer />}
+          <Footer />
+        </>
+      )}
 
       <AuthModal
         key={authModalKey}

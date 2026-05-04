@@ -3,7 +3,6 @@ import {
   FiGlobe,
   FiHeart,
   FiHelpCircle,
-  FiHome,
   FiLogOut,
   FiMessageSquare,
   FiSettings,
@@ -16,8 +15,8 @@ export default function ProfileMenu({
   isOpen,
   activeView = "home",
   messageCount = 0,
-  onHome,
   onProfile,
+  onProfileView,
   onMessages,
   onBecomeAgent,
   onLogout,
@@ -32,36 +31,40 @@ export default function ProfileMenu({
 
   const menuGroups = [
     [
-      { label: "Wishlists", icon: FiHeart, active: activeView === "wishlists" },
-      { label: "Bookings", icon: FiCalendar },
+      { id: "wishlists", label: "Wishlists", icon: FiHeart, view: "wishlists" },
+      { id: "bookings", label: "Bookings", icon: FiCalendar, view: "bookings" },
       {
+        id: "messages",
         label: "Messages",
         icon: FiMessageSquare,
-        active: activeView === "messages",
         badge: normalizedMessageCount,
         onClick: onMessages,
       },
-      {
-        label: "Profile",
-        icon: FiUser,
-        active: activeView === "profile",
-        onClick: onProfile,
-      },
+      { id: "profile", label: "Profile", icon: FiUser, onClick: onProfile },
     ],
     [
       {
-        label: "Home",
-        icon: FiHome,
-        active: activeView === "home",
-        onClick: onHome,
+        id: "settings",
+        label: "Account and Settings",
+        icon: FiSettings,
+        view: "settings",
       },
-      { label: "Account and Settings", icon: FiSettings },
-      { label: "Language & Currency", icon: FiGlobe },
-      { label: "Help Center", icon: FiHelpCircle },
+      {
+        id: "language",
+        label: "Language & Currency",
+        icon: FiGlobe,
+        view: "settings",
+      },
+      { id: "help", label: "Help Center", icon: FiHelpCircle, view: "help" },
     ],
     [
-      { label: "Become an agent", icon: FiUserPlus, onClick: onBecomeAgent },
-      { label: "Log out", icon: FiLogOut, onClick: onLogout },
+      {
+        id: "agent",
+        label: "Become an agent",
+        icon: FiUserPlus,
+        onClick: onBecomeAgent,
+      },
+      { id: "logout", label: "Log out", icon: FiLogOut, onClick: onLogout },
     ],
   ];
 
@@ -71,16 +74,17 @@ export default function ProfileMenu({
         <div className="profile-menu__group" key={`group-${groupIndex}`}>
           {group.map((item) => {
             const Icon = item.icon;
+            const isActive = activeView === item.id;
 
             return (
               <button
                 type="button"
                 className={`profile-menu__item ${
-                  item.active ? "profile-menu__item--active" : ""
+                  isActive ? "profile-menu__item--active" : ""
                 }`}
-                onClick={item.onClick}
+                onClick={item.onClick || (() => onProfileView?.(item.view))}
                 role="menuitem"
-                key={item.label}
+                key={item.id}
               >
                 <span className="profile-menu__icon" aria-hidden="true">
                   <Icon />

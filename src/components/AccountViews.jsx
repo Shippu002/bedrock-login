@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   FiBell,
   FiCalendar,
@@ -15,21 +16,42 @@ import {
   FiShoppingBag,
 } from "react-icons/fi";
 import bedrockLogo from "../assets/bedrock-logo.svg";
+import {
+  countryOptions,
+  findCountryByDialCode,
+  findCountryByName,
+  getDialCodeDigits,
+  normalizeLocalPhoneNumber,
+} from "../utils/countries";
 import { getUserMessages } from "../utils/userMessages";
 import "../styles/account-views.css";
-
-const profileCountryOptions = [
-  { code: "+234", name: "Nigeria" },
-  { code: "+44", name: "United Kingdom" },
-  { code: "+1", name: "United States" },
-];
 
 function getProfileCountry(user) {
   if (user?.country) return user.country;
 
+  return findCountryByDialCode(user?.countryCode)?.name || "";
+}
+
+function getProfileState(user) {
+  return String(user?.state || "").trim();
+}
+
+function getProfileCurrency(user) {
   return (
-    profileCountryOptions.find((country) => country.code === user?.countryCode)
-      ?.name || "Nigeria"
+    user?.currency ||
+    findCountryByName(getProfileCountry(user))?.currency ||
+    findCountryByDialCode(user?.countryCode)?.currency ||
+    ""
+  );
+}
+
+function isImportantProfileComplete(user) {
+  return Boolean(
+    (user?.name || user?.username)?.trim?.() &&
+      user?.email?.trim?.() &&
+      user?.phone?.trim?.() &&
+      getProfileCountry(user).trim() &&
+      getProfileState(user).trim(),
   );
 }
 
@@ -163,7 +185,24 @@ export function ProfileView({
   onProfileSave,
   onLogout,
 }) {
+  const initialCountryName = getProfileCountry(user);
+  const initialCountry =
+    findCountryByName(initialCountryName) ||
+    findCountryByDialCode(user?.countryCode);
   const profilePhoto = user?.profilePhoto || "";
+  const [selectedCountryName, setSelectedCountryName] = useState(
+    initialCountryName,
+  );
+  const [phoneNumber, setPhoneNumber] = useState(() =>
+    normalizeLocalPhoneNumber(user?.phone, initialCountry),
+  );
+  const profileState = getProfileState(user);
+  const profileCurrency = getProfileCurrency(user);
+  const selectedCountry =
+    findCountryByName(selectedCountryName) ||
+    initialCountry;
+  const selectedPhoneCode = getDialCodeDigits(selectedCountry);
+  const isVerified = isImportantProfileComplete(user);
 
   function handleProfilePhotoChange(event) {
     const file = event.target.files?.[0];
@@ -183,18 +222,27 @@ export function ProfileView({
 
     const formData = new FormData(event.currentTarget);
     const country = String(formData.get("country") || "");
-    const selectedCountry = profileCountryOptions.find(
-      (option) => option.name === country,
-    );
+    const selectedCountry = findCountryByName(country);
 
     onProfileSave?.({
       name: String(formData.get("name") || "").trim(),
       email: String(formData.get("email") || "").trim(),
-      phone: String(formData.get("phone") || "").trim(),
+      phone: normalizeLocalPhoneNumber(phoneNumber, selectedCountry),
+      state: String(formData.get("state") || "").trim(),
       country,
-      countryCode: selectedCountry?.code || user?.countryCode || "",
+      countryCode: selectedCountry?.dialCode || user?.countryCode || "",
+      currency: selectedCountry?.currency || user?.currency || "",
       profilePhoto,
     });
+  }
+
+  function handleCountryChange(countryName) {
+    const nextCountry = findCountryByName(countryName);
+
+    setSelectedCountryName(countryName);
+    setPhoneNumber((currentPhoneNumber) =>
+      normalizeLocalPhoneNumber(currentPhoneNumber, nextCountry),
+    );
   }
 
   return (
@@ -234,10 +282,14 @@ export function ProfileView({
 
             <div className="profile-summary__text">
               <strong>{user?.name || user?.username || "Bedrock User"}</strong>
-              <span>Lagos NGN</span>
-              <em>
-                Verified
-                <FiCheckCircle />
+              <span className={!profileState ? "is-placeholder" : ""}>
+                {profileState
+                  ? `${profileState}${profileCurrency ? ` ${profileCurrency}` : ""}`
+                  : "State"}
+              </span>
+              <em className={isVerified ? "" : "is-unverified"}>
+                {isVerified ? "Verified" : "Not verified"}
+                {isVerified && <FiCheckCircle />}
               </em>
             </div>
 
@@ -265,23 +317,59 @@ export function ProfileView({
               <input name="email" defaultValue={user?.email || ""} type="email" />
             </label>
 
-            <label className="profile-field">
+            <label className="profile-field profile-field--phone">
               <span>Phone Number</span>
-              <input
-                name="phone"
-                defaultValue={user?.phone || ""}
-                placeholder="Add phone number"
-                type="tel"
-              />
+              <div className="profile-phone-input">
+                {selectedPhoneCode && (
+                  <span className="profile-phone-code" aria-hidden="true">
+                    ({selectedPhoneCode})
+                  </span>
+                )}
+                <input
+                  name="phone"
+                  value={phoneNumber}
+                  maxLength={selectedCountry?.localPhoneLength}
+                  placeholder="9128671676"
+                  type="tel"
+                  onChange={(event) =>
+                    setPhoneNumber(
+                      normalizeLocalPhoneNumber(
+                        event.target.value,
+                        selectedCountry,
+                      ),
+                    )
+                  }
+                />
+              </div>
             </label>
 
-            <label className="profile-field profile-field--select">
+            <label className="profile-field">
+              <span>State</span>
+              <input name="state" defaultValue={profileState} placeholder="State" />
+            </label>
+
+            <label className="profile-field profile-field--select profile-field--country">
               <span>Select Country</span>
-              <select name="country" defaultValue={getProfileCountry(user)}>
-                {profileCountryOptions.map((country) => (
-                  <option key={country.code}>{country.name}</option>
-                ))}
-              </select>
+              <div className="profile-country-select">
+                {selectedCountry?.flag && (
+                  <span className="profile-country-flag" aria-hidden="true">
+                    {selectedCountry.flag}
+                  </span>
+                )}
+                <select
+                  name="country"
+                  value={selectedCountryName}
+                  onChange={(event) => handleCountryChange(event.target.value)}
+                >
+                  <option value="" disabled>
+                    Select country
+                  </option>
+                  {countryOptions.map((country) => (
+                    <option key={country.id}>{country.name}</option>
+                  ))}
+                </select>
+                <FiChevronDown />
+              </div>
             </label>
 
             <button type="submit" className="profile-save">

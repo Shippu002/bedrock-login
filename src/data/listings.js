@@ -48,3 +48,53 @@ export const listingSections = sectionNames.map((name, sectionIndex) => ({
     makeItem(sectionIndex, itemIndex),
   ),
 }));
+
+const residencePageTitles = {
+  opebi: "Opebi's Residences",
+  oduduwa: "Oduduwa's Residences",
+  bateye: "Bateye's Residences",
+  community: "Community's Residences",
+};
+
+const residenceBedroomSections = [
+  "1 Bedroom apartment",
+  "2 Bedroom apartment",
+  "3 Bedroom apartment",
+];
+
+function makeResidenceItem(residenceId, sectionIndex, itemIndex) {
+  return {
+    id: `${residenceId}-${sectionIndex + 1}-${itemIndex + 1}`,
+    title: titles[itemIndex % titles.length],
+    location: "Oduduwa, Ikeja GRA",
+    guests: 8,
+    rooms: 4,
+    cars: 2,
+    wifi: true,
+    rating: 4.8,
+    price: 200000,
+    image: itemIndex === 0 ? listingPrimary : listingSecondary,
+    available: itemIndex === 0,
+  };
+}
+
+export const residencePages = Object.entries(residencePageTitles).map(
+  ([id, title]) => ({
+    id,
+    title,
+    sections: residenceBedroomSections.map((sectionTitle, sectionIndex) => ({
+      id: `${id}-${sectionIndex + 1}`,
+      title: `${sectionTitle} >`,
+      items: Array.from({ length: 5 }, (_, itemIndex) =>
+        makeResidenceItem(id, sectionIndex, itemIndex),
+      ),
+    })),
+  }),
+);
+
+export function getResidencePage(residenceId) {
+  return (
+    residencePages.find((residence) => residence.id === residenceId) ||
+    residencePages[0]
+  );
+}

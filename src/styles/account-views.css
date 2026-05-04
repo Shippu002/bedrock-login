@@ -253,6 +253,10 @@
   font-size: 12px;
 }
 
+.profile-summary__text span.is-placeholder {
+  color: #98a2b3;
+}
+
 .profile-summary__text em {
   width: fit-content;
   min-height: 22px;
@@ -266,6 +270,11 @@
   font-size: 11px;
   font-style: normal;
   font-weight: 600;
+}
+
+.profile-summary__text em.is-unverified {
+  background: #fee4e2;
+  color: #d92d20;
 }
 
 .profile-summary__text em svg {
@@ -310,6 +319,7 @@
   flex-direction: column;
   gap: 7px;
   background: #ffffff;
+  position: relative;
 }
 
 .profile-field span {
@@ -330,8 +340,57 @@
   font-weight: 500;
 }
 
+.profile-phone-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-field .profile-phone-code {
+  color: #101928;
+  font-size: 14px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
 .profile-field--select {
   width: min(320px, 100%);
+}
+
+.profile-country-select {
+  width: 100%;
+  min-height: 24px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-country-select select {
+  min-width: 0;
+  padding: 0;
+  appearance: none;
+  line-height: 22px;
+}
+
+.profile-field .profile-country-flag {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.profile-country-select > svg {
+  width: 16px;
+  height: 16px;
+  color: #98a2b3;
+  pointer-events: none;
 }
 
 .profile-save {

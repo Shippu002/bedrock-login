@@ -28,11 +28,11 @@
   border-radius: 0;
   border: none;
   background: transparent;
+  color: #050505;
   display: flex;
   align-items: center;
   gap: 10px;
   font-family: "Inter", Arial, sans-serif;
-  color: #050505;
   font-size: 12px;
   font-weight: 400;
   line-height: 18px;
@@ -65,8 +65,6 @@
 }
 
 .profile-menu__item--active .profile-menu__icon {
-  width: 24px;
-  height: 24px;
   border-radius: 999px;
   background: #050505;
   color: #ffffff;
