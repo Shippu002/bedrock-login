@@ -12,6 +12,7 @@ import {
 } from "react-icons/fi";
 import { FaUniversity } from "react-icons/fa";
 import { foodItems } from "../../data/foodItems";
+import breakfastImage from "../../assets/bookings.jpg";
 import foodHeroImage from "../../assets/food-1.png";
 import foodImage from "../../assets/food.png";
 import {
@@ -23,8 +24,8 @@ import "./ShopFoodPage.css";
 
 const categoryFilters = [
   { id: "all", label: "All Menu", image: foodImage },
-  { id: "breakfast", label: "Breakfast", image: foodImage },
-  { id: "lunch", label: "Lunch", image: foodImage },
+  { id: "breakfast", label: "Breakfast", image: breakfastImage },
+  { id: "lunch", label: "Lunch", image: foodHeroImage },
   { id: "dinner", label: "Dinner", image: foodImage },
 ];
 
