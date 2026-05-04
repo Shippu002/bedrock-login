@@ -71,13 +71,33 @@ const shopsMenu = [
   { id: "request", title: "Request", location: "Ikeja GRA Lagos Nigeria", image: requestImage },
 ];
 
-function Dropdown({ label, type, isOpen, onToggle }) {
-  const [selectedResidenceId, setSelectedResidenceId] = useState(null);
+function Dropdown({
+  label,
+  type,
+  isOpen,
+  onToggle,
+  onClose,
+  onResidenceSelect,
+}) {
+  const [selectedResidenceId, setSelectedResidenceId] = useState("opebi");
   const [selectedApartment, setSelectedApartment] = useState(null);
   const [selectedShopId, setSelectedShopId] = useState(null);
   const selectedResidence = residencesMenu.find(
     (item) => item.id === selectedResidenceId,
   );
+
+  function handleResidenceClick(residenceId) {
+    setSelectedResidenceId(residenceId);
+    setSelectedApartment(null);
+    onResidenceSelect?.(residenceId);
+    onClose?.();
+  }
+
+  function handleApartmentClick(apartment) {
+    setSelectedApartment(apartment);
+    onResidenceSelect?.(selectedResidenceId);
+    onClose?.();
+  }
 
   return (
     <div className="nav-dropdown">
@@ -106,10 +126,7 @@ function Dropdown({ label, type, isOpen, onToggle }) {
                   className={`nav-mega__item ${
                     selectedResidenceId === item.id ? "nav-mega__item--active" : ""
                   }`}
-                  onClick={() => {
-                    setSelectedResidenceId(item.id);
-                    setSelectedApartment(null);
-                  }}
+                  onClick={() => handleResidenceClick(item.id)}
                   key={item.title}
                 >
                   <img src={item.image} alt="" />
@@ -136,7 +153,7 @@ function Dropdown({ label, type, isOpen, onToggle }) {
                   className={`nav-mega__type ${
                     selectedApartment === item ? "nav-mega__type--active" : ""
                   }`}
-                  onClick={() => setSelectedApartment(item)}
+                  onClick={() => handleApartmentClick(item)}
                   key={item}
                 >
                   <strong>{item}</strong>
@@ -185,6 +202,7 @@ export default function Header({
   onProfile,
   onProfileView,
   onMessages,
+  onResidenceSelect,
   onBecomeAgent,
   onLogout,
 }) {
@@ -220,6 +238,11 @@ export default function Header({
     onProfileView?.(view);
   }
 
+  function handleResidenceSelect(residenceId) {
+    setIsProfileMenuOpen(false);
+    onResidenceSelect?.(residenceId);
+  }
+
   return (
     <header className="site-header">
       <div className="site-inner">
@@ -242,6 +265,8 @@ export default function Header({
             type="residences"
             isOpen={openMenu === "residences"}
             onToggle={() => toggleMenu("residences")}
+            onClose={() => setOpenMenu(null)}
+            onResidenceSelect={handleResidenceSelect}
           />
 
           <Dropdown

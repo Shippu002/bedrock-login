@@ -123,9 +123,9 @@ function CalendarMonth({ mutedStart = false }) {
   );
 }
 
-function SearchBar() {
+function SearchBar({ onResidenceSelect }) {
   const [openPanel, setOpenPanel] = useState(null);
-  const [selectedResidenceId, setSelectedResidenceId] = useState(null);
+  const [selectedResidenceId, setSelectedResidenceId] = useState("opebi");
   const [selectedApartment, setSelectedApartment] = useState(null);
   const [guestCounts, setGuestCounts] = useState({
     adults: 0,
@@ -137,7 +137,7 @@ function SearchBar() {
   const totalGuests = guestCounts.adults + guestCounts.children;
   const selectedResidence = residenceOptions.find(
     (item) => item.id === selectedResidenceId,
-  );
+  ) || residenceOptions[0];
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -153,6 +153,19 @@ function SearchBar() {
       ...currentCounts,
       [id]: Math.max(0, currentCounts[id] + direction),
     }));
+  }
+
+  function handleResidenceClick(residenceId) {
+    setSelectedResidenceId(residenceId);
+    setSelectedApartment(null);
+    setOpenPanel(null);
+    onResidenceSelect?.(residenceId);
+  }
+
+  function handleApartmentClick(apartment) {
+    setSelectedApartment(apartment);
+    setOpenPanel(null);
+    onResidenceSelect?.(selectedResidence.id);
   }
 
   return (
@@ -225,10 +238,7 @@ function SearchBar() {
                         ? "search-popover__item--active"
                         : ""
                     }`}
-                    onClick={() => {
-                      setSelectedResidenceId(item.id);
-                      setSelectedApartment(null);
-                    }}
+                    onClick={() => handleResidenceClick(item.id)}
                     key={item.title}
                   >
                     <img src={item.image} alt="" />
@@ -257,7 +267,7 @@ function SearchBar() {
                         ? "search-popover__type--active"
                         : ""
                     }
-                    onClick={() => setSelectedApartment(item)}
+                    onClick={() => handleApartmentClick(item)}
                     key={item}
                   >
                     <strong>{item}</strong>

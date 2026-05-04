@@ -18,6 +18,7 @@ import {
   FiLogOut,
   FiMail,
   FiMapPin,
+  FiMenu,
   FiMessageSquare,
   FiMoreVertical,
   FiPhone,
@@ -163,22 +164,40 @@ function isImportantProfileComplete(user) {
 
 function ProfileSidebar({
   activeView,
+  isMenuOpen,
   messageCount,
   onChangeView,
+  onCloseMenu,
   onGoHome,
   onLogout,
+  onToggleMenu,
 }) {
   return (
-    <aside className="profile-sidebar">
-      <button
-        type="button"
-        className="profile-sidebar__brand"
-        onClick={onGoHome}
-        aria-label="Go to homepage"
-      >
-        <img src={bedrockLogo} alt="Bedrock Residences" />
-        <span aria-hidden="true">...</span>
-      </button>
+    <aside
+      className={`profile-sidebar ${
+        isMenuOpen ? "profile-sidebar--open" : ""
+      }`}
+    >
+      <div className="profile-sidebar__head">
+        <button
+          type="button"
+          className="profile-sidebar__brand"
+          onClick={onGoHome}
+          aria-label="Go to homepage"
+        >
+          <img src={bedrockLogo} alt="Bedrock Residences" />
+        </button>
+
+        <button
+          type="button"
+          className="profile-sidebar__menu-button"
+          onClick={onToggleMenu}
+          aria-label={isMenuOpen ? "Close sidebar menu" : "Open sidebar menu"}
+          aria-expanded={isMenuOpen}
+        >
+          <FiMenu />
+        </button>
+      </div>
 
       <nav className="profile-sidebar__nav" aria-label="Profile navigation">
         {sidebarItems.map((item) => {
@@ -191,7 +210,10 @@ function ProfileSidebar({
               className={`profile-sidebar__item ${
                 isActive ? "profile-sidebar__item--active" : ""
               }`}
-              onClick={() => onChangeView(item.id)}
+              onClick={() => {
+                onChangeView(item.id);
+                onCloseMenu?.();
+              }}
               key={item.id}
             >
               <Icon />
@@ -206,7 +228,14 @@ function ProfileSidebar({
         })}
       </nav>
 
-      <button type="button" className="profile-sidebar__logout" onClick={onLogout}>
+      <button
+        type="button"
+        className="profile-sidebar__logout"
+        onClick={() => {
+          onCloseMenu?.();
+          onLogout?.();
+        }}
+      >
         <FiLogOut />
         <span>Log out</span>
       </button>
@@ -499,12 +528,12 @@ function WishlistView({ onBack }) {
 
 function BookingCard({ booking, isPast }) {
   return (
-    <article className="booking-card">
+    <article className="booking-row">
       <div className="booking-card__media">
         <img src={booking.image} alt={booking.title} />
       </div>
 
-      <div className="booking-card__content">
+      <div className="booking-card">
         <div className="booking-card__header">
           <strong>{booking.title}</strong>
           <span className="booking-card__id">
@@ -999,6 +1028,7 @@ export default function ProfilePage({
 }) {
   const [activeView, setActiveView] = useState(() => initialView);
   const [viewHistory, setViewHistory] = useState([]);
+  const [isSidebarMenuOpen, setIsSidebarMenuOpen] = useState(false);
   const messageCount = getUserMessageCount(user);
 
   function navigateToView(nextView) {
@@ -1061,10 +1091,13 @@ export default function ProfilePage({
     <div className="profile-page">
       <ProfileSidebar
         activeView={activeView}
+        isMenuOpen={isSidebarMenuOpen}
         messageCount={messageCount}
         onChangeView={navigateToView}
+        onCloseMenu={() => setIsSidebarMenuOpen(false)}
         onGoHome={onGoHome}
         onLogout={onLogout}
+        onToggleMenu={() => setIsSidebarMenuOpen((current) => !current)}
       />
 
       <main className="profile-main">
