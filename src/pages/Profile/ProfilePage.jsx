@@ -687,9 +687,7 @@ function MessagesView() {
   );
 }
 
-function ShopView({ onBack }) {
-  const [selectedShopId, setSelectedShopId] = useState("foods");
-
+function ShopView({ onBack, onShopSelect }) {
   return (
     <section className="profile-panel profile-panel--soft profile-shop-panel">
       <ViewHeading title="Shops" onBack={onBack} />
@@ -698,11 +696,8 @@ function ShopView({ onBack }) {
         {shopCategories.map((item) => (
           <button
             type="button"
-            className={`profile-shop-card__item ${
-              selectedShopId === item.id ? "profile-shop-card__item--active" : ""
-            }`}
-            aria-pressed={selectedShopId === item.id}
-            onClick={() => setSelectedShopId(item.id)}
+            className="profile-shop-card__item"
+            onClick={() => onShopSelect?.(item.id)}
             key={item.id}
           >
             <img src={item.image} alt="" />
@@ -1053,6 +1048,7 @@ export default function ProfilePage({
   onGoHome,
   onProfileSave,
   onPasswordChange,
+  onShopSelect,
   onLogout,
 }) {
   const [activeView, setActiveView] = useState(() => initialView);
@@ -1088,7 +1084,7 @@ export default function ProfilePage({
       case "messages":
         return <MessagesView />;
       case "shop":
-        return <ShopView onBack={goBack} />;
+        return <ShopView onBack={goBack} onShopSelect={onShopSelect} />;
       case "settings":
         return (
           <ChangePasswordView

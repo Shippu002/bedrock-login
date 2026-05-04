@@ -203,16 +203,14 @@
   color: #ffffff;
 }
 
-.nav-mega__item--shop-active {
-  border-color: #c58a68;
-  background: #c58a68;
-  color: #ffffff;
+.nav-mega--shops .nav-mega__item:hover {
+  border-color: #efc6af;
+  background: #fff4ee;
+  color: #101928;
 }
 
 .nav-mega__item--active strong,
-.nav-mega__item--active em,
-.nav-mega__item--shop-active strong,
-.nav-mega__item--shop-active em {
+.nav-mega__item--active em {
   color: #ffffff;
 }
 

@@ -8,6 +8,8 @@ import AuthModal from "../../components/AuthModal";
 import ProfilePage from "../Profile/ProfilePage";
 import ResidencePage from "../Residence/ResidencePage";
 import ApartmentPage from "../Apartment/ApartmentPage";
+import ShopFoodPage from "../ShopFood/ShopFoodPage";
+import { foodItems } from "../../data/foodItems";
 import { decorateApartmentWithMedia } from "../../utils/apartmentMedia";
 import {
   addDays,
@@ -16,6 +18,11 @@ import {
   ensureCheckoutDate,
   getTodayDateValue,
 } from "../../utils/bookings";
+import {
+  calculateFoodOrderTotals,
+  createDefaultFoodOrderDetails,
+  createFoodOrderId,
+} from "../../utils/foodOrders";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
 
@@ -44,6 +51,10 @@ function HomePage() {
   const [selectedApartment, setSelectedApartment] = useState(null);
   const [bookingDetails, setBookingDetails] = useState(() =>
     createDefaultBookingDetails(),
+  );
+  const [selectedFoodItem, setSelectedFoodItem] = useState(foodItems[0]);
+  const [foodOrderDetails, setFoodOrderDetails] = useState(() =>
+    createDefaultFoodOrderDetails(),
   );
 
   function syncSavedAccount(nextUser) {
@@ -110,6 +121,15 @@ function HomePage() {
     setProfileInitialView("profile");
   }
 
+  function showShop(shopId) {
+    if (shopId !== "foods") {
+      return;
+    }
+
+    setActivePage("shopFood");
+    setProfileInitialView("profile");
+  }
+
   function showApartment(apartment) {
     setSelectedApartment(decorateApartmentWithMedia(apartment));
     setBookingDetails(createDefaultBookingDetails());
@@ -129,6 +149,13 @@ function HomePage() {
 
   function showMessages() {
     showProfile("messages");
+  }
+
+  function showFoodDetail(foodItem) {
+    setSelectedFoodItem(foodItem);
+    setFoodOrderDetails(createDefaultFoodOrderDetails());
+    setActivePage("foodDetail");
+    setProfileInitialView("profile");
   }
 
   function handleProfileSave(profileUpdates) {
@@ -207,6 +234,19 @@ function HomePage() {
     }));
   }
 
+  function handleFoodOrderChange(field, value) {
+    setFoodOrderDetails((current) => ({
+      ...current,
+      ...(field === "guests"
+        ? {
+            guests: Math.max(1, Number(value) || 1),
+          }
+        : {
+            [field]: value,
+          }),
+    }));
+  }
+
   function openPaymentStep() {
     setActivePage("payment");
   }
@@ -268,6 +308,44 @@ function HomePage() {
     setActivePage("profile");
   }
 
+  function finishFoodOrderFlow() {
+    if (currentUser && selectedFoodItem) {
+      const totals = calculateFoodOrderTotals(
+        selectedFoodItem.price,
+        foodOrderDetails.guests,
+        foodOrderDetails.useRockPoints,
+      );
+
+      const nextOrder = {
+        id: createFoodOrderId(),
+        title: selectedFoodItem.title,
+        image: selectedFoodItem.detailImage || selectedFoodItem.image,
+        apartmentNumber: foodOrderDetails.apartmentNumber,
+        deliveryTime: foodOrderDetails.deliveryTime,
+        guests: foodOrderDetails.guests,
+        note: foodOrderDetails.note,
+        unitPrice: selectedFoodItem.price,
+        subtotal: totals.subtotal,
+        taxesAndFees: totals.taxesAndFees,
+        cautionFee: totals.cautionFee,
+        rockPointValue: totals.rockPointValue,
+        totalAmount: totals.payable,
+        createdAt: new Date().toISOString(),
+      };
+
+      updateCurrentUser((current) => {
+        if (!current) return current;
+
+        return {
+          ...current,
+          orders: [nextOrder, ...(current.orders || [])],
+        };
+      });
+    }
+
+    setActivePage("home");
+  }
+
   return (
     <div
       className={`home-page ${
@@ -282,6 +360,7 @@ function HomePage() {
           onGoHome={showHome}
           onProfileSave={handleProfileSave}
           onPasswordChange={handlePasswordChange}
+          onShopSelect={showShop}
           onLogout={handleLogout}
         />
       ) : (
@@ -296,12 +375,20 @@ function HomePage() {
             onProfileView={showProfile}
             onMessages={showMessages}
             onResidenceSelect={showResidence}
+            onShopSelect={showShop}
             onBecomeAgent={handleBecomeAgent}
             onLogout={handleLogout}
           />
 
           <main className="home-page__main">
-            {["home", "residence", "apartment"].includes(activePage) && (
+            {[
+              "home",
+              "residence",
+              "apartment",
+              "shopFood",
+              "foodDetail",
+              "foodReview",
+            ].includes(activePage) && (
               <SearchBar onResidenceSelect={showResidence} />
             )}
 
@@ -342,6 +429,41 @@ function HomePage() {
                 bookingDetails={bookingDetails}
                 onBackToPayment={() => setActivePage("pending")}
                 onFinishBooking={finishApartmentFlow}
+              />
+            ) : activePage === "shopFood" ? (
+              <ShopFoodPage mode="list" onFoodSelect={showFoodDetail} />
+            ) : activePage === "foodDetail" ? (
+              <ShopFoodPage
+                mode="detail"
+                foodItem={selectedFoodItem}
+                orderDetails={foodOrderDetails}
+                onOrderChange={handleFoodOrderChange}
+                onProceedToReview={() => setActivePage("foodReview")}
+              />
+            ) : activePage === "foodReview" ? (
+              <ShopFoodPage
+                mode="review"
+                foodItem={selectedFoodItem}
+                orderDetails={foodOrderDetails}
+                onOrderChange={handleFoodOrderChange}
+                onBackToFood={() => setActivePage("foodDetail")}
+                onProceedToPayment={() => setActivePage("foodPayment")}
+              />
+            ) : activePage === "foodPayment" ? (
+              <ShopFoodPage
+                mode="payment"
+                foodItem={selectedFoodItem}
+                orderDetails={foodOrderDetails}
+                onOrderChange={handleFoodOrderChange}
+                onBackToReview={() => setActivePage("foodReview")}
+                onPaymentContinue={() => setActivePage("foodStatus")}
+              />
+            ) : activePage === "foodStatus" ? (
+              <ShopFoodPage
+                mode="status"
+                foodItem={selectedFoodItem}
+                orderDetails={foodOrderDetails}
+                onFinishOrder={finishFoodOrderFlow}
               />
             ) : (
               <section className="home-page__listings">

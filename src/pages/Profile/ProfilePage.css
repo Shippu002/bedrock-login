@@ -737,8 +737,7 @@
   cursor: pointer;
 }
 
-.profile-shop-card__item:hover,
-.profile-shop-card__item--active {
+.profile-shop-card__item:hover {
   border-color: #efb790;
   background: #fff2eb;
 }

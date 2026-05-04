@@ -68,10 +68,10 @@ function Dropdown({
   onToggle,
   onClose,
   onResidenceSelect,
+  onShopSelect,
 }) {
   const [selectedResidenceId, setSelectedResidenceId] = useState("opebi");
   const [selectedApartment, setSelectedApartment] = useState(null);
-  const [selectedShopId, setSelectedShopId] = useState(null);
   const selectedResidence = residencesMenu.find(
     (item) => item.id === selectedResidenceId,
   );
@@ -86,6 +86,11 @@ function Dropdown({
   function handleApartmentClick(apartment) {
     setSelectedApartment(apartment);
     onResidenceSelect?.(selectedResidenceId);
+    onClose?.();
+  }
+
+  function handleShopClick(shopId) {
+    onShopSelect?.(shopId);
     onClose?.();
   }
 
@@ -163,10 +168,8 @@ function Dropdown({
             {shopCategories.map((item) => (
               <button
                 type="button"
-                className={`nav-mega__item ${
-                  selectedShopId === item.id ? "nav-mega__item--shop-active" : ""
-                }`}
-                onClick={() => setSelectedShopId(item.id)}
+                className="nav-mega__item"
+                onClick={() => handleShopClick(item.id)}
                 key={item.title}
               >
                 <img src={item.image} alt="" />
@@ -193,6 +196,7 @@ export default function Header({
   onProfileView,
   onMessages,
   onResidenceSelect,
+  onShopSelect,
   onBecomeAgent,
   onLogout,
 }) {
@@ -233,6 +237,11 @@ export default function Header({
     onResidenceSelect?.(residenceId);
   }
 
+  function handleShopSelect(shopId) {
+    setIsProfileMenuOpen(false);
+    onShopSelect?.(shopId);
+  }
+
   return (
     <header className="site-header">
       <div className="site-inner">
@@ -264,6 +273,8 @@ export default function Header({
             type="shops"
             isOpen={openMenu === "shops"}
             onToggle={() => toggleMenu("shops")}
+            onClose={() => setOpenMenu(null)}
+            onShopSelect={handleShopSelect}
           />
 
           <button className="nav-link nav-link-orders" type="button">

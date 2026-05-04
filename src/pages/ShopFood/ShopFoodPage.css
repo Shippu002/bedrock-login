@@ -1,0 +1,870 @@
+.shop-food-flow {
+  width: min(1288px, calc(100% - 72px));
+  margin: 56px auto 0;
+}
+
+.shop-food-panel {
+  background: #f7f7f7;
+  border-radius: 32px;
+  padding: 34px 34px 38px;
+}
+
+.shop-food-title {
+  margin: 0 0 24px;
+  text-align: center;
+  color: #1a1a1a;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 40px;
+}
+
+.shop-food-filters {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.shop-food-filter {
+  min-height: 36px;
+  padding: 4px 14px 4px 4px;
+  border: 1px solid #e4e4e4;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #667085;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.shop-food-filter--active {
+  border-color: #efc6af;
+  background: #fff4ee;
+  color: #101928;
+}
+
+.shop-food-filter img {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+.shop-food-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(240px, 0.9fr);
+  gap: 28px;
+  margin: 0 auto 70px;
+  max-width: 940px;
+}
+
+.shop-food-hero-grid img {
+  width: 100%;
+  height: 320px;
+  border-radius: 22px;
+  object-fit: cover;
+  display: block;
+}
+
+.shop-food-hero-grid img:first-child {
+  object-position: center 48%;
+}
+
+.shop-food-hero-grid img:last-child {
+  object-position: center 42%;
+}
+
+.shop-food-grid {
+  width: min(960px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 36px 24px;
+}
+
+.shop-food-card {
+  overflow: hidden;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(16, 25, 40, 0.04);
+}
+
+.shop-food-card__image-wrap {
+  position: relative;
+  height: 154px;
+  overflow: hidden;
+  background: #ebe6df;
+}
+
+.shop-food-card__image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.shop-food-card__badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+}
+
+.shop-food-card__body {
+  padding: 12px 14px 14px;
+}
+
+.shop-food-card__top,
+.shop-food-card__bottom,
+.shop-food-detail__heading,
+.shop-food-review__heading,
+.shop-food-policy {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.shop-food-card h3,
+.shop-food-review__heading h2,
+.shop-food-status-card h2 {
+  margin: 0;
+  color: #101928;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.shop-food-tags {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.shop-food-tags span {
+  min-height: 14px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #f7f7f7;
+  color: #98a2b3;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 8px;
+  font-weight: 600;
+}
+
+.shop-food-tags span:last-child {
+  background: #c8f6d9;
+  color: #2f9e63;
+}
+
+.shop-food-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.shop-food-rating svg {
+  width: 14px;
+  height: 14px;
+  fill: #dfcb1c;
+  color: #dfcb1c;
+}
+
+.shop-food-card p,
+.shop-food-card small,
+.shop-food-detail__heading p,
+.shop-food-review__heading p,
+.shop-food-status-card p,
+.shop-food-status-card small,
+.shop-food-policy p {
+  margin: 0;
+  color: #98a2b3;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.shop-food-card small,
+.shop-food-status-card small {
+  display: block;
+  margin-top: 2px;
+}
+
+.shop-food-card__bottom {
+  align-items: flex-end;
+  margin-top: 16px;
+}
+
+.shop-food-card__bottom button {
+  min-height: 32px;
+  padding: 0 15px;
+  border: 1px solid #efc6af;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #c58a68;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Inter", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.shop-food-card__bottom strong,
+.shop-food-order-card__price,
+.shop-food-order-card__total-line strong {
+  color: #cc400c;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 17px;
+  white-space: nowrap;
+}
+
+.shop-food-card__bottom strong span,
+.shop-food-order-card__price span,
+.shop-food-order-card__total-line span {
+  display: block;
+  color: #101928;
+  font-size: 10px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.shop-food-panel--detail,
+.shop-food-panel--review {
+  padding: 34px 42px;
+}
+
+.shop-food-detail__heading {
+  margin-bottom: 26px;
+}
+
+.shop-food-detail__heading h1,
+.shop-food-review-title,
+.shop-food-payment-methods h1 {
+  margin: 0 0 8px;
+  color: #101928;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 40px;
+}
+
+.shop-food-detail__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.shop-food-detail__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shop-food-detail__actions button,
+.shop-food-icon-back,
+.shop-food-back {
+  border: none;
+  border-radius: 999px;
+  background: #d9d9d9;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.shop-food-detail__actions button {
+  width: 34px;
+  height: 34px;
+}
+
+.shop-food-detail__layout,
+.shop-food-review__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 370px;
+  gap: 48px;
+  align-items: start;
+}
+
+.shop-food-detail__image,
+.shop-food-review__layout > img {
+  width: 100%;
+  height: 520px;
+  border-radius: 14px;
+  object-fit: cover;
+  object-position: center 44%;
+  display: block;
+}
+
+.shop-food-order-card,
+.shop-food-summary-card,
+.shop-food-payment-card {
+  border-radius: 18px;
+  background: #ffffff;
+  padding: 26px;
+}
+
+.shop-food-order-card__price {
+  display: block;
+  margin-bottom: 28px;
+}
+
+.shop-food-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.shop-food-field > span {
+  color: #1a1a1a;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.shop-food-field input,
+.shop-food-field textarea,
+.shop-food-date-input,
+.shop-food-counter {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #e6e6e6;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.shop-food-field input,
+.shop-food-field textarea {
+  padding: 0 14px;
+  outline: none;
+}
+
+.shop-food-field textarea {
+  min-height: 74px;
+  padding-top: 14px;
+  resize: vertical;
+}
+
+.shop-food-date-input {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+.shop-food-date-input input {
+  min-height: 0;
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+.shop-food-date-input input::-webkit-calendar-picker-indicator {
+  opacity: 0;
+}
+
+.shop-food-counter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px;
+}
+
+.shop-food-counter > span {
+  color: #98a2b3;
+}
+
+.shop-food-counter__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: #101928;
+}
+
+.shop-food-counter__actions button {
+  width: 22px;
+  height: 22px;
+  border: 1px solid #d9d9d9;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #101928;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.shop-food-order-card__total-line {
+  margin: 22px 0 8px;
+  text-align: right;
+}
+
+.shop-food-order-card__pill {
+  display: table;
+  margin: 0 auto 16px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.shop-food-primary-button {
+  width: 100%;
+  min-height: 44px;
+  border: none;
+  border-radius: 8px;
+  background: #c58a68;
+  color: #ffffff;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.shop-food-primary-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.shop-food-policy {
+  align-items: center;
+  margin-top: 14px;
+}
+
+.shop-food-toggle {
+  width: 43px;
+  height: 24px;
+  border: none;
+  border-radius: 999px;
+  background: #d9d9d9;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.shop-food-toggle span {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.shop-food-toggle--on {
+  justify-content: flex-end;
+  background: #20c568;
+}
+
+.shop-food-icon-back {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 14px;
+}
+
+.shop-food-review-title {
+  margin-bottom: 22px;
+}
+
+.shop-food-review__heading {
+  margin-bottom: 30px;
+}
+
+.shop-food-summary-box,
+.shop-food-breakdown {
+  border: 1px solid #e6e6e6;
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 18px;
+}
+
+.shop-food-summary-box div,
+.shop-food-breakdown div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px solid #eee8e2;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+}
+
+.shop-food-summary-box div:last-child,
+.shop-food-breakdown div:last-child {
+  border-bottom: none;
+}
+
+.shop-food-summary-box strong,
+.shop-food-breakdown strong {
+  color: #101928;
+  font-weight: 700;
+  text-align: right;
+}
+
+.shop-food-breakdown .shop-food-breakdown__total strong {
+  font-size: 20px;
+}
+
+.shop-food-flow--payment {
+  width: min(1288px, calc(100% - 72px));
+}
+
+.shop-food-panel--payment {
+  min-height: 720px;
+  padding: 66px 150px;
+}
+
+.shop-food-back {
+  min-height: 32px;
+  padding: 0 14px;
+  margin-bottom: 44px;
+  background: #ffffff;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+}
+
+.shop-food-payment-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 80px;
+  align-items: start;
+}
+
+.shop-food-payment-list {
+  max-width: 520px;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.shop-food-payment-option {
+  width: 100%;
+  min-height: 64px;
+  padding: 0 22px;
+  border: none;
+  border-bottom: 1px solid #eee8e2;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.shop-food-payment-option:last-child {
+  border-bottom: none;
+}
+
+.shop-food-payment-option span {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: #101928;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 17px;
+}
+
+.shop-food-payment-option i {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #d9d9d9;
+  border-radius: 999px;
+}
+
+.shop-food-payment-option--active i {
+  border-color: #c58a68;
+  box-shadow: inset 0 0 0 6px #ffffff;
+  background: #c58a68;
+}
+
+.shop-food-payment-card__preview {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 12px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #eee8e2;
+}
+
+.shop-food-payment-card__preview img {
+  width: 110px;
+  height: 74px;
+  border-radius: 12px;
+  object-fit: cover;
+  object-position: center 44%;
+}
+
+.shop-food-payment-card__preview h3,
+.shop-food-payment-card__preview p {
+  margin: 0 0 5px;
+  color: #101928;
+  font-family: "Urbanist", Arial, sans-serif;
+}
+
+.shop-food-payment-card__preview h3 {
+  font-size: 13px;
+}
+
+.shop-food-payment-card__preview p {
+  color: #98a2b3;
+  font-size: 11px;
+}
+
+.shop-food-panel--status {
+  min-height: 900px;
+  display: grid;
+  place-items: center;
+}
+
+.shop-food-status-card {
+  width: min(100%, 480px);
+  overflow: hidden;
+  border-radius: 18px;
+  background: #ffffff;
+}
+
+.shop-food-status-card > img {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+  object-position: center 44%;
+  display: block;
+}
+
+.shop-food-status-card__body {
+  padding: 20px 22px 22px;
+}
+
+.shop-food-status-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.shop-food-timeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  margin: 48px 0 34px;
+}
+
+.shop-food-timeline::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 18px;
+  bottom: 18px;
+  width: 1px;
+  background: #d9d9d9;
+}
+
+.shop-food-timeline__item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  color: #20c568;
+}
+
+.shop-food-timeline__item svg {
+  width: 22px;
+  height: 22px;
+  background: #ffffff;
+  z-index: 1;
+}
+
+.shop-food-timeline__item span {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shop-food-timeline__item strong,
+.shop-food-timeline__item em {
+  font-family: "Urbanist", Arial, sans-serif;
+}
+
+.shop-food-timeline__item strong {
+  color: #101928;
+  font-size: 14px;
+}
+
+.shop-food-timeline__item em {
+  color: #98a2b3;
+  font-size: 12px;
+  font-style: normal;
+}
+
+@media (max-width: 1100px) {
+  .shop-food-hero-grid,
+  .shop-food-detail__layout,
+  .shop-food-review__layout,
+  .shop-food-payment-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .shop-food-panel--payment {
+    padding: 44px;
+  }
+
+  .shop-food-order-card,
+  .shop-food-summary-card,
+  .shop-food-payment-card {
+    max-width: 520px;
+  }
+}
+
+@media (max-width: 900px) {
+  .shop-food-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shop-food-detail__image,
+  .shop-food-review__layout > img {
+    height: 380px;
+  }
+}
+
+@media (max-width: 680px) {
+  .shop-food-flow,
+  .shop-food-flow--payment {
+    width: min(100%, calc(100% - 24px));
+    margin-top: 28px;
+  }
+
+  .shop-food-panel,
+  .shop-food-panel--detail,
+  .shop-food-panel--review,
+  .shop-food-panel--payment {
+    padding: 22px 16px;
+    border-radius: 22px;
+  }
+
+  .shop-food-title,
+  .shop-food-detail__heading h1,
+  .shop-food-review-title,
+  .shop-food-payment-methods h1 {
+    font-size: 25px;
+    line-height: 32px;
+  }
+
+  .shop-food-hero-grid {
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+
+  .shop-food-hero-grid img {
+    height: 220px;
+  }
+
+  .shop-food-grid {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .shop-food-detail__heading,
+  .shop-food-review__heading {
+    flex-direction: column;
+  }
+
+  .shop-food-detail__layout,
+  .shop-food-review__layout,
+  .shop-food-payment-layout {
+    gap: 24px;
+  }
+
+  .shop-food-order-card,
+  .shop-food-summary-card,
+  .shop-food-payment-card {
+    padding: 18px;
+  }
+
+  .shop-food-card__image-wrap,
+  .shop-food-status-card > img {
+    height: 210px;
+  }
+
+  .shop-food-detail__image,
+  .shop-food-review__layout > img {
+    height: 320px;
+  }
+}
+
+@media (max-width: 420px) {
+  .shop-food-panel,
+  .shop-food-panel--detail,
+  .shop-food-panel--review,
+  .shop-food-panel--payment {
+    padding: 18px 12px;
+    border-radius: 18px;
+  }
+
+  .shop-food-filters {
+    justify-content: flex-start;
+  }
+
+  .shop-food-card__bottom {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .shop-food-card__bottom strong,
+  .shop-food-card__bottom strong span {
+    text-align: left;
+  }
+
+  .shop-food-summary-box div,
+  .shop-food-breakdown div {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .shop-food-summary-box strong,
+  .shop-food-breakdown strong {
+    text-align: left;
+  }
+}
