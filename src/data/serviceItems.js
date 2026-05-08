@@ -1,0 +1,143 @@
+import laundryImage from "../assets/toiletries.jpg";
+import massageImage from "../assets/massage.jpg";
+import ps5Image from "../assets/ps5-rental.svg";
+import requestImage from "../assets/request.png";
+
+const serviceCatalog = [
+  {
+    title: "Wash and fold",
+    description: "Laundry service",
+    preparationTime: "Washed, dried and folded for your stay",
+    tags: ["Laundry", "Services"],
+  },
+  {
+    title: "Dry cleaning",
+    description: "Laundry service",
+    preparationTime: "Premium clothing care service",
+    tags: ["Laundry", "Services"],
+  },
+  {
+    title: "Express laundry",
+    description: "Laundry service",
+    preparationTime: "Same-day laundry pickup and return",
+    tags: ["Laundry", "Services"],
+  },
+  {
+    title: "Ironing service",
+    description: "Laundry service",
+    preparationTime: "Pressed and neatly packed outfits",
+    tags: ["Laundry", "Services"],
+  },
+  {
+    title: "Bedding refresh",
+    description: "Laundry service",
+    preparationTime: "Fresh bed linen and towel replacement",
+    tags: ["Laundry", "Services"],
+  },
+  {
+    title: "Laundry pickup",
+    description: "Laundry service",
+    preparationTime: "Doorstep pickup and drop-off service",
+    tags: ["Laundry", "Services"],
+  },
+  {
+    title: "Deep tissue massage",
+    description: "Massage service",
+    preparationTime: "Focused muscle relief available on request",
+    tags: ["Massage", "Services"],
+  },
+  {
+    title: "Swedish massage",
+    description: "Massage service",
+    preparationTime: "Full-body relaxation session",
+    tags: ["Massage", "Services"],
+  },
+  {
+    title: "Aromatherapy massage",
+    description: "Massage service",
+    preparationTime: "Soothing oil massage for relaxation",
+    tags: ["Massage", "Services"],
+  },
+  {
+    title: "Couples massage",
+    description: "Massage service",
+    preparationTime: "Private session for two guests",
+    tags: ["Massage", "Services"],
+  },
+  {
+    title: "Foot massage",
+    description: "Massage service",
+    preparationTime: "Targeted foot and lower-leg relief",
+    tags: ["Massage", "Services"],
+  },
+  {
+    title: "Wellness massage",
+    description: "Massage service",
+    preparationTime: "Relaxation service available on request",
+    tags: ["Massage", "Services"],
+  },
+  {
+    title: "PS5 day rental",
+    description: "Game rental",
+    preparationTime: "Console rental handled by Bedrock",
+    tags: ["PS5 Rentals", "Services"],
+  },
+  {
+    title: "PS5 night rental",
+    description: "Game rental",
+    preparationTime: "Evening console rental with setup",
+    tags: ["PS5 Rentals", "Services"],
+  },
+  {
+    title: "PS5 party bundle",
+    description: "Game rental",
+    preparationTime: "Console, controllers and party setup",
+    tags: ["PS5 Rentals", "Services"],
+  },
+  {
+    title: "PS5 extra controller",
+    description: "Game rental",
+    preparationTime: "Additional controller for multiplayer games",
+    tags: ["PS5 Rentals", "Services"],
+  },
+  {
+    title: "PS5 games pack",
+    description: "Game rental",
+    preparationTime: "Curated games delivered with the console",
+    tags: ["PS5 Rentals", "Services"],
+  },
+  {
+    title: "PS5 weekend rental",
+    description: "Game rental",
+    preparationTime: "Weekend console rental for your apartment",
+    tags: ["PS5 Rentals", "Services"],
+  },
+  {
+    title: "Errand request",
+    description: "Request service",
+    preparationTime: "Personal request handled by Bedrock",
+    tags: ["Request", "Services"],
+  },
+];
+
+function getServiceImage(item) {
+  if (item.tags.includes("Laundry")) return laundryImage;
+  if (item.tags.includes("Massage")) return massageImage;
+  if (item.tags.includes("PS5 Rentals")) return ps5Image;
+  if (item.tags.includes("Request")) return requestImage;
+
+  return laundryImage;
+}
+
+export const serviceItems = serviceCatalog.map((item, index) => {
+  const image = getServiceImage(item);
+
+  return {
+    id: `service-${index + 1}`,
+    ...item,
+    rating: "4.8",
+    price: 200000,
+    image,
+    detailImage: image,
+  };
+});

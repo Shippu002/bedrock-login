@@ -293,7 +293,7 @@ function ApartmentPage({
               <div className="apartment-form-group">
                 <label>Number of Guests</label>
                 <div className="apartment-guest-input apartment-guest-input--compact">
-                  <span>Add number of guest</span>
+                  <span>Number of guests</span>
 
                   <div className="apartment-guest-input__actions">
                     <button type="button" onClick={() => updateGuests(-1)}>
@@ -624,7 +624,7 @@ function ApartmentPage({
             <div className="apartment-form-group">
               <label>Number of Guests</label>
               <div className="apartment-guest-input">
-                <span>Add number of guest</span>
+                <span>Number of guests</span>
 
                 <div className="apartment-guest-input__actions">
                   <button type="button" onClick={() => updateGuests(-1)}>

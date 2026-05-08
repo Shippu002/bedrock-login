@@ -1,8 +1,6 @@
 import { useState } from "react";
 import {
   FiChevronDown,
-  FiChevronLeft,
-  FiChevronRight,
   FiMinus,
   FiPlus,
   FiSearch,
@@ -64,15 +62,6 @@ const residenceOptions = [
   },
 ];
 
-const augustDates = [
-  ["26", "27", "28", "29", "30", "1", "2"],
-  ["3", "4", "5", "6", "7", "8", "9"],
-  ["10", "11", "12", "13", "14", "15", "16"],
-  ["17", "18", "19", "20", "21", "22", "23"],
-  ["24", "25", "26", "27", "28", "29", "30"],
-  ["31", "1", "2", "3", "4", "5", "6"],
-];
-
 const guestTypes = [
   { id: "adults", label: "Adults", hint: "Ages 13 or above" },
   { id: "children", label: "Children", hint: "Ages 2 -12" },
@@ -80,53 +69,23 @@ const guestTypes = [
   { id: "pets", label: "Pets", hint: "Under 2 years old" },
 ];
 
-function CalendarMonth({ mutedStart = false }) {
-  return (
-    <div className="search-calendar">
-      <div className="search-calendar__header">
-        <button type="button" aria-label="Previous month">
-          <FiChevronLeft />
-        </button>
-        <strong>August 2023</strong>
-        <button type="button" aria-label="Next month">
-          <FiChevronRight />
-        </button>
-      </div>
+function formatShortDate(value) {
+  if (!value) return "";
 
-      <div className="search-calendar__weekdays">
-        {["M", "T", "W", "T", "F", "S", "S"].map((day, index) => (
-          <span key={`${day}-${index}`}>{day}</span>
-        ))}
-      </div>
-
-      <div className="search-calendar__days">
-        {augustDates.flat().map((day, index) => {
-          const isMuted =
-            (mutedStart && index < 5) || (!mutedStart && index > 34);
-          const isRange = ["13", "14", "15", "16", "17", "18", "19", "20", "21"].includes(day);
-          const isSelected = day === "12" || day === "22";
-
-          return (
-            <button
-              type="button"
-              className={`${isMuted ? "is-muted" : ""} ${
-                isRange ? "is-range" : ""
-              } ${isSelected ? "is-selected" : ""}`}
-              key={`${day}-${index}`}
-            >
-              {day}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(`${value}T00:00:00`));
 }
 
-function SearchBar({ onResidenceSelect }) {
+function SearchBar({ onSearch }) {
   const [openPanel, setOpenPanel] = useState(null);
-  const [selectedResidenceId, setSelectedResidenceId] = useState("opebi");
+  const [selectedResidenceId, setSelectedResidenceId] = useState("");
   const [selectedApartment, setSelectedApartment] = useState(null);
+  const [dateRange, setDateRange] = useState({
+    checkIn: "",
+    checkOut: "",
+  });
   const [guestCounts, setGuestCounts] = useState({
     adults: 0,
     children: 0,
@@ -135,13 +94,29 @@ function SearchBar({ onResidenceSelect }) {
   });
 
   const totalGuests = guestCounts.adults + guestCounts.children;
-  const selectedResidence = residenceOptions.find(
-    (item) => item.id === selectedResidenceId,
-  ) || residenceOptions[0];
+  const selectedResidence =
+    residenceOptions.find((item) => item.id === selectedResidenceId) || null;
+  const residenceLabel =
+    selectedApartment || selectedResidence?.title || "Search by Residence";
+  const dateLabel =
+    dateRange.checkIn && dateRange.checkOut
+      ? `${formatShortDate(dateRange.checkIn)} - ${formatShortDate(
+          dateRange.checkOut,
+        )}`
+      : dateRange.checkIn
+        ? formatShortDate(dateRange.checkIn)
+        : "Add date";
 
   function handleSubmit(event) {
     event.preventDefault();
     setOpenPanel(null);
+    onSearch?.({
+      residenceId: selectedResidenceId,
+      apartmentTitle: selectedApartment || "",
+      checkIn: dateRange.checkIn,
+      checkOut: dateRange.checkOut,
+      guests: totalGuests,
+    });
   }
 
   function togglePanel(panel) {
@@ -159,13 +134,30 @@ function SearchBar({ onResidenceSelect }) {
     setSelectedResidenceId(residenceId);
     setSelectedApartment(null);
     setOpenPanel(null);
-    onResidenceSelect?.(residenceId);
   }
 
   function handleApartmentClick(apartment) {
     setSelectedApartment(apartment);
     setOpenPanel(null);
-    onResidenceSelect?.(selectedResidence.id);
+  }
+
+  function updateDateRange(field, value) {
+    setDateRange((currentRange) => {
+      if (field === "checkIn") {
+        return {
+          checkIn: value,
+          checkOut:
+            currentRange.checkOut && currentRange.checkOut <= value
+              ? ""
+              : currentRange.checkOut,
+        };
+      }
+
+      return {
+        ...currentRange,
+        checkOut: value,
+      };
+    });
   }
 
   return (
@@ -179,7 +171,7 @@ function SearchBar({ onResidenceSelect }) {
             aria-expanded={openPanel === "residences"}
           >
             <span className="search-bar__label">Residences</span>
-            <span className="search-bar__value">Search by Residence</span>
+            <span className="search-bar__value">{residenceLabel}</span>
             <FiChevronDown />
           </button>
         </div>
@@ -194,7 +186,7 @@ function SearchBar({ onResidenceSelect }) {
             aria-expanded={openPanel === "dates"}
           >
             <span className="search-bar__label">Start date - End date</span>
-            <span className="search-bar__value">Add date</span>
+            <span className="search-bar__value">{dateLabel}</span>
             <FiChevronDown />
           </button>
         </div>
@@ -208,9 +200,11 @@ function SearchBar({ onResidenceSelect }) {
             onClick={() => togglePanel("guests")}
             aria-expanded={openPanel === "guests"}
           >
-            <span className="search-bar__label">Number of guest</span>
+            <span className="search-bar__label">Number of guests</span>
             <span className="search-bar__value">
-              {totalGuests > 0 ? `${totalGuests} guest` : "Add guest"}
+              {totalGuests > 0
+                ? `${totalGuests} ${totalGuests === 1 ? "guest" : "guests"}`
+                : "Add guests"}
             </span>
             <FiChevronDown />
           </button>
@@ -271,7 +265,7 @@ function SearchBar({ onResidenceSelect }) {
                     key={item}
                   >
                     <strong>{item}</strong>
-                    <span>Find the best template for your business</span>
+                    <span>Find available stays in this residence</span>
                   </button>
                 ))}
               </div>
@@ -281,8 +275,36 @@ function SearchBar({ onResidenceSelect }) {
 
         {openPanel === "dates" && (
           <div className="search-popover search-popover--dates">
-            <CalendarMonth mutedStart />
-            <CalendarMonth />
+            <label className="search-date-field">
+              <span>Start date</span>
+              <input
+                type="date"
+                value={dateRange.checkIn}
+                onChange={(event) =>
+                  updateDateRange("checkIn", event.target.value)
+                }
+              />
+            </label>
+
+            <label className="search-date-field">
+              <span>End date</span>
+              <input
+                type="date"
+                min={dateRange.checkIn}
+                value={dateRange.checkOut}
+                onChange={(event) =>
+                  updateDateRange("checkOut", event.target.value)
+                }
+              />
+            </label>
+
+            <button
+              type="button"
+              className="search-popover__clear"
+              onClick={() => setDateRange({ checkIn: "", checkOut: "" })}
+            >
+              Clear dates
+            </button>
           </div>
         )}
 

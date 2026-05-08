@@ -10,6 +10,8 @@ import ResidencePage from "../Residence/ResidencePage";
 import ApartmentPage from "../Apartment/ApartmentPage";
 import ShopFoodPage from "../ShopFood/ShopFoodPage";
 import { foodItems } from "../../data/foodItems";
+import { serviceItems } from "../../data/serviceItems";
+import { shopItems } from "../../data/shopItems";
 import { decorateApartmentWithMedia } from "../../utils/apartmentMedia";
 import {
   addDays,
@@ -23,8 +25,33 @@ import {
   createDefaultFoodOrderDetails,
   createFoodOrderId,
 } from "../../utils/foodOrders";
+import {
+  defaultApartmentFilters,
+  filterListingSections,
+  hasActiveApartmentFilters,
+} from "../../utils/apartmentFilters";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
+
+function getShopVariant(shopId) {
+  if (shopId === "foods") return "food";
+  if (shopId === "shop" || shopId === "toiletries") return "toiletries";
+  if (shopId === "services") return "services";
+  if (shopId === "request" || shopId === "requests") return "requests";
+  return null;
+}
+
+function getDefaultShopItem(variant) {
+  if (variant === "toiletries") return shopItems[0];
+  if (variant === "services") return serviceItems[0];
+  if (variant === "requests") {
+    return (
+      serviceItems.find((item) => item.tags.includes("Request")) ||
+      serviceItems[0]
+    );
+  }
+  return foodItems[0];
+}
 
 function createDefaultBookingDetails() {
   const checkIn = getTodayDateValue();
@@ -40,6 +67,20 @@ function createDefaultBookingDetails() {
   };
 }
 
+function createBookingDetailsFromFilters(filters) {
+  const defaultDetails = createDefaultBookingDetails();
+  const checkIn = filters.checkIn || defaultDetails.checkIn;
+
+  return {
+    ...defaultDetails,
+    checkIn,
+    checkOut: filters.checkOut
+      ? ensureCheckoutDate(checkIn, filters.checkOut)
+      : defaultDetails.checkOut,
+    guests: filters.guests > 0 ? filters.guests : defaultDetails.guests,
+  };
+}
+
 function HomePage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authEntry, setAuthEntry] = useState("login");
@@ -48,14 +89,24 @@ function HomePage() {
   const [activePage, setActivePage] = useState("home");
   const [profileInitialView, setProfileInitialView] = useState("profile");
   const [selectedResidenceId, setSelectedResidenceId] = useState("opebi");
+  const [apartmentFilters, setApartmentFilters] = useState(
+    defaultApartmentFilters,
+  );
+  const [searchResetKey, setSearchResetKey] = useState(0);
   const [selectedApartment, setSelectedApartment] = useState(null);
   const [bookingDetails, setBookingDetails] = useState(() =>
     createDefaultBookingDetails(),
   );
   const [selectedFoodItem, setSelectedFoodItem] = useState(foodItems[0]);
+  const [shopVariant, setShopVariant] = useState("food");
   const [foodOrderDetails, setFoodOrderDetails] = useState(() =>
     createDefaultFoodOrderDetails(),
   );
+  const filteredListingSections = filterListingSections(
+    listingSections,
+    apartmentFilters,
+  );
+  const hasApartmentFilters = hasActiveApartmentFilters(apartmentFilters);
 
   function syncSavedAccount(nextUser) {
     const savedAccount = JSON.parse(
@@ -122,19 +173,40 @@ function HomePage() {
   }
 
   function showShop(shopId) {
-    if (shopId !== "foods") {
+    const nextShopVariant = getShopVariant(shopId);
+
+    if (!nextShopVariant) {
       return;
     }
 
+    setShopVariant(nextShopVariant);
+    setSelectedFoodItem(getDefaultShopItem(nextShopVariant));
+    setFoodOrderDetails(createDefaultFoodOrderDetails());
     setActivePage("shopFood");
     setProfileInitialView("profile");
   }
 
   function showApartment(apartment) {
     setSelectedApartment(decorateApartmentWithMedia(apartment));
-    setBookingDetails(createDefaultBookingDetails());
+    setBookingDetails(createBookingDetailsFromFilters(apartmentFilters));
     setActivePage("apartment");
     setProfileInitialView("profile");
+  }
+
+  function handleApartmentSearch(nextFilters) {
+    setApartmentFilters(nextFilters);
+
+    if (nextFilters.residenceId) {
+      setSelectedResidenceId(nextFilters.residenceId);
+    }
+
+    setActivePage("home");
+    setProfileInitialView("profile");
+  }
+
+  function clearApartmentSearch() {
+    setApartmentFilters(defaultApartmentFilters);
+    setSearchResetKey((currentKey) => currentKey + 1);
   }
 
   function showProfile(profileView = "profile") {
@@ -319,6 +391,7 @@ function HomePage() {
       const nextOrder = {
         id: createFoodOrderId(),
         title: selectedFoodItem.title,
+        category: shopVariant,
         image: selectedFoodItem.detailImage || selectedFoodItem.image,
         apartmentNumber: foodOrderDetails.apartmentNumber,
         deliveryTime: foodOrderDetails.deliveryTime,
@@ -389,12 +462,16 @@ function HomePage() {
               "foodDetail",
               "foodReview",
             ].includes(activePage) && (
-              <SearchBar onResidenceSelect={showResidence} />
+              <SearchBar
+                key={searchResetKey}
+                onSearch={handleApartmentSearch}
+              />
             )}
 
             {activePage === "residence" ? (
               <ResidencePage
                 residenceId={selectedResidenceId}
+                filters={apartmentFilters}
                 onApartmentSelect={showApartment}
               />
             ) : activePage === "apartment" ? (
@@ -431,18 +508,29 @@ function HomePage() {
                 onFinishBooking={finishApartmentFlow}
               />
             ) : activePage === "shopFood" ? (
-              <ShopFoodPage mode="list" onFoodSelect={showFoodDetail} />
+              <ShopFoodPage
+                mode="list"
+                variant={shopVariant}
+                onFoodSelect={showFoodDetail}
+              />
             ) : activePage === "foodDetail" ? (
               <ShopFoodPage
                 mode="detail"
+                variant={shopVariant}
                 foodItem={selectedFoodItem}
                 orderDetails={foodOrderDetails}
                 onOrderChange={handleFoodOrderChange}
-                onProceedToReview={() => setActivePage("foodReview")}
+                onBackToFood={() => setActivePage("shopFood")}
+                onProceedToReview={() =>
+                  setActivePage(
+                    shopVariant === "food" ? "foodReview" : "foodPayment",
+                  )
+                }
               />
             ) : activePage === "foodReview" ? (
               <ShopFoodPage
                 mode="review"
+                variant={shopVariant}
                 foodItem={selectedFoodItem}
                 orderDetails={foodOrderDetails}
                 onOrderChange={handleFoodOrderChange}
@@ -452,28 +540,51 @@ function HomePage() {
             ) : activePage === "foodPayment" ? (
               <ShopFoodPage
                 mode="payment"
+                variant={shopVariant}
                 foodItem={selectedFoodItem}
                 orderDetails={foodOrderDetails}
                 onOrderChange={handleFoodOrderChange}
-                onBackToReview={() => setActivePage("foodReview")}
+                onBackToReview={() =>
+                  setActivePage(
+                    shopVariant === "food" ? "foodReview" : "foodDetail",
+                  )
+                }
                 onPaymentContinue={() => setActivePage("foodStatus")}
               />
             ) : activePage === "foodStatus" ? (
               <ShopFoodPage
                 mode="status"
+                variant={shopVariant}
                 foodItem={selectedFoodItem}
                 orderDetails={foodOrderDetails}
                 onFinishOrder={finishFoodOrderFlow}
               />
             ) : (
               <section className="home-page__listings">
-                {listingSections.map((section) => (
-                  <ListingSection
-                    key={section.id}
-                    section={section}
-                    onApartmentSelect={showApartment}
-                  />
-                ))}
+                {filteredListingSections.length > 0 ? (
+                  filteredListingSections.map((section) => (
+                    <ListingSection
+                      key={section.id}
+                      section={section}
+                      onApartmentSelect={showApartment}
+                    />
+                  ))
+                ) : (
+                  <div className="home-page__empty">
+                    <h2>No apartments match your search</h2>
+                    <p>
+                      Try changing the residence, dates, or number of guests.
+                    </p>
+                    {hasApartmentFilters && (
+                      <button
+                        type="button"
+                        onClick={clearApartmentSearch}
+                      >
+                        Clear filters
+                      </button>
+                    )}
+                  </div>
+                )}
               </section>
             )}
           </main>

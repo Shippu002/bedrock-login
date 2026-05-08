@@ -1,12 +1,12 @@
 import listingPrimary from "../assets/listing-primary.png";
 import listingSecondary from "../assets/listing-secondary.png";
 
-const sectionNames = [
-  "Opebi Residence",
-  "Opebi II Residence",
-  "Oduduwa Residence",
-  "Bateye's Residence",
-  "Community's Residence",
+const sectionResidences = [
+  { id: "opebi", name: "Opebi Residence" },
+  { id: "opebi", name: "Opebi II Residence" },
+  { id: "oduduwa", name: "Oduduwa Residence" },
+  { id: "bateye", name: "Bateye's Residence" },
+  { id: "community", name: "Community's Residence" },
 ];
 
 const titles = [
@@ -25,14 +25,23 @@ const locations = [
   "Victoria Island, Lagos",
 ];
 
+function getBedroomCount(title) {
+  const match = title.match(/(\d+)\s*Bedroom/i);
+  return match ? Number(match[1]) : 1;
+}
+
 function makeItem(sectionIndex, itemIndex) {
+  const title = titles[itemIndex % titles.length];
+  const sectionResidence = sectionResidences[sectionIndex];
+
   return {
     id: `${sectionIndex + 1}-${itemIndex + 1}`,
-    title: titles[itemIndex % titles.length],
-    residenceName: sectionNames[sectionIndex],
+    title,
+    residenceId: sectionResidence.id,
+    residenceName: sectionResidence.name,
     location: locations[itemIndex % locations.length],
     guests: 8,
-    rooms: 4,
+    rooms: getBedroomCount(title) + 1,
     cars: 2,
     wifi: true,
     rating: 4.8,
@@ -42,8 +51,9 @@ function makeItem(sectionIndex, itemIndex) {
   };
 }
 
-export const listingSections = sectionNames.map((name, sectionIndex) => ({
+export const listingSections = sectionResidences.map(({ id, name }, sectionIndex) => ({
   id: `section-${sectionIndex + 1}`,
+  residenceId: id,
   title: `${name} · Ikeja`,
   items: Array.from({ length: 5 }, (_, itemIndex) =>
     makeItem(sectionIndex, itemIndex),
@@ -68,14 +78,16 @@ function makeResidenceItem(residenceId, sectionIndex, itemIndex) {
     "Residences",
     "Residence",
   );
+  const title = titles[itemIndex % titles.length];
 
   return {
     id: `${residenceId}-${sectionIndex + 1}-${itemIndex + 1}`,
-    title: titles[itemIndex % titles.length],
+    title,
+    residenceId,
     residenceName,
     location: "Oduduwa, Ikeja GRA",
     guests: 8,
-    rooms: 4,
+    rooms: getBedroomCount(title) + 1,
     cars: 2,
     wifi: true,
     rating: 4.8,
@@ -91,6 +103,7 @@ export const residencePages = Object.entries(residencePageTitles).map(
     title,
     sections: residenceBedroomSections.map((sectionTitle, sectionIndex) => ({
       id: `${id}-${sectionIndex + 1}`,
+      residenceId: id,
       title: `${sectionTitle} >`,
       items: Array.from({ length: 5 }, (_, itemIndex) =>
         makeResidenceItem(id, sectionIndex, itemIndex),

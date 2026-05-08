@@ -1,7 +1,7 @@
 import foodImage from "../assets/food.png";
 import requestImage from "../assets/request.png";
 import servicesImage from "../assets/services.png";
-import shopImage from "../assets/shop.png";
+import toiletriesImage from "../assets/shop.png";
 
 export const shopCategories = [
   {
@@ -12,9 +12,9 @@ export const shopCategories = [
   },
   {
     id: "shop",
-    title: "Shop",
+    title: "Toiletries",
     location: "Ikeja GRA Lagos Nigeria",
-    image: shopImage,
+    image: toiletriesImage,
   },
   {
     id: "services",

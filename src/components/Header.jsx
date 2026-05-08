@@ -152,7 +152,7 @@ function Dropdown({
                   key={item}
                 >
                   <strong>{item}</strong>
-                  <span>Find the best template for your business</span>
+                  <span>Find available stays in this residence</span>
                 </button>
               ))}
             </div>

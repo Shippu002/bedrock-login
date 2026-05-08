@@ -30,6 +30,44 @@
   border: 1px solid rgba(197, 138, 104, 0.08);
 }
 
+.home-page__empty {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.home-page__empty h2 {
+  margin: 0;
+  color: #101928;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.home-page__empty p {
+  margin: 0;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 15px;
+}
+
+.home-page__empty button {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid #c58a68;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #c58a68;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 @media (max-width: 1200px) {
   .home-page__listings {
     width: min(100%, calc(100% - 40px));

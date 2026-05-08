@@ -130,13 +130,54 @@
 
 .search-popover--dates {
   left: 90px;
-  width: min(760px, calc(100vw - 48px));
-  min-height: 370px;
-  padding: 16px;
-  border-radius: 8px;
+  width: min(520px, calc(100vw - 48px));
+  min-height: auto;
+  padding: 22px;
+  border-radius: 28px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+.search-date-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-date-field span {
+  color: #101928;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.search-date-field input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid #ece8e2;
+  border-radius: 12px;
+  color: #101928;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  outline: none;
+}
+
+.search-popover__clear {
+  grid-column: 1 / -1;
+  justify-self: flex-start;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid #efc6af;
+  border-radius: 999px;
+  background: #fff8f4;
+  color: #c58a68;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .search-popover--guests {
