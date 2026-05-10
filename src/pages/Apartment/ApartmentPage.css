@@ -433,7 +433,7 @@
 
 .apartment-payment-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
   gap: 40px;
 }
 
@@ -692,6 +692,8 @@
 
   .apartment-booking-card {
     position: static;
+    width: min(560px, 100%);
+    margin: 0 auto;
   }
 
   .apartment-reviews {
@@ -759,12 +761,65 @@
     padding: 12px 14px;
   }
 
+  .apartment-guest-input__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .apartment-payment-methods__list,
+  .apartment-payment-card {
+    width: 100%;
+  }
+
+  .apartment-payment-breakdown > div {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .apartment-payment-breakdown strong {
+    text-align: left;
+  }
+
   .apartment-status-card__summary {
     flex-direction: column;
     align-items: flex-start;
   }
 
   .apartment-status-card__price-group {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 420px) {
+  .apartment-flow {
+    width: min(100%, calc(100% - 20px));
+  }
+
+  .apartment-flow__actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .apartment-gallery__grid {
+    gap: 10px;
+  }
+
+  .apartment-gallery__thumb {
+    min-height: 86px;
+    border-radius: 16px;
+  }
+
+  .apartment-gallery__hero {
+    min-height: 190px;
+    border-radius: 16px;
+  }
+
+  .apartment-select {
+    grid-template-columns: 16px minmax(0, 1fr) 16px;
+    padding: 0 12px;
+  }
+
+  .apartment-policy-row {
     align-items: flex-start;
   }
 }

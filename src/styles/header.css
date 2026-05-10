@@ -3,6 +3,7 @@
 }
 
 .site-inner {
+  position: relative;
   width: min(1288px, calc(100% - 64px));
   margin: 0 auto;
   min-height: 104px;
@@ -533,6 +534,16 @@
     gap: 14px;
   }
 
+  .nav-dropdown {
+    position: static;
+  }
+
+  .nav-mega,
+  .nav-mega--residences,
+  .nav-mega--shops {
+    top: calc(100% + 8px);
+  }
+
   .nav-link {
     font-size: 13px;
     gap: 6px;
@@ -556,7 +567,25 @@
   }
 
   .nav-links {
-    justify-content: flex-start;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-content: stretch;
+    gap: 8px;
+  }
+
+  .nav-link {
+    width: 100%;
+    min-height: 40px;
+    justify-content: center;
+    padding: 0 10px;
+    border: 1px solid #ece8e2;
+    border-radius: 12px;
+    background: #ffffff;
+  }
+
+  .nav-link-icon-wrap {
+    width: 16px;
+    height: 16px;
   }
 
   .header-actions {
@@ -626,16 +655,9 @@
   .nav-links {
     order: 3;
     width: 100%;
-    justify-content: flex-start;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
+    overflow: visible;
     padding-bottom: 2px;
     margin-right: 0;
-  }
-
-  .nav-links::-webkit-scrollbar {
-    display: none;
   }
 
   .header-actions,
@@ -659,6 +681,14 @@
 
   .nav-link {
     font-size: 12px;
+    padding: 0 6px;
+  }
+
+  .nav-link-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .nav-mega,

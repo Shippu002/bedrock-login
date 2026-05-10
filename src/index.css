@@ -32,10 +32,12 @@
 }
 
 html {
+  width: 100%;
   scroll-behavior: smooth;
 }
 
 body {
+  width: 100%;
   margin: 0;
   min-width: 320px;
   background: #ffffff;
@@ -43,6 +45,7 @@ body {
   font-family: "Inter", "Avenir Next", "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 button,
@@ -50,6 +53,7 @@ input,
 select,
 textarea {
   font: inherit;
+  min-width: 0;
 }
 
 button {
@@ -67,5 +71,15 @@ img {
 }
 
 #root {
+  width: 100%;
   min-height: 100vh;
+  overflow-x: clip;
+}
+
+@media (max-width: 560px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }

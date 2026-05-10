@@ -79,7 +79,7 @@
   font-size: 10px;
   font-weight: 500;
   line-height: 14px;
-  white-space: nowrap;
+  min-width: 0;
 }
 
 .listing-card__location-icon {
@@ -221,6 +221,10 @@
     line-height: 16px;
   }
 
+  .listing-card__location {
+    white-space: normal;
+  }
+
   .listing-card__meta-item {
     font-size: 11px;
     line-height: 15px;
@@ -235,6 +239,7 @@
 
   .listing-card__button {
     width: 100%;
+    min-height: 42px;
   }
 
   .listing-card__price-block {
@@ -253,5 +258,9 @@
 
   .listing-card__meta-item {
     padding: 2px 4px;
+  }
+
+  .listing-card__body {
+    padding: 14px 12px;
   }
 }

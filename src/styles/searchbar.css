@@ -491,6 +491,11 @@
     gap: 12px;
   }
 
+  .search-bar__field-button {
+    min-height: 52px;
+    padding: 0 2px;
+  }
+
   .search-bar__label {
     font-size: 13px;
   }
@@ -528,12 +533,23 @@
     padding: 18px;
   }
 
+  .search-popover--dates {
+    padding: 18px;
+    gap: 14px;
+  }
+
+  .search-date-field input {
+    min-height: 50px;
+    font-size: 16px;
+  }
+
   .guest-row {
     grid-template-columns: 1fr;
     align-items: flex-start;
   }
 
   .guest-counter {
+    width: 100%;
     justify-content: space-between;
   }
 }

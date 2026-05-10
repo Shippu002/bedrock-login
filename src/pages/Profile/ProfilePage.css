@@ -166,6 +166,7 @@
 }
 
 .profile-topbar__user {
+  max-width: min(280px, 70vw);
   min-height: 34px;
   padding: 8px 12px;
   border-radius: 8px;
@@ -178,6 +179,13 @@
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
+}
+
+.profile-topbar__user span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-topbar__user svg {
@@ -241,6 +249,7 @@
 
 .profile-panel {
   width: min(980px, 100%);
+  min-width: 0;
 }
 
 .profile-panel--soft {
@@ -848,7 +857,7 @@
   width: min(820px, 100%);
   margin: 0;
   display: grid;
-  grid-template-columns: 390px 430px;
+  grid-template-columns: minmax(260px, 0.95fr) minmax(0, 1.05fr);
   gap: 0;
   column-gap: 0;
   align-items: stretch;
@@ -858,7 +867,7 @@
 }
 
 .booking-card__media {
-  width: 390px;
+  width: 100%;
   height: 280px;
   min-height: 280px;
   margin: 0;
@@ -876,8 +885,8 @@
 }
 
 .booking-card {
-  width: 430px;
-  height: 280px;
+  width: 100%;
+  height: auto;
   min-height: 280px;
   margin: 0;
   padding: 18px;
@@ -1578,7 +1587,7 @@
     width: 100%;
   }
 
-  .booking-card {
+  .booking-row {
     width: 100%;
   }
 }
@@ -1586,6 +1595,7 @@
 @media (max-width: 860px) {
   .profile-page {
     grid-template-columns: 1fr;
+    min-height: auto;
     margin-top: 16px;
   }
 
@@ -1679,9 +1689,15 @@
   }
 
   .messages-board__tabs {
-    grid-template-columns: repeat(3, auto);
+    grid-template-columns: repeat(3, minmax(0, auto));
     gap: 12px;
     padding: 12px 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .messages-board__tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .messages-board__new {
@@ -1704,6 +1720,7 @@
 @media (max-width: 620px) {
   .profile-page {
     width: min(100%, calc(100% - 20px));
+    margin-bottom: 40px;
   }
 
   .profile-sidebar__nav {
@@ -1717,6 +1734,11 @@
   .profile-topbar {
     align-items: flex-start;
     flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .profile-topbar__user {
+    max-width: calc(100vw - 92px);
   }
 
   .profile-search-row {
@@ -1727,6 +1749,7 @@
   .profile-panel--soft {
     padding: 28px 16px;
     border-radius: 22px;
+    min-height: auto;
   }
 
   .profile-card-grid {
@@ -1782,13 +1805,15 @@
 
   .booking-card {
     padding: 14px 14px 22px;
-    border-radius: 22px;
+    border-radius: 0 0 18px 18px;
     gap: 18px;
   }
 
   .booking-card__media {
+    width: 100%;
     height: 132px;
-    border-radius: 18px;
+    min-height: 132px;
+    border-radius: 18px 18px 0 0;
   }
 
   .booking-card__header {
@@ -1858,6 +1883,27 @@
 
   .messages-board {
     padding: 18px 14px 24px;
+    overflow: hidden;
+  }
+
+  .messages-board__tabs {
+    grid-template-columns: repeat(3, max-content);
+  }
+
+  .messages-table__row {
+    grid-template-columns: 24px minmax(0, 1fr) 28px;
+    gap: 10px;
+  }
+
+  .messages-table__row strong {
+    min-width: 0;
+  }
+
+  .messages-table__row p {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
   .profile-tabs,
@@ -1874,5 +1920,117 @@
   .earning-row small,
   .earn-rule em {
     grid-column: 2;
+  }
+}
+
+@media (max-width: 420px) {
+  .profile-page {
+    width: min(100%, calc(100% - 16px));
+    border-radius: 18px;
+  }
+
+  .profile-sidebar__head {
+    padding: 0 14px;
+  }
+
+  .profile-sidebar__brand img {
+    width: 98px;
+  }
+
+  .profile-sidebar__item,
+  .profile-sidebar__logout {
+    min-height: 52px;
+    padding: 0 16px;
+    font-size: 14px;
+  }
+
+  .profile-sidebar__item svg,
+  .profile-sidebar__logout svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .profile-main {
+    padding: 20px 12px 34px;
+  }
+
+  .profile-view-heading {
+    margin-bottom: 26px;
+  }
+
+  .profile-view-heading h1 {
+    font-size: 21px;
+    line-height: 28px;
+  }
+
+  .edit-profile-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    font-size: 19px;
+  }
+
+  .profile-field {
+    min-height: 72px;
+    padding: 12px 14px;
+  }
+
+  .profile-card-grid {
+    gap: 20px;
+  }
+
+  .profile-tabs {
+    min-height: auto;
+    border-radius: 14px;
+    grid-template-columns: 1fr;
+    padding: 4px;
+  }
+
+  .profile-tabs button {
+    min-height: 38px;
+    border-radius: 10px;
+  }
+
+  .booking-card__actions {
+    gap: 8px;
+  }
+
+  .policy-detail {
+    padding-top: 40px;
+  }
+
+  .policy-actions {
+    margin-top: 40px;
+  }
+
+  .rocks-banner strong {
+    font-size: 22px;
+  }
+
+  .rocks-banner strong b {
+    font-size: 34px;
+  }
+
+  .referral-card {
+    padding: 16px 10px;
+  }
+
+  .referral-card strong {
+    max-width: 100%;
+    font-size: 18px;
+    overflow-wrap: anywhere;
+  }
+
+  .earn-card {
+    padding: 16px 14px;
+  }
+
+  .help-card {
+    padding: 18px 14px;
+  }
+
+  .help-card p,
+  .help-card--socials button {
+    font-size: 13px;
   }
 }

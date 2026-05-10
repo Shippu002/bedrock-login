@@ -70,10 +70,14 @@
     gap: 12px;
   }
 
+  .listing-section__controls {
+    flex-shrink: 0;
+  }
+
   .listing-section__title {
     font-size: 13px;
     line-height: 18px;
-    max-width: 75%;
+    max-width: none;
   }
 
   .listing-section__controls button {

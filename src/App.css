@@ -85,6 +85,22 @@
     gap: 30px;
     border-radius: 20px;
   }
+
+  .home-page__empty {
+    min-height: 220px;
+    padding: 24px 12px;
+  }
+
+  .home-page__empty h2 {
+    font-size: 21px;
+    line-height: 28px;
+  }
+
+  .home-page__empty p {
+    max-width: 280px;
+    font-size: 14px;
+    line-height: 21px;
+  }
 }
 
 @media (max-width: 390px) {

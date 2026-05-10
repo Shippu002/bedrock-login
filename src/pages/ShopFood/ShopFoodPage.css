@@ -1152,6 +1152,7 @@
 
   .shop-food-card__bottom button {
     width: 100%;
+    min-height: 42px;
     justify-content: center;
   }
 
@@ -1235,5 +1236,24 @@
   .shop-food-summary-box strong,
   .shop-food-breakdown strong {
     text-align: left;
+  }
+}
+
+@media (max-width: 360px) {
+  .shop-food-flow,
+  .shop-food-flow--payment {
+    width: min(100%, calc(100% - 16px));
+  }
+
+  .shop-food-panel,
+  .shop-food-panel--detail,
+  .shop-food-panel--review,
+  .shop-food-panel--payment {
+    padding: 16px 10px;
+  }
+
+  .shop-food-card__bottom strong,
+  .shop-food-card__bottom strong span {
+    white-space: normal;
   }
 }
