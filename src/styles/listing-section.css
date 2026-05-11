@@ -62,7 +62,7 @@
 
 @media (max-width: 560px) {
   .listing-section {
-    gap: 12px;
+    gap: 14px;
   }
 
   .listing-section__header {
@@ -75,13 +75,32 @@
   }
 
   .listing-section__title {
-    font-size: 13px;
+    font-size: 12px;
     line-height: 18px;
     max-width: none;
+    font-style: italic;
+    font-weight: 500;
   }
 
   .listing-section__controls button {
-    width: 28px;
-    height: 28px;
+    width: auto;
+    height: auto;
+    background: transparent;
+    color: #98a2b3;
+    font-size: 0;
+  }
+
+  .listing-section__controls button:first-child {
+    display: none;
+  }
+
+  .listing-section__controls button:last-child::before {
+    content: "See All";
+    font-size: 11px;
+    line-height: 18px;
+  }
+
+  .listing-section__grid {
+    gap: 20px;
   }
 }

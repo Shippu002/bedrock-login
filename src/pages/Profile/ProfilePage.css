@@ -503,6 +503,59 @@
   color: #667085;
 }
 
+.edit-profile-security-link {
+  width: 100%;
+  min-height: 72px;
+  padding: 12px 16px;
+  border: 1px solid #ece8e2;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #101928;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.edit-profile-security-link > svg:first-child {
+  width: 34px;
+  height: 34px;
+  padding: 9px;
+  border-radius: 999px;
+  background: #fff2eb;
+  color: #c58a68;
+}
+
+.edit-profile-security-link > svg:last-child {
+  width: 18px;
+  height: 18px;
+  color: #98a2b3;
+}
+
+.edit-profile-security-link span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.edit-profile-security-link strong {
+  color: #101928;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
+.edit-profile-security-link em {
+  color: #98a2b3;
+  font-size: 12px;
+  font-style: normal;
+  line-height: 17px;
+}
+
 .profile-action-button,
 .profile-outline-button {
   min-height: 42px;
@@ -2032,5 +2085,133 @@
   .help-card p,
   .help-card--socials button {
     font-size: 13px;
+  }
+}
+
+@media (max-width: 620px) {
+  .profile-card-grid {
+    gap: 14px;
+  }
+
+  .profile-food-card {
+    min-height: 118px;
+    padding: 10px;
+    border-radius: 18px;
+    background: #ffffff;
+    box-shadow: 0 12px 26px rgba(16, 25, 40, 0.07);
+    display: grid;
+    grid-template-columns: 94px minmax(0, 1fr);
+    gap: 12px;
+    overflow: visible;
+  }
+
+  .profile-food-card__image {
+    height: 98px;
+    border-radius: 14px;
+  }
+
+  .profile-food-card__image span {
+    top: 8px;
+    left: 8px;
+    min-height: 16px;
+    padding: 0 6px;
+    font-size: 8px;
+  }
+
+  .profile-food-card__body {
+    min-height: 0;
+    min-width: 0;
+    padding: 0;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .profile-food-card__top {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    margin-bottom: 0;
+  }
+
+  .profile-food-card__top strong {
+    margin-bottom: 2px;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 20px;
+  }
+
+  .profile-food-card__top span {
+    padding: 1px 6px;
+    font-size: 8px;
+  }
+
+  .profile-food-card__top em {
+    font-size: 11px;
+  }
+
+  .profile-food-card p {
+    display: -webkit-box;
+    min-height: 0;
+    max-width: none;
+    margin: 0;
+    overflow: hidden;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 15px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .profile-food-card__bottom {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+    margin-top: auto;
+  }
+
+  .profile-food-card__bottom button {
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .profile-food-card__bottom strong {
+    font-size: 12px;
+    line-height: 15px;
+  }
+
+  .profile-food-card__bottom strong span {
+    font-size: 9px;
+    line-height: 12px;
+  }
+}
+
+@media (max-width: 390px) {
+  .profile-food-card {
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 10px;
+    padding: 8px;
+  }
+
+  .profile-food-card__image {
+    height: 88px;
+  }
+
+  .profile-food-card p {
+    -webkit-line-clamp: 1;
+  }
+
+  .profile-food-card__bottom button {
+    min-width: 32px;
+    padding: 0 9px;
+    font-size: 0;
+  }
+
+  .profile-food-card__bottom button svg {
+    width: 13px;
+    height: 13px;
   }
 }

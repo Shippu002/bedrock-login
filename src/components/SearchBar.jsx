@@ -1,14 +1,17 @@
 import { useState } from "react";
 import {
+  FiCalendar,
   FiChevronDown,
   FiMinus,
   FiPlus,
   FiSearch,
+  FiSliders,
 } from "react-icons/fi";
 import opebiImage from "../assets/opebi.jpg";
 import oduduwaImage from "../assets/oduduwa.jpg";
 import bateyeImage from "../assets/bateye.png";
 import communityImage from "../assets/community.jpg";
+import AppImage from "./AppImage";
 import "../styles/searchbar.css";
 
 const residenceOptions = [
@@ -78,8 +81,25 @@ function formatShortDate(value) {
   }).format(new Date(`${value}T00:00:00`));
 }
 
-function SearchBar({ onSearch }) {
+function getShortResidenceLabel(title) {
+  return String(title)
+    .replace(/'s Apartments/i, "")
+    .replace(/ Apartments/i, "")
+    .replace(/Community/i, "Community");
+}
+
+function getResidenceFilterLabel(item) {
+  const residenceName = String(item.title)
+    .replace(/'s Apartments/i, " Residence")
+    .replace(/ Apartments/i, " Residence");
+  const shortLocation = String(item.location).replace(/ Lagos Nigeria/i, "");
+
+  return `${residenceName} ${shortLocation}`;
+}
+
+function SearchBar({ onSearch, onResidenceSelect }) {
   const [openPanel, setOpenPanel] = useState(null);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [selectedResidenceId, setSelectedResidenceId] = useState("");
   const [selectedApartment, setSelectedApartment] = useState(null);
   const [dateRange, setDateRange] = useState({
@@ -123,6 +143,15 @@ function SearchBar({ onSearch }) {
     setOpenPanel((currentPanel) => (currentPanel === panel ? null : panel));
   }
 
+  function openMobileFilter() {
+    setOpenPanel(null);
+    setIsMobileFilterOpen(true);
+  }
+
+  function closeMobileFilter() {
+    setIsMobileFilterOpen(false);
+  }
+
   function updateGuestCount(id, direction) {
     setGuestCounts((currentCounts) => ({
       ...currentCounts,
@@ -130,15 +159,76 @@ function SearchBar({ onSearch }) {
     }));
   }
 
+  function shouldOpenResidencePage() {
+    return (
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 760px)").matches
+    );
+  }
+
   function handleResidenceClick(residenceId) {
+    if (shouldOpenResidencePage() && onResidenceSelect) {
+      setOpenPanel(null);
+      onResidenceSelect(residenceId);
+      return;
+    }
+
     setSelectedResidenceId(residenceId);
     setSelectedApartment(null);
-    setOpenPanel(null);
+  }
+
+  function handleMobileResidenceSelect(residenceId) {
+    setSelectedResidenceId(residenceId);
+    setSelectedApartment(null);
   }
 
   function handleApartmentClick(apartment) {
     setSelectedApartment(apartment);
     setOpenPanel(null);
+  }
+
+  function handleAllResidencesClick() {
+    setSelectedResidenceId("");
+    setSelectedApartment(null);
+    setOpenPanel(null);
+    onSearch?.({
+      residenceId: "",
+      apartmentTitle: "",
+      checkIn: dateRange.checkIn,
+      checkOut: dateRange.checkOut,
+      guests: totalGuests,
+    });
+  }
+
+  function handleMobileFilterSearch() {
+    setOpenPanel(null);
+    setIsMobileFilterOpen(false);
+    onSearch?.({
+      residenceId: selectedResidenceId,
+      apartmentTitle: selectedApartment || "",
+      checkIn: dateRange.checkIn,
+      checkOut: dateRange.checkOut,
+      guests: totalGuests,
+    });
+  }
+
+  function handleMobileFilterClear() {
+    setSelectedResidenceId("");
+    setSelectedApartment(null);
+    setDateRange({ checkIn: "", checkOut: "" });
+    setGuestCounts({
+      adults: 0,
+      children: 0,
+      infants: 0,
+      pets: 0,
+    });
+    onSearch?.({
+      residenceId: "",
+      apartmentTitle: "",
+      checkIn: "",
+      checkOut: "",
+      guests: 0,
+    });
   }
 
   function updateDateRange(field, value) {
@@ -163,6 +253,160 @@ function SearchBar({ onSearch }) {
   return (
     <section className="search-bar-section">
       <form className="search-bar" onSubmit={handleSubmit}>
+        <div className="search-bar-mobile">
+          <button
+            type="button"
+            className="search-bar-mobile__search"
+            onClick={() => togglePanel("residences")}
+          >
+            <FiSearch />
+            <span>Search...</span>
+          </button>
+
+          <button
+            type="button"
+            className="search-bar-mobile__filter"
+            onClick={openMobileFilter}
+            aria-label="Open filters"
+          >
+            <FiSliders />
+          </button>
+        </div>
+
+        <div className="search-bar-mobile__chips" aria-label="Residence filters">
+          <button
+            type="button"
+            className={!selectedResidenceId ? "is-active" : ""}
+            onClick={handleAllResidencesClick}
+          >
+            <AppImage src={opebiImage} alt="" />
+            <span>All</span>
+          </button>
+
+          {residenceOptions.map((item) => (
+            <button
+              type="button"
+              className={selectedResidenceId === item.id ? "is-active" : ""}
+              onClick={() => handleResidenceClick(item.id)}
+              key={item.id}
+            >
+              <AppImage src={item.image} alt="" />
+              <span>{getShortResidenceLabel(item.title)}</span>
+            </button>
+            ))}
+        </div>
+
+        {isMobileFilterOpen && (
+          <div
+            className="mobile-filter"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mobile-filter-title"
+          >
+            <button
+              type="button"
+              className="mobile-filter__backdrop"
+              onClick={closeMobileFilter}
+              aria-label="Close filters"
+            />
+
+            <div className="mobile-filter__sheet">
+              <span className="mobile-filter__handle" aria-hidden="true" />
+              <h2 id="mobile-filter-title">Filter by</h2>
+
+              <div className="mobile-filter__group">
+                <span className="mobile-filter__label">Select Location</span>
+                <div className="mobile-filter__locations">
+                  {residenceOptions.map((item) => (
+                    <button
+                      type="button"
+                      className={
+                        selectedResidenceId === item.id ? "is-active" : ""
+                      }
+                      onClick={() => handleMobileResidenceSelect(item.id)}
+                      key={item.id}
+                    >
+                      <AppImage src={item.image} alt="" />
+                      <span>{getResidenceFilterLabel(item)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label className="mobile-filter__field">
+                <span>Check-in-Date</span>
+                <div className="mobile-filter__date-input">
+                  <FiCalendar />
+                  <input
+                    type="date"
+                    value={dateRange.checkIn}
+                    onChange={(event) =>
+                      updateDateRange("checkIn", event.target.value)
+                    }
+                    aria-label="Check-in date"
+                  />
+                </div>
+              </label>
+
+              <label className="mobile-filter__field">
+                <span>Check-out-Date</span>
+                <div className="mobile-filter__date-input">
+                  <FiCalendar />
+                  <input
+                    type="date"
+                    min={dateRange.checkIn}
+                    value={dateRange.checkOut}
+                    onChange={(event) =>
+                      updateDateRange("checkOut", event.target.value)
+                    }
+                    aria-label="Check-out date"
+                  />
+                </div>
+              </label>
+
+              <div className="mobile-filter__field">
+                <span>Number of Guests</span>
+                <div className="mobile-filter__guest-row">
+                  <span>Add number of guest</span>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => updateGuestCount("adults", -1)}
+                      aria-label="Remove guest"
+                    >
+                      <FiMinus />
+                    </button>
+                    <strong>{totalGuests}</strong>
+                    <button
+                      type="button"
+                      onClick={() => updateGuestCount("adults", 1)}
+                      aria-label="Add guest"
+                    >
+                      <FiPlus />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="mobile-filter__primary"
+                onClick={handleMobileFilterSearch}
+              >
+                Search Apartments
+              </button>
+
+              <button
+                type="button"
+                className="mobile-filter__clear"
+                onClick={handleMobileFilterClear}
+              >
+                Clear all
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="search-bar__field search-bar__field--residence">
           <button
             type="button"
@@ -235,7 +479,7 @@ function SearchBar({ onSearch }) {
                     onClick={() => handleResidenceClick(item.id)}
                     key={item.title}
                   >
-                    <img src={item.image} alt="" />
+                    <AppImage src={item.image} alt="" />
                     <span>
                       <strong>{item.title}</strong>
                       <em>{item.location}</em>
@@ -251,6 +495,10 @@ function SearchBar({ onSearch }) {
                   ? `Apartment at ${selectedResidence.title.replace(" Apartments", "")}`
                   : "Select a residence"}
               </h3>
+
+              <p className="search-popover__hint">
+                Choose an apartment type to continue
+              </p>
 
               <div className="search-popover__types">
                 {(selectedResidence?.apartments || []).map((item) => (

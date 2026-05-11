@@ -48,6 +48,12 @@ const initialLoginData = {
   password: "",
 };
 
+const initialResetData = {
+  email: "",
+  password: "",
+  confirmPassword: "",
+};
+
 const initialOtp = ["", "", "", "", "", ""];
 
 const amenityOptions = [
@@ -85,8 +91,10 @@ export default function AuthModal({
   onClose,
   onSwitchToLogin,
   onSwitchToSignup,
-  onGoogleSignup,
-  onAppleSignup,
+  onGoogleSignIn,
+  onAppleSignIn,
+  socialAuthProvider = "",
+  socialAuthError = "",
   onAuthComplete,
 }) {
   const [selectedCountryId, setSelectedCountryId] = useState("US");
@@ -97,6 +105,12 @@ export default function AuthModal({
   const [showLoginErrors, setShowLoginErrors] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginErrorMessage, setLoginErrorMessage] = useState("");
+  const [resetData, setResetData] = useState(initialResetData);
+  const [showResetErrors, setShowResetErrors] = useState(false);
+  const [resetErrorMessage, setResetErrorMessage] = useState("");
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] =
+    useState(false);
   const [currentStep, setCurrentStep] = useState(
     entryPoint === "signup" ? "signup" : "login",
   );
@@ -125,6 +139,9 @@ export default function AuthModal({
     findCountryById(selectedCountryId) ||
     countryOptions[0];
   const selectedCurrency = selectedCountry.currency;
+  const isSocialAuthLoading = Boolean(socialAuthProvider);
+  const isGoogleAuthLoading = socialAuthProvider === "google";
+  const isAppleAuthLoading = socialAuthProvider === "apple";
 
   const showReferralTip = isReferralActive || formData.referral.trim() !== "";
   const formattedResendTimer = `00:${String(resendTimer).padStart(2, "0")}`;
@@ -145,6 +162,12 @@ export default function AuthModal({
     password: loginData.password.trim() === "",
   };
 
+  const resetErrors = {
+    email: resetData.email.trim() === "",
+    password: resetData.password === "",
+    confirmPassword: resetData.confirmPassword === "",
+  };
+
   const isSignupComplete =
     !signupErrors.fullName && !signupErrors.email && !signupErrors.phone;
 
@@ -161,6 +184,20 @@ export default function AuthModal({
   const isPasswordStrong = Object.values(passwordChecks).every(Boolean);
   const passwordsMatch = password !== "" && password === confirmPassword;
 
+  const resetPasswordChecks = {
+    uppercase: /[A-Z]/.test(resetData.password),
+    lowercase: /[a-z]/.test(resetData.password),
+    number: /\d/.test(resetData.password),
+    length: resetData.password.length >= 8,
+    special: /[^A-Za-z0-9]/.test(resetData.password),
+  };
+
+  const isResetPasswordStrong =
+    Object.values(resetPasswordChecks).every(Boolean);
+  const resetPasswordsMatch =
+    resetData.password !== "" &&
+    resetData.password === resetData.confirmPassword;
+
   useEffect(() => {
     if (!isOpen || currentStep !== "otpVerification" || resendTimer <= 0) {
       return;
@@ -172,6 +209,27 @@ export default function AuthModal({
 
     return () => clearTimeout(timeoutId);
   }, [isOpen, currentStep, resendTimer]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalOverflow = document.body.style.overflow;
+    const originalPosition = document.body.style.position;
+    const originalWidth = document.body.style.width;
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "relative";
+    document.body.style.width = "100%";
+
+    return () => {
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.overflow = originalOverflow;
+      document.body.style.position = originalPosition;
+      document.body.style.width = originalWidth;
+    };
+  }, [isOpen]);
 
   function handleFieldChange(field, value) {
     const nextValue =
@@ -202,6 +260,27 @@ export default function AuthModal({
     }));
     setShowLoginErrors(false);
     setLoginErrorMessage("");
+  }
+
+  function handleResetFieldChange(field, value) {
+    setResetData((currentData) => ({
+      ...currentData,
+      [field]: value,
+    }));
+    setShowResetErrors(false);
+    setResetErrorMessage("");
+  }
+
+  function openForgotPassword() {
+    setResetData({
+      ...initialResetData,
+      email: loginData.email.trim(),
+    });
+    setShowResetErrors(false);
+    setResetErrorMessage("");
+    setShowResetPassword(false);
+    setShowResetConfirmPassword(false);
+    setCurrentStep("forgotPassword");
   }
 
   function handleOtpChange(index, value) {
@@ -349,6 +428,14 @@ export default function AuthModal({
     };
   }
 
+  function readSavedAccount() {
+    try {
+      return JSON.parse(localStorage.getItem(ACCOUNT_STORAGE_KEY) || "null");
+    } catch {
+      return null;
+    }
+  }
+
   function completeSignupSession() {
     const registeredUser = buildRegisteredUser();
 
@@ -370,9 +457,7 @@ export default function AuthModal({
       return;
     }
 
-    const savedAccount = JSON.parse(
-      localStorage.getItem(ACCOUNT_STORAGE_KEY) || "null",
-    );
+    const savedAccount = readSavedAccount();
 
     if (!savedAccount) {
       setLoginErrorMessage("No saved account found. Please sign up first.");
@@ -397,6 +482,104 @@ export default function AuthModal({
     }
   }
 
+  function handleForgotPasswordSubmit(event) {
+    event.preventDefault();
+
+    if (resetErrors.email) {
+      setShowResetErrors(true);
+      setResetErrorMessage("Enter the email address on your account.");
+      return;
+    }
+
+    const savedAccount = readSavedAccount();
+    const email = resetData.email.trim();
+
+    if (!savedAccount?.email) {
+      setResetErrorMessage("No saved account found. Please sign up first.");
+      return;
+    }
+
+    if (savedAccount.email.toLowerCase() !== email.toLowerCase()) {
+      setResetErrorMessage("No account found for this email address.");
+      return;
+    }
+
+    setResetData({
+      email: savedAccount.email,
+      password: "",
+      confirmPassword: "",
+    });
+    setShowResetErrors(false);
+    setResetErrorMessage("");
+    setCurrentStep("resetPassword");
+  }
+
+  function handleResetPasswordSubmit(event) {
+    event.preventDefault();
+
+    if (resetErrors.password || resetErrors.confirmPassword) {
+      setShowResetErrors(true);
+      setResetErrorMessage("Enter and confirm your new password.");
+      return;
+    }
+
+    if (!isResetPasswordStrong) {
+      setShowResetErrors(true);
+      setResetErrorMessage(
+        "Use at least 8 characters with uppercase, lowercase, a number, and a special character.",
+      );
+      return;
+    }
+
+    if (!resetPasswordsMatch) {
+      setShowResetErrors(true);
+      setResetErrorMessage("Passwords do not match yet.");
+      return;
+    }
+
+    const savedAccount = readSavedAccount();
+    const email = resetData.email.trim();
+
+    if (
+      !savedAccount?.email ||
+      savedAccount.email.toLowerCase() !== email.toLowerCase()
+    ) {
+      setResetErrorMessage(
+        "We could not find that account. Confirm your email again.",
+      );
+      setCurrentStep("forgotPassword");
+      return;
+    }
+
+    const updatedAccount = {
+      ...savedAccount,
+      password: resetData.password,
+    };
+
+    localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(updatedAccount));
+
+    setLoginData({
+      email: updatedAccount.email,
+      password: "",
+    });
+    setShowLoginErrors(false);
+    setLoginErrorMessage("");
+    setShowResetErrors(false);
+    setResetErrorMessage("");
+    setShowResetPassword(false);
+    setShowResetConfirmPassword(false);
+    setCurrentStep("resetPasswordSuccess");
+  }
+
+  function handleResetBackToLogin() {
+    setResetData(initialResetData);
+    setShowResetErrors(false);
+    setResetErrorMessage("");
+    setShowResetPassword(false);
+    setShowResetConfirmPassword(false);
+    setCurrentStep("login");
+  }
+
   function resetModalState() {
     setSelectedCountryId("US");
     setFormData(initialFormData);
@@ -406,6 +589,11 @@ export default function AuthModal({
     setShowLoginErrors(false);
     setShowLoginPassword(false);
     setLoginErrorMessage("");
+    setResetData(initialResetData);
+    setShowResetErrors(false);
+    setResetErrorMessage("");
+    setShowResetPassword(false);
+    setShowResetConfirmPassword(false);
     setCurrentStep(entryPoint === "signup" ? "signup" : "login");
     setOtp(initialOtp);
     setResendTimer(60);
@@ -475,11 +663,19 @@ export default function AuthModal({
       return "auth-modal auth-modal--wide";
     }
 
-    if (currentStep === "otpFailed" || currentStep === "otpSuccess") {
+    if (
+      currentStep === "otpFailed" ||
+      currentStep === "otpSuccess" ||
+      currentStep === "resetPasswordSuccess"
+    ) {
       return "auth-modal auth-modal--compact";
     }
 
-    if (currentStep === "usernameCreation") {
+    if (
+      currentStep === "usernameCreation" ||
+      currentStep === "forgotPassword" ||
+      currentStep === "resetPassword"
+    ) {
       return "auth-modal auth-modal--username";
     }
 
@@ -568,7 +764,11 @@ export default function AuthModal({
                 </div>
               </label>
 
-              <button type="button" className="auth-login__forgot">
+              <button
+                type="button"
+                className="auth-login__forgot"
+                onClick={openForgotPassword}
+              >
                 Forgot password?
               </button>
 
@@ -583,20 +783,30 @@ export default function AuthModal({
               <button
                 type="button"
                 className="auth-social-button"
-                onClick={onGoogleSignup}
+                onClick={onGoogleSignIn}
+                disabled={isSocialAuthLoading}
               >
                 <FcGoogle className="auth-social-icon" />
-                <span>Login with Google</span>
+                <span>
+                  {isGoogleAuthLoading ? "Signing in..." : "Login with Google"}
+                </span>
               </button>
 
               <button
                 type="button"
                 className="auth-social-button"
-                onClick={onAppleSignup}
+                onClick={onAppleSignIn}
+                disabled={isSocialAuthLoading}
               >
                 <FaApple className="auth-social-icon auth-social-icon--apple" />
-                <span>Login with Apple</span>
+                <span>
+                  {isAppleAuthLoading ? "Signing in..." : "Login with Apple"}
+                </span>
               </button>
+
+              {socialAuthError && (
+                <p className="auth-field-error">{socialAuthError}</p>
+              )}
 
               <button type="submit" className="auth-primary-button">
                 Continue
@@ -614,6 +824,222 @@ export default function AuthModal({
               </p>
             </form>
           </>
+        )}
+
+        {currentStep === "forgotPassword" && (
+          <div className="auth-reset">
+            <button
+              type="button"
+              className="auth-back-button"
+              onClick={() => setCurrentStep("login")}
+            >
+              <FiChevronLeft />
+              <span>Back</span>
+            </button>
+
+            <h2 className="auth-reset__title">Forgot password</h2>
+            <p className="auth-reset__subtitle">
+              Enter the email linked to your account and create a new password.
+            </p>
+
+            <form
+              className="auth-reset__form"
+              onSubmit={handleForgotPasswordSubmit}
+            >
+              <label className="auth-field">
+                <span className="auth-label">Email</span>
+                <div className="auth-input-wrap auth-input-wrap--plain">
+                  <input
+                    type="email"
+                    placeholder="Enter email address"
+                    value={resetData.email}
+                    onChange={(event) =>
+                      handleResetFieldChange("email", event.target.value)
+                    }
+                    className={
+                      showResetErrors && resetErrors.email
+                        ? "auth-input-error"
+                        : ""
+                    }
+                    aria-invalid={showResetErrors && resetErrors.email}
+                  />
+                </div>
+              </label>
+
+              {resetErrorMessage && (
+                <p className="auth-field-error">{resetErrorMessage}</p>
+              )}
+
+              <button type="submit" className="auth-primary-button">
+                Continue
+              </button>
+            </form>
+          </div>
+        )}
+
+        {currentStep === "resetPassword" && (
+          <div className="auth-reset">
+            <button
+              type="button"
+              className="auth-back-button"
+              onClick={() => setCurrentStep("forgotPassword")}
+            >
+              <FiChevronLeft />
+              <span>Back</span>
+            </button>
+
+            <h2 className="auth-reset__title">Create new password</h2>
+            <p className="auth-reset__subtitle">
+              Use a new password for{" "}
+              <span className="auth-reset__email">{resetData.email}</span>.
+            </p>
+
+            <form
+              className="auth-reset__form"
+              onSubmit={handleResetPasswordSubmit}
+            >
+              <label className="auth-field">
+                <span className="auth-label">New password</span>
+                <div className="auth-password__input-wrap">
+                  <input
+                    type={showResetPassword ? "text" : "password"}
+                    value={resetData.password}
+                    onChange={(event) =>
+                      handleResetFieldChange("password", event.target.value)
+                    }
+                    className={
+                      showResetErrors && resetErrors.password
+                        ? "auth-input-error"
+                        : ""
+                    }
+                    aria-invalid={showResetErrors && resetErrors.password}
+                  />
+                  <button
+                    type="button"
+                    className="auth-password__eye"
+                    onClick={() =>
+                      setShowResetPassword((current) => !current)
+                    }
+                  >
+                    {showResetPassword ? <FiEyeOff /> : <FiEye />}
+                  </button>
+                </div>
+              </label>
+
+              <p className="auth-password__hint">
+                Use a strong password you have not used here before.
+              </p>
+
+              <label className="auth-field">
+                <span className="auth-label">Confirm new password</span>
+                <div className="auth-password__input-wrap">
+                  <input
+                    type={showResetConfirmPassword ? "text" : "password"}
+                    value={resetData.confirmPassword}
+                    onChange={(event) =>
+                      handleResetFieldChange(
+                        "confirmPassword",
+                        event.target.value,
+                      )
+                    }
+                    className={
+                      showResetErrors && resetErrors.confirmPassword
+                        ? "auth-input-error"
+                        : ""
+                    }
+                    aria-invalid={
+                      showResetErrors && resetErrors.confirmPassword
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="auth-password__eye"
+                    onClick={() =>
+                      setShowResetConfirmPassword((current) => !current)
+                    }
+                  >
+                    {showResetConfirmPassword ? <FiEyeOff /> : <FiEye />}
+                  </button>
+                </div>
+              </label>
+
+              <div className="auth-password__checks">
+                <span
+                  className={`auth-password__chip ${
+                    resetPasswordChecks.uppercase ? "is-valid" : ""
+                  }`}
+                >
+                  Uppercase
+                </span>
+                <span
+                  className={`auth-password__chip ${
+                    resetPasswordChecks.lowercase ? "is-valid" : ""
+                  }`}
+                >
+                  Lowercase
+                </span>
+                <span
+                  className={`auth-password__chip ${
+                    resetPasswordChecks.number ? "is-valid" : ""
+                  }`}
+                >
+                  Number
+                </span>
+                <span
+                  className={`auth-password__chip ${
+                    resetPasswordChecks.length ? "is-valid" : ""
+                  }`}
+                >
+                  8 Character
+                </span>
+                <span
+                  className={`auth-password__chip ${
+                    resetPasswordChecks.special ? "is-valid" : ""
+                  }`}
+                >
+                  Special character
+                </span>
+              </div>
+
+              <p className="auth-password__hint">
+                {resetData.confirmPassword && !resetPasswordsMatch
+                  ? "Passwords do not match yet."
+                  : "Create a strong password to continue."}
+              </p>
+
+              {resetErrorMessage && (
+                <p className="auth-field-error">{resetErrorMessage}</p>
+              )}
+
+              <button type="submit" className="auth-primary-button">
+                Update password
+              </button>
+            </form>
+          </div>
+        )}
+
+        {currentStep === "resetPasswordSuccess" && (
+          <div className="auth-stage auth-stage--status">
+            <div className="auth-stage__icon auth-stage__icon--success">
+              <FiCheck />
+            </div>
+
+            <h2 className="auth-stage__title auth-stage__title--status">
+              Password updated
+            </h2>
+
+            <p className="auth-stage__text auth-stage__text--status">
+              You can now log in with your new password.
+            </p>
+
+            <button
+              type="button"
+              className="auth-primary-button auth-primary-button--accent"
+              onClick={handleResetBackToLogin}
+            >
+              Back to login
+            </button>
+          </div>
         )}
 
         {currentStep === "signup" && (
@@ -750,20 +1176,32 @@ export default function AuthModal({
               <button
                 type="button"
                 className="auth-social-button"
-                onClick={onGoogleSignup}
+                onClick={onGoogleSignIn}
+                disabled={isSocialAuthLoading}
               >
                 <FcGoogle className="auth-social-icon" />
-                <span>Sign up with Google</span>
+                <span>
+                  {isGoogleAuthLoading
+                    ? "Signing in..."
+                    : "Sign up with Google"}
+                </span>
               </button>
 
               <button
                 type="button"
                 className="auth-social-button"
-                onClick={onAppleSignup}
+                onClick={onAppleSignIn}
+                disabled={isSocialAuthLoading}
               >
                 <FaApple className="auth-social-icon auth-social-icon--apple" />
-                <span>Sign up with Apple</span>
+                <span>
+                  {isAppleAuthLoading ? "Signing in..." : "Sign up with Apple"}
+                </span>
               </button>
+
+              {socialAuthError && (
+                <p className="auth-field-error">{socialAuthError}</p>
+              )}
 
               <button type="submit" className="auth-primary-button">
                 Continue

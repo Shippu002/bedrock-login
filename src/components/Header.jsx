@@ -5,6 +5,7 @@ import opebiImage from "../assets/opebi.jpg";
 import oduduwaImage from "../assets/oduduwa.jpg";
 import bateyeImage from "../assets/bateye.png";
 import communityImage from "../assets/community.jpg";
+import AppImage from "./AppImage";
 import ProfileMenu from "./ProfileMenu";
 import { shopCategories } from "../data/shopCategories";
 import { getUserMessageCount } from "../utils/userMessages";
@@ -69,6 +70,7 @@ function Dropdown({
   onClose,
   onResidenceSelect,
   onShopSelect,
+  onShopDirectory,
 }) {
   const [selectedResidenceId, setSelectedResidenceId] = useState("opebi");
   const [selectedApartment, setSelectedApartment] = useState(null);
@@ -76,16 +78,45 @@ function Dropdown({
     (item) => item.id === selectedResidenceId,
   );
 
+  function shouldOpenResidencePage() {
+    return (
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 760px)").matches
+    );
+  }
+
+  function handleDropdownToggle() {
+    if (type === "shops" && shouldOpenResidencePage()) {
+      onShopDirectory?.();
+      onClose?.();
+      return;
+    }
+
+    onToggle?.();
+  }
+
   function handleResidenceClick(residenceId) {
     setSelectedResidenceId(residenceId);
     setSelectedApartment(null);
-    onResidenceSelect?.(residenceId);
+
+    if (shouldOpenResidencePage()) {
+      onResidenceSelect?.(residenceId, "");
+      onClose?.();
+      return;
+    }
+
+    onResidenceSelect?.(residenceId, "");
     onClose?.();
+  }
+
+  function handleResidencePreview(residenceId) {
+    setSelectedResidenceId(residenceId);
+    setSelectedApartment(null);
   }
 
   function handleApartmentClick(apartment) {
     setSelectedApartment(apartment);
-    onResidenceSelect?.(selectedResidenceId);
+    onResidenceSelect?.(selectedResidenceId, apartment);
     onClose?.();
   }
 
@@ -99,7 +130,7 @@ function Dropdown({
       <button
         className="nav-link"
         type="button"
-        onClick={onToggle}
+        onClick={handleDropdownToggle}
         aria-haspopup="menu"
         aria-expanded={isOpen}
       >
@@ -121,10 +152,12 @@ function Dropdown({
                   className={`nav-mega__item ${
                     selectedResidenceId === item.id ? "nav-mega__item--active" : ""
                   }`}
+                  onMouseEnter={() => handleResidencePreview(item.id)}
+                  onFocus={() => handleResidencePreview(item.id)}
                   onClick={() => handleResidenceClick(item.id)}
                   key={item.title}
                 >
-                  <img src={item.image} alt="" />
+                  <AppImage src={item.image} alt="" />
                   <span>
                     <strong>{item.title}</strong>
                     <em>{item.location}</em>
@@ -140,6 +173,10 @@ function Dropdown({
                 ? `Apartment at ${selectedResidence.title.replace(" Apartments", "")}`
                 : "Select a residence"}
             </h3>
+
+            <p className="nav-mega__hint">
+              Choose an apartment type to continue
+            </p>
 
             <div className="nav-mega__types">
               {(selectedResidence?.apartments || []).map((item) => (
@@ -172,7 +209,7 @@ function Dropdown({
                 onClick={() => handleShopClick(item.id)}
                 key={item.title}
               >
-                <img src={item.image} alt="" />
+                <AppImage src={item.image} alt="" />
                 <span>
                   <strong>{item.title}</strong>
                   <em>{item.location}</em>
@@ -197,6 +234,7 @@ export default function Header({
   onMessages,
   onResidenceSelect,
   onShopSelect,
+  onShopDirectory,
   onBecomeAgent,
   onLogout,
 }) {
@@ -232,14 +270,26 @@ export default function Header({
     onProfileView?.(view);
   }
 
-  function handleResidenceSelect(residenceId) {
+  function handleResidenceSelect(residenceId, apartmentTitle = "") {
     setIsProfileMenuOpen(false);
-    onResidenceSelect?.(residenceId);
+    onResidenceSelect?.(residenceId, apartmentTitle);
   }
 
   function handleShopSelect(shopId) {
     setIsProfileMenuOpen(false);
     onShopSelect?.(shopId);
+  }
+
+  function handleShopDirectory() {
+    setIsProfileMenuOpen(false);
+    setOpenMenu(null);
+    onShopDirectory?.();
+  }
+
+  function handleOrders() {
+    setIsProfileMenuOpen(false);
+    setOpenMenu(null);
+    onProfileView?.("bookings");
   }
 
   return (
@@ -255,6 +305,8 @@ export default function Header({
             src={bedrockLogo}
             alt="Bedrock Residences"
             className="brand-logo"
+            loading="eager"
+            decoding="async"
           />
         </button>
 
@@ -275,9 +327,14 @@ export default function Header({
             onToggle={() => toggleMenu("shops")}
             onClose={() => setOpenMenu(null)}
             onShopSelect={handleShopSelect}
+            onShopDirectory={handleShopDirectory}
           />
 
-          <button className="nav-link nav-link-orders" type="button">
+          <button
+            className="nav-link nav-link-orders"
+            type="button"
+            onClick={handleOrders}
+          >
             <span className="nav-link-label">Orders</span>
             <span className="nav-link-icon-wrap nav-link-icon-wrap-hidden">
               <FiChevronDown className="nav-icon" />

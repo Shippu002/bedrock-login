@@ -21,6 +21,7 @@ import apartTwo from "../../assets/apart-2.jpg";
 import apartThree from "../../assets/apart-3.jpg";
 import apartFour from "../../assets/apart-4.jpg";
 import apartFive from "../../assets/apart-5.jpg";
+import AppImage from "../../components/AppImage";
 import {
   addDays,
   calculateBookingTotals,
@@ -102,6 +103,7 @@ function ApartmentPage({
   bookingDetails,
   onBookingChange,
   onOpenPayment,
+  onBackToListings,
   onPaymentContinue,
   onBackToApartment,
   onBackToPayment,
@@ -228,7 +230,11 @@ function ApartmentPage({
 
             <aside className="apartment-payment-card">
               <div className="apartment-payment-card__preview">
-                <img src={previewImage} alt={apartment.title} />
+                <AppImage
+                  src={previewImage}
+                  fallbackSrc={fallbackGalleryImages[0]}
+                  alt={apartment.title}
+                />
 
                 <div className="apartment-payment-card__preview-copy">
                   <div>
@@ -400,7 +406,11 @@ function ApartmentPage({
             <p>we are confirming your payment, kindly check back</p>
 
             <article className="apartment-status-card">
-              <img src={statusImage} alt={apartment.title} />
+              <AppImage
+                src={statusImage}
+                fallbackSrc={fallbackGalleryImages[0]}
+                alt={apartment.title}
+              />
 
               <div className="apartment-status-card__body">
                 <h3>{apartment.title}</h3>
@@ -448,6 +458,10 @@ function ApartmentPage({
   return (
     <section className="apartment-flow apartment-flow--details">
       <div className="apartment-flow__panel">
+        {onBackToListings && (
+          <BackButton onClick={onBackToListings} />
+        )}
+
         <div className="apartment-flow__heading">
           <h1>
             {apartment.title} ({apartment.residenceName})
@@ -467,7 +481,12 @@ function ApartmentPage({
           <div className="apartment-detail-main">
             <div className="apartment-gallery">
               <div className="apartment-gallery__hero">
-                <img src={galleryImages[activeImage]} alt={apartment.title} />
+                <AppImage
+                  src={galleryImages[activeImage]}
+                  fallbackSrc={fallbackGalleryImages[0]}
+                  alt={apartment.title}
+                  loading="eager"
+                />
               </div>
 
               <div className="apartment-gallery__grid">
@@ -487,7 +506,11 @@ function ApartmentPage({
                     }
                     key={image}
                   >
-                    <img src={image} alt={`${apartment.title} ${index + 2}`} />
+                    <AppImage
+                      src={image}
+                      fallbackSrc={fallbackGalleryImages[0]}
+                      alt={`${apartment.title} ${index + 2}`}
+                    />
                   </button>
                 ))}
               </div>
@@ -668,6 +691,22 @@ function ApartmentPage({
               </p>
             </div>
           </aside>
+        </div>
+
+        <div className="apartment-mobile-cta">
+          <strong>
+            NGN{apartment.price.toLocaleString()}
+            <span>/per night</span>
+          </strong>
+
+          <button
+            type="button"
+            className="apartment-primary-button"
+            onClick={onOpenPayment}
+            disabled={!canContinueBooking}
+          >
+            Book Apartments
+          </button>
         </div>
       </div>
     </section>

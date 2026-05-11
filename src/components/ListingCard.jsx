@@ -1,5 +1,6 @@
 import { FiMapPin, FiStar, FiUsers, FiWifi, FiTruck } from "react-icons/fi";
 import { LuBedSingle } from "react-icons/lu";
+import AppImage from "./AppImage";
 import "../styles/listing-card.css";
 
 function ListingCard({
@@ -14,7 +15,7 @@ function ListingCard({
   return (
     <article className="listing-card">
       <div className="listing-card__image-wrapper">
-        <img
+        <AppImage
           src={item.image}
           alt={item.title}
           className="listing-card__image"

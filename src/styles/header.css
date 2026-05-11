@@ -165,12 +165,21 @@
 }
 
 .nav-mega h3 {
-  margin: 0 0 30px;
+  margin: 0 0 8px;
   color: #101928;
   font-family: "Urbanist", Arial, sans-serif;
   font-size: 21px;
   font-weight: 700;
   line-height: 28px;
+}
+
+.nav-mega__hint {
+  margin: 0;
+  color: #98a2b3;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
 }
 
 .nav-mega__list {
@@ -544,6 +553,67 @@
     top: calc(100% + 8px);
   }
 
+  .nav-mega--residences {
+    left: 0;
+    width: min(380px, calc(100vw - 24px));
+    max-height: min(360px, calc(100dvh - 150px));
+    border-radius: 18px;
+    overflow-y: auto;
+    transform: none;
+  }
+
+  .nav-mega--residences .nav-mega__column {
+    padding: 14px;
+  }
+
+  .nav-mega--residences .nav-mega__column--types {
+    display: none;
+  }
+
+  .nav-mega--residences h3 {
+    margin-bottom: 10px;
+    font-size: 15px;
+    line-height: 20px;
+  }
+
+  .nav-mega--residences .nav-mega__list {
+    gap: 8px;
+  }
+
+  .nav-mega--residences .nav-mega__item {
+    min-height: 58px;
+    padding: 8px;
+    border-radius: 12px;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .nav-mega--residences .nav-mega__item--active {
+    background: #fff7f2;
+    color: #101928;
+  }
+
+  .nav-mega--residences .nav-mega__item--active strong,
+  .nav-mega--residences .nav-mega__item--active em {
+    color: inherit;
+  }
+
+  .nav-mega--residences .nav-mega__item img {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+  }
+
+  .nav-mega--residences .nav-mega__item strong {
+    font-size: 14px;
+    line-height: 18px;
+  }
+
+  .nav-mega--residences .nav-mega__item em {
+    font-size: 11px;
+    line-height: 15px;
+  }
+
   .nav-link {
     font-size: 13px;
     gap: 6px;
@@ -612,7 +682,6 @@
   }
 
   .nav-mega,
-  .nav-mega--residences,
   .nav-mega--shops {
     left: 0;
     right: auto;
@@ -623,6 +692,7 @@
 
   .nav-mega--residences {
     grid-template-columns: 1fr;
+    width: min(360px, calc(100vw - 24px));
   }
 
   .nav-mega__column--types {
@@ -692,9 +762,12 @@
   }
 
   .nav-mega,
-  .nav-mega--residences,
   .nav-mega--shops {
     width: calc(100vw - 20px);
+  }
+
+  .nav-mega--residences {
+    width: min(330px, calc(100vw - 20px));
   }
 
   .nav-mega__item {
@@ -706,6 +779,17 @@
   .nav-mega__item img {
     width: 52px;
     height: 52px;
+  }
+
+  .nav-mega--residences .nav-mega__item {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 9px;
+    padding: 7px;
+  }
+
+  .nav-mega--residences .nav-mega__item img {
+    width: 40px;
+    height: 40px;
   }
 
   .nav-mega--shops,

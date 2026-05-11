@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { FiChevronLeft, FiMapPin, FiShoppingBag } from "react-icons/fi";
 import Header from "../../components/Header";
 import SearchBar from "../../components/SearchBar";
 import ListingSection from "../../components/ListingSection";
+import AppImage from "../../components/AppImage";
 import { listingSections } from "../../data/listings";
+import { shopCategories } from "../../data/shopCategories";
 import Footer from "../../components/Footer";
 import AuthModal from "../../components/AuthModal";
 import ProfilePage from "../Profile/ProfilePage";
@@ -30,6 +33,14 @@ import {
   filterListingSections,
   hasActiveApartmentFilters,
 } from "../../utils/apartmentFilters";
+import {
+  auth,
+  GoogleAuthProvider,
+  isFirebaseConfigReady,
+  missingFirebaseEnvVars,
+  OAuthProvider,
+  signInWithPopup,
+} from "../../firebase";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
 
@@ -81,11 +92,93 @@ function createBookingDetailsFromFilters(filters) {
   };
 }
 
+function ShopDirectoryPage({ onBack, onShopSelect }) {
+  return (
+    <section className="shop-directory-page">
+      <div className="shop-directory-page__top">
+        <button
+          type="button"
+          className="shop-directory-page__back"
+          onClick={onBack}
+          aria-label="Go back"
+        >
+          <FiChevronLeft />
+          <span>Back</span>
+        </button>
+
+        <span className="shop-directory-page__icon" aria-hidden="true">
+          <FiShoppingBag />
+        </span>
+      </div>
+
+      <div className="shop-directory-page__heading">
+        <h1>Shop</h1>
+        <p>Choose what you need for your stay.</p>
+      </div>
+
+      <div className="shop-directory-page__list">
+        {shopCategories.map((item) => (
+          <button
+            type="button"
+            className="shop-directory-card"
+            onClick={() => onShopSelect?.(item.id)}
+            key={item.id}
+          >
+            <AppImage src={item.image} alt="" />
+
+            <span>
+              <strong>{item.title}</strong>
+              <em>
+                <FiMapPin />
+                {item.location}
+              </em>
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function getSocialAuthErrorMessage(error, providerName) {
+  const providerLabel = providerName === "apple" ? "Apple" : "Google";
+
+  switch (error?.code) {
+    case "app/missing-firebase-config":
+      return `Firebase is not configured yet. Add ${missingFirebaseEnvVars.join(
+        ", ",
+      )} to your .env file, then restart the dev server.`;
+    case "auth/invalid-api-key":
+      return "Firebase rejected the API key. Check VITE_FIREBASE_API_KEY in your .env file.";
+    case "auth/configuration-not-found":
+      return "Firebase Auth is not enabled for this project. Enable Authentication and the sign-in provider in Firebase Console.";
+    case "auth/operation-not-allowed":
+      return `${providerLabel} sign-in is not enabled. Turn it on in Firebase Console > Authentication > Sign-in method.`;
+    case "auth/unauthorized-domain":
+      return "This domain is not authorized in Firebase. Add localhost and 127.0.0.1 in Firebase Console > Authentication > Settings > Authorized domains.";
+    case "auth/popup-blocked":
+      return "The sign-in popup was blocked by the browser. Allow popups and try again.";
+    case "auth/popup-closed-by-user":
+      return "Sign-in was cancelled before it finished.";
+    case "auth/cancelled-popup-request":
+      return "Another sign-in popup is already open. Close it and try again.";
+    case "auth/account-exists-with-different-credential":
+      return "An account already exists with this email using another sign-in method.";
+    default:
+      return (
+        error?.message ||
+        `${providerLabel} sign-in failed. Please try again or use email login.`
+      );
+  }
+}
+
 function HomePage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authEntry, setAuthEntry] = useState("login");
   const [authModalKey, setAuthModalKey] = useState(0);
   const [currentUser, setCurrentUser] = useState(null);
+  const [socialAuthProvider, setSocialAuthProvider] = useState("");
+  const [socialAuthError, setSocialAuthError] = useState("");
   const [activePage, setActivePage] = useState("home");
   const [profileInitialView, setProfileInitialView] = useState("profile");
   const [selectedResidenceId, setSelectedResidenceId] = useState("opebi");
@@ -94,6 +187,7 @@ function HomePage() {
   );
   const [searchResetKey, setSearchResetKey] = useState(0);
   const [selectedApartment, setSelectedApartment] = useState(null);
+  const [apartmentReturnPage, setApartmentReturnPage] = useState("home");
   const [bookingDetails, setBookingDetails] = useState(() =>
     createDefaultBookingDetails(),
   );
@@ -108,10 +202,16 @@ function HomePage() {
   );
   const hasApartmentFilters = hasActiveApartmentFilters(apartmentFilters);
 
+  function readSavedAccount() {
+    try {
+      return JSON.parse(localStorage.getItem(ACCOUNT_STORAGE_KEY) || "null");
+    } catch {
+      return null;
+    }
+  }
+
   function syncSavedAccount(nextUser) {
-    const savedAccount = JSON.parse(
-      localStorage.getItem(ACCOUNT_STORAGE_KEY) || "null",
-    );
+    const savedAccount = readSavedAccount();
 
     if (!savedAccount || !nextUser) {
       return;
@@ -141,17 +241,23 @@ function HomePage() {
 
   function openLogin() {
     setAuthEntry("login");
+    setSocialAuthError("");
+    setSocialAuthProvider("");
     setAuthModalKey((current) => current + 1);
     setIsAuthModalOpen(true);
   }
 
   function openSignup() {
     setAuthEntry("signup");
+    setSocialAuthError("");
+    setSocialAuthProvider("");
     setAuthModalKey((current) => current + 1);
     setIsAuthModalOpen(true);
   }
 
   function closeAuthModal() {
+    setSocialAuthError("");
+    setSocialAuthProvider("");
     setIsAuthModalOpen(false);
   }
 
@@ -161,13 +267,108 @@ function HomePage() {
     setIsAuthModalOpen(false);
   }
 
+  function buildUserFromFirebaseUser(firebaseUser) {
+    const savedAccount = readSavedAccount();
+    const email = firebaseUser.email || "";
+    const savedAccountMatches =
+      savedAccount?.email?.toLowerCase() === email.toLowerCase();
+    const matchedAccount = savedAccountMatches ? savedAccount : {};
+    const fallbackName =
+      email.split("@")[0] || firebaseUser.displayName || "Bedrock User";
+    const displayName =
+      firebaseUser.displayName || matchedAccount.name || fallbackName;
+
+    return {
+      ...matchedAccount,
+      firebaseUid: firebaseUser.uid,
+      authProvider: "firebase",
+      name: displayName,
+      username: matchedAccount.username || displayName,
+      email,
+      phone: firebaseUser.phoneNumber || matchedAccount.phone || "",
+      state: matchedAccount.state || "",
+      country: matchedAccount.country || "",
+      countryCode: matchedAccount.countryCode || "",
+      currency: matchedAccount.currency || "",
+      profilePhoto: firebaseUser.photoURL || matchedAccount.profilePhoto || "",
+      messages: Array.isArray(matchedAccount.messages)
+        ? matchedAccount.messages
+        : [],
+      bookings: Array.isArray(matchedAccount.bookings)
+        ? matchedAccount.bookings
+        : [],
+      messageCount: matchedAccount.messageCount || 0,
+    };
+  }
+
+  async function handleSocialSignIn(providerName) {
+    setSocialAuthError("");
+    setSocialAuthProvider(providerName);
+
+    try {
+      if (!isFirebaseConfigReady) {
+        const error = new Error("Missing Firebase environment variables.");
+        error.code = "app/missing-firebase-config";
+        throw error;
+      }
+
+      if (!auth) {
+        const error = new Error("Firebase Auth is not initialized.");
+        error.code = "app/missing-firebase-config";
+        throw error;
+      }
+
+      const provider =
+        providerName === "google"
+          ? new GoogleAuthProvider()
+          : new OAuthProvider("apple.com");
+
+      if (providerName === "google") {
+        provider.setCustomParameters({ prompt: "select_account" });
+      }
+
+      if (providerName === "apple") {
+        provider.addScope("email");
+        provider.addScope("name");
+      }
+
+      const result = await signInWithPopup(auth, provider);
+      const nextUser = buildUserFromFirebaseUser(result.user);
+
+      console.log("Firebase social user:", result.user);
+
+      localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(nextUser));
+      handleAuthComplete(nextUser);
+    } catch (error) {
+      console.error(`${providerName} sign-in failed`, error);
+      setSocialAuthError(getSocialAuthErrorMessage(error, providerName));
+    } finally {
+      setSocialAuthProvider("");
+    }
+  }
+
+  function handleGoogleSignIn() {
+    handleSocialSignIn("google");
+  }
+
+  function handleAppleSignIn() {
+    handleSocialSignIn("apple");
+  }
+
   function showHome() {
     setActivePage("home");
     setProfileInitialView("profile");
   }
 
-  function showResidence(residenceId) {
+  function showResidence(residenceId, apartmentTitle = "") {
+    const normalizedApartmentTitle = String(apartmentTitle || "").trim();
+
     setSelectedResidenceId(residenceId);
+    setApartmentFilters({
+      ...defaultApartmentFilters,
+      residenceId,
+      apartmentTitle: normalizedApartmentTitle,
+    });
     setActivePage("residence");
     setProfileInitialView("profile");
   }
@@ -186,11 +387,27 @@ function HomePage() {
     setProfileInitialView("profile");
   }
 
+  function showShopDirectory() {
+    if (currentUser) {
+      setProfileInitialView("shop");
+      setActivePage("profile");
+      return;
+    }
+
+    setActivePage("shopDirectory");
+    setProfileInitialView("profile");
+  }
+
   function showApartment(apartment) {
+    setApartmentReturnPage(activePage === "residence" ? "residence" : "home");
     setSelectedApartment(decorateApartmentWithMedia(apartment));
     setBookingDetails(createBookingDetailsFromFilters(apartmentFilters));
     setActivePage("apartment");
     setProfileInitialView("profile");
+  }
+
+  function showApartmentReturnPage() {
+    setActivePage(apartmentReturnPage);
   }
 
   function handleApartmentSearch(nextFilters) {
@@ -423,6 +640,8 @@ function HomePage() {
     <div
       className={`home-page ${
         activePage === "profile" ? "home-page--profile" : ""
+      } ${activePage === "residence" ? "home-page--residence" : ""} ${
+        activePage === "shopDirectory" ? "home-page--shop-directory" : ""
       }`}
     >
       {activePage === "profile" && currentUser ? (
@@ -449,15 +668,21 @@ function HomePage() {
             onMessages={showMessages}
             onResidenceSelect={showResidence}
             onShopSelect={showShop}
+            onShopDirectory={showShopDirectory}
             onBecomeAgent={handleBecomeAgent}
             onLogout={handleLogout}
           />
 
           <main className="home-page__main">
+            {activePage === "home" && (
+              <section className="home-mobile-intro">
+                <h1>Book premium stays</h1>
+              </section>
+            )}
+
             {[
               "home",
               "residence",
-              "apartment",
               "shopFood",
               "foodDetail",
               "foodReview",
@@ -465,6 +690,7 @@ function HomePage() {
               <SearchBar
                 key={searchResetKey}
                 onSearch={handleApartmentSearch}
+                onResidenceSelect={showResidence}
               />
             )}
 
@@ -472,6 +698,7 @@ function HomePage() {
               <ResidencePage
                 residenceId={selectedResidenceId}
                 filters={apartmentFilters}
+                onBack={showHome}
                 onApartmentSelect={showApartment}
               />
             ) : activePage === "apartment" ? (
@@ -481,6 +708,7 @@ function HomePage() {
                 bookingDetails={bookingDetails}
                 onBookingChange={handleBookingChange}
                 onOpenPayment={openPaymentStep}
+                onBackToListings={showApartmentReturnPage}
               />
             ) : activePage === "payment" ? (
               <ApartmentPage
@@ -506,6 +734,11 @@ function HomePage() {
                 bookingDetails={bookingDetails}
                 onBackToPayment={() => setActivePage("pending")}
                 onFinishBooking={finishApartmentFlow}
+              />
+            ) : activePage === "shopDirectory" ? (
+              <ShopDirectoryPage
+                onBack={showHome}
+                onShopSelect={showShop}
               />
             ) : activePage === "shopFood" ? (
               <ShopFoodPage
@@ -600,8 +833,10 @@ function HomePage() {
         onClose={closeAuthModal}
         onSwitchToLogin={openLogin}
         onSwitchToSignup={openSignup}
-        onGoogleSignup={() => {}}
-        onAppleSignup={() => {}}
+        onGoogleSignIn={handleGoogleSignIn}
+        onAppleSignIn={handleAppleSignIn}
+        socialAuthProvider={socialAuthProvider}
+        socialAuthError={socialAuthError}
         onAuthComplete={handleAuthComplete}
       />
     </div>

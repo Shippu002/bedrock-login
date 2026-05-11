@@ -15,7 +15,7 @@ import { foodItems } from "../../data/foodItems";
 import { serviceItems } from "../../data/serviceItems";
 import { shopItems } from "../../data/shopItems";
 import breakfastImage from "../../assets/bookings.jpg";
-import foodHeroImage from "../../assets/food-1.png";
+import foodHeroImage from "../../assets/food-1.jpg";
 import foodImage from "../../assets/food.png";
 import laundryImage from "../../assets/toiletries.jpg";
 import massageImage from "../../assets/massage.jpg";
@@ -23,6 +23,7 @@ import ps5Image from "../../assets/ps5-rental.svg";
 import requestImage from "../../assets/request.png";
 import toiletriesOneImage from "../../assets/toiletries-1.jpg";
 import toiletriesTwoImage from "../../assets/toiletries-2.jpg";
+import AppImage from "../../components/AppImage";
 import {
   calculateFoodOrderTotals,
   formatFoodDeliveryTime,
@@ -250,7 +251,7 @@ function FoodCard({ item, onSelect, actionLabel, unitLabel }) {
   return (
     <article className="shop-food-card">
       <div className="shop-food-card__image-wrap">
-        <img src={item.image} alt={item.title} />
+        <AppImage src={item.image} fallbackSrc={foodImage} alt={item.title} />
         <span className="shop-food-card__badge">Available</span>
       </div>
 
@@ -551,9 +552,10 @@ export default function ShopFoodPage({
           </div>
 
           <div className="shop-food-detail__layout">
-            <img
+            <AppImage
               className="shop-food-detail__image"
               src={selectedFoodDetailImage}
+              fallbackSrc={selectedFood.image || foodImage}
               alt={selectedFood.title}
             />
 
@@ -701,7 +703,11 @@ export default function ShopFoodPage({
           </div>
 
           <div className="shop-food-review__layout">
-            <img src={selectedFoodDetailImage} alt={selectedFood.title} />
+            <AppImage
+              src={selectedFoodDetailImage}
+              fallbackSrc={selectedFood.image || foodImage}
+              alt={selectedFood.title}
+            />
 
             <aside className="shop-food-summary-card">
               <div className="shop-food-summary-box">
@@ -801,7 +807,11 @@ export default function ShopFoodPage({
             ) : (
               <aside className="shop-food-payment-card">
                 <div className="shop-food-payment-card__preview">
-                  <img src={selectedFoodDetailImage} alt={selectedFood.title} />
+                  <AppImage
+                    src={selectedFoodDetailImage}
+                    fallbackSrc={selectedFood.image || foodImage}
+                    alt={selectedFood.title}
+                  />
                   <div>
                     <h3>{selectedFood.title}</h3>
                     <p>Delivery to {safeOrderDetails.apartmentNumber}</p>
@@ -890,7 +900,11 @@ export default function ShopFoodPage({
       <section className="shop-food-flow shop-food-flow--status">
         <div className="shop-food-panel shop-food-panel--status">
           <article className="shop-food-status-card">
-            <img src={selectedFoodDetailImage} alt={selectedFood.title} />
+            <AppImage
+              src={selectedFoodDetailImage}
+              fallbackSrc={selectedFood.image || foodImage}
+              alt={selectedFood.title}
+            />
 
             <div className="shop-food-status-card__body">
               <div className="shop-food-status-card__top">
@@ -952,7 +966,7 @@ export default function ShopFoodPage({
               }
               key={filter.id}
             >
-              <img src={filter.image} alt="" />
+              <AppImage src={filter.image} fallbackSrc={foodImage} alt="" />
               <span>{filter.label}</span>
             </button>
           ))}
@@ -960,7 +974,12 @@ export default function ShopFoodPage({
 
         <div className="shop-food-hero-grid">
           {heroImages.map((image) => (
-            <img src={image.src} alt={image.alt} key={image.alt} />
+            <AppImage
+              src={image.src}
+              fallbackSrc={foodImage}
+              alt={image.alt}
+              key={image.alt}
+            />
           ))}
         </div>
 

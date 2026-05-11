@@ -24,7 +24,6 @@ import {
   FiPhone,
   FiPlus,
   FiSearch,
-  FiSettings,
   FiShield,
   FiSliders,
   FiShoppingBag,
@@ -38,7 +37,9 @@ import {
   FaXTwitter,
 } from "react-icons/fa6";
 import bedrockLogo from "../../assets/bedrock-logo.svg";
+import defaultApartmentImage from "../../assets/apart-1.jpg";
 import wishlistImage from "../../assets/wishlist.jpg";
+import AppImage from "../../components/AppImage";
 import { shopCategories } from "../../data/shopCategories";
 import {
   countryOptions,
@@ -62,7 +63,7 @@ const sidebarItems = [
   { id: "bookings", label: "Bookings", icon: FiCalendar },
   { id: "messages", label: "Messages", icon: FiMessageSquare },
   { id: "shop", label: "Shop", icon: FiShoppingBag },
-  { id: "settings", label: "Account and Settings", icon: FiSettings },
+  { id: "settings", label: "Change password", icon: FiLock },
   { id: "privacy", label: "Privacy", icon: FiGlobe },
   { id: "refer", label: "Refer and Earn", icon: FiHelpCircle },
   { id: "legal", label: "Legal", icon: FiHelpCircle },
@@ -176,7 +177,12 @@ function ProfileSidebar({
           onClick={onGoHome}
           aria-label="Go to homepage"
         >
-          <img src={bedrockLogo} alt="Bedrock Residences" />
+          <img
+            src={bedrockLogo}
+            alt="Bedrock Residences"
+            loading="eager"
+            decoding="async"
+          />
         </button>
 
         <button
@@ -289,12 +295,13 @@ function ViewHeading({ title, onBack }) {
   );
 }
 
-function EditProfileView({ user, onProfileSave, onBack }) {
+function EditProfileView({ user, onProfileSave, onChangePassword, onBack }) {
   const initialCountryName = getProfileCountry(user);
   const initialCountry =
     findCountryByName(initialCountryName) ||
     findCountryByDialCode(user?.countryCode);
   const [profilePhoto, setProfilePhoto] = useState(user?.profilePhoto || "");
+  const [failedProfilePhoto, setFailedProfilePhoto] = useState("");
   const [selectedCountryName, setSelectedCountryName] = useState(
     initialCountryName,
   );
@@ -310,6 +317,7 @@ function EditProfileView({ user, onProfileSave, onBack }) {
     initialCountry;
   const selectedPhoneCode = getDialCodeDigits(selectedCountry);
   const isVerified = isImportantProfileComplete(user);
+  const showProfilePhoto = profilePhoto && failedProfilePhoto !== profilePhoto;
 
   function handleProfilePhotoChange(event) {
     const file = event.target.files?.[0];
@@ -318,6 +326,7 @@ function EditProfileView({ user, onProfileSave, onBack }) {
     const reader = new FileReader();
     reader.onload = () => {
       setProfilePhoto(String(reader.result));
+      setFailedProfilePhoto("");
     };
     reader.readAsDataURL(file);
   }
@@ -356,7 +365,17 @@ function EditProfileView({ user, onProfileSave, onBack }) {
 
       <div className="edit-profile-hero">
         <div className="edit-profile-avatar">
-          {profilePhoto ? <img src={profilePhoto} alt="Profile" /> : initials}
+          {showProfilePhoto ? (
+            <img
+              src={profilePhoto}
+              alt="Profile"
+              loading="eager"
+              decoding="async"
+              onError={() => setFailedProfilePhoto(profilePhoto)}
+            />
+          ) : (
+            initials
+          )}
         </div>
 
         <div className="edit-profile-summary">
@@ -456,6 +475,19 @@ function EditProfileView({ user, onProfileSave, onBack }) {
           </div>
         </label>
 
+        <button
+          type="button"
+          className="edit-profile-security-link"
+          onClick={onChangePassword}
+        >
+          <FiLock />
+          <span>
+            <strong>Change password</strong>
+            <em>Update the password used to access your account</em>
+          </span>
+          <FiChevronRight />
+        </button>
+
         <button type="submit" className="profile-action-button">
           Save
         </button>
@@ -468,7 +500,11 @@ function FoodCard({ item }) {
   return (
     <article className="profile-food-card">
       <div className="profile-food-card__image">
-        <img src={item.image} alt={item.title} />
+        <AppImage
+          src={item.image}
+          fallbackSrc={wishlistImage}
+          alt={item.title}
+        />
         <span>Available</span>
       </div>
 
@@ -521,7 +557,11 @@ function BookingCard({ booking, isPast }) {
   return (
     <article className="booking-row">
       <div className="booking-card__media">
-        <img src={booking.image} alt={booking.title} />
+        <AppImage
+          src={booking.image}
+          fallbackSrc={defaultApartmentImage}
+          alt={booking.title}
+        />
       </div>
 
       <div className="booking-card">
@@ -700,7 +740,7 @@ function ShopView({ onBack, onShopSelect }) {
             onClick={() => onShopSelect?.(item.id)}
             key={item.id}
           >
-            <img src={item.image} alt="" />
+            <AppImage src={item.image} alt="" />
             <span>
               <strong>{item.title}</strong>
               <em>{item.location}</em>
@@ -1106,6 +1146,7 @@ export default function ProfilePage({
           <EditProfileView
             user={user}
             onProfileSave={onProfileSave}
+            onChangePassword={() => navigateToView("settings")}
             onBack={goBack}
           />
         );
