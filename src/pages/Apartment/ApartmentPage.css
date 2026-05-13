@@ -51,6 +51,26 @@
   padding: 0;
 }
 
+.apartment-flow__actions button.is-active {
+  border-color: #f0c7c7;
+  background: #fff1f1;
+  color: #d92d20;
+}
+
+.apartment-flow__actions button.is-active svg {
+  fill: currentColor;
+}
+
+.apartment-action-feedback {
+  margin: -12px 0 18px;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: right;
+}
+
 .apartment-back-button {
   margin-bottom: 28px;
   font-family: "Urbanist", Arial, sans-serif;
@@ -872,8 +892,7 @@
   .apartment-flow--details .apartment-reviews {
     display: flex;
     gap: 16px;
-    margin-right: -18px;
-    padding-right: 18px;
+    padding: 0 2px 4px;
     overflow-x: auto;
     scrollbar-width: none;
   }

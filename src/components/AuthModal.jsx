@@ -32,6 +32,7 @@ import {
   findCountryByName,
   normalizeLocalPhoneNumber,
 } from "../utils/countries";
+import { useDialogFocus } from "../hooks/useDialogFocus";
 import "../styles/auth-modal.css";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
@@ -142,6 +143,7 @@ export default function AuthModal({
   const isSocialAuthLoading = Boolean(socialAuthProvider);
   const isGoogleAuthLoading = socialAuthProvider === "google";
   const isAppleAuthLoading = socialAuthProvider === "apple";
+  const modalRef = useDialogFocus(isOpen, { onClose: handleCloseModal });
 
   const showReferralTip = isReferralActive || formData.referral.trim() !== "";
   const formattedResendTimer = `00:${String(resendTimer).padStart(2, "0")}`;
@@ -386,6 +388,7 @@ export default function AuthModal({
   function buildSessionUser(account) {
     const messages = Array.isArray(account.messages) ? account.messages : [];
     const bookings = Array.isArray(account.bookings) ? account.bookings : [];
+    const orders = Array.isArray(account.orders) ? account.orders : [];
     const messageCount =
       account.messageCount ?? account.messagesCount ?? messages.length;
     const accountCountry =
@@ -404,6 +407,7 @@ export default function AuthModal({
       profilePhoto: account.profilePhoto || "",
       messages,
       bookings,
+      orders,
       messageCount,
     };
   }
@@ -424,6 +428,7 @@ export default function AuthModal({
       password,
       messages: [],
       bookings: [],
+      orders: [],
       messageCount: 0,
     };
   }
@@ -699,7 +704,7 @@ export default function AuthModal({
       aria-modal="true"
       aria-label={entryPoint === "signup" ? "Create account" : "Login"}
     >
-      <div className={getModalClassName()}>
+      <div className={getModalClassName()} ref={modalRef} tabIndex={-1}>
         {currentStep === "login" && (
           <>
             <button

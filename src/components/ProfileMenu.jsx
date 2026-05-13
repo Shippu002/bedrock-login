@@ -4,7 +4,6 @@ import {
   FiHeart,
   FiHelpCircle,
   FiLogOut,
-  FiMessageSquare,
   FiSettings,
   FiShoppingBag,
   FiUser,
@@ -15,32 +14,19 @@ import "../styles/profile-menu.css";
 export default function ProfileMenu({
   isOpen,
   activeView = "home",
-  messageCount = 0,
   onProfile,
   onProfileView,
-  onMessages,
   onBecomeAgent,
   onLogout,
 }) {
   if (!isOpen) return null;
 
-  const parsedMessageCount = Number(messageCount);
-  const normalizedMessageCount =
-    Number.isFinite(parsedMessageCount) && parsedMessageCount > 0
-      ? Math.floor(parsedMessageCount)
-      : 0;
-
   const menuGroups = [
     [
       { id: "wishlists", label: "Wishlists", icon: FiHeart, view: "wishlists" },
       { id: "bookings", label: "Bookings", icon: FiCalendar, view: "bookings" },
-      {
-        id: "messages",
-        label: "Messages",
-        icon: FiMessageSquare,
-        badge: normalizedMessageCount,
-        onClick: onMessages,
-      },
+      { id: "orders", label: "Orders", icon: FiShoppingBag, view: "orders" },
+      // Messages are hidden for now. Re-enable this item when the feature returns.
       { id: "shop", label: "Shop", icon: FiShoppingBag, view: "shop" },
       { id: "profile", label: "Profile", icon: FiUser, onClick: onProfile },
     ],

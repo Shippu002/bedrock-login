@@ -1,13 +1,9 @@
 import listingPrimary from "../assets/listing-primary.png";
 import listingSecondary from "../assets/listing-secondary.png";
-
-const sectionResidences = [
-  { id: "opebi", name: "Opebi Residence" },
-  { id: "opebi", name: "Opebi II Residence" },
-  { id: "oduduwa", name: "Oduduwa Residence" },
-  { id: "bateye", name: "Bateye's Residence" },
-  { id: "community", name: "Community's Residence" },
-];
+import {
+  listingResidenceSections,
+  residencePageTitles,
+} from "./residences";
 
 const titles = [
   "1 Bedroom apartment",
@@ -32,7 +28,7 @@ function getBedroomCount(title) {
 
 function makeItem(sectionIndex, itemIndex) {
   const title = titles[itemIndex % titles.length];
-  const sectionResidence = sectionResidences[sectionIndex];
+  const sectionResidence = listingResidenceSections[sectionIndex];
 
   return {
     id: `${sectionIndex + 1}-${itemIndex + 1}`,
@@ -51,21 +47,16 @@ function makeItem(sectionIndex, itemIndex) {
   };
 }
 
-export const listingSections = sectionResidences.map(({ id, name }, sectionIndex) => ({
-  id: `section-${sectionIndex + 1}`,
-  residenceId: id,
-  title: `${name} · Ikeja`,
-  items: Array.from({ length: 5 }, (_, itemIndex) =>
-    makeItem(sectionIndex, itemIndex),
-  ),
-}));
-
-const residencePageTitles = {
-  opebi: "Opebi's Residences",
-  oduduwa: "Oduduwa's Residences",
-  bateye: "Bateye's Residences",
-  community: "Community's Residences",
-};
+export const listingSections = listingResidenceSections.map(
+  ({ id, name }, sectionIndex) => ({
+    id: `section-${sectionIndex + 1}`,
+    residenceId: id,
+    title: `${name} · Ikeja`,
+    items: Array.from({ length: 5 }, (_, itemIndex) =>
+      makeItem(sectionIndex, itemIndex),
+    ),
+  }),
+);
 
 const residenceBedroomSections = [
   "1 Bedroom apartment",

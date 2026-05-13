@@ -7,63 +7,14 @@ import {
   FiSearch,
   FiSliders,
 } from "react-icons/fi";
-import opebiImage from "../assets/opebi.jpg";
-import oduduwaImage from "../assets/oduduwa.jpg";
-import bateyeImage from "../assets/bateye.png";
-import communityImage from "../assets/community.jpg";
 import AppImage from "./AppImage";
+import {
+  getResidenceFilterLabel,
+  getShortResidenceLabel,
+  residenceOptions,
+} from "../data/residences";
+import { useDialogFocus } from "../hooks/useDialogFocus";
 import "../styles/searchbar.css";
-
-const residenceOptions = [
-  {
-    id: "opebi",
-    title: "Opebi's Apartments",
-    location: "Ikeja GRA Lagos Nigeria",
-    image: opebiImage,
-    apartments: [
-      "1 Bedroom Apartment",
-      "2 Bedroom Apartment",
-      "3 Bedroom Apartment",
-      "Studio Apartment",
-    ],
-  },
-  {
-    id: "oduduwa",
-    title: "Oduduwa's Apartments",
-    location: "Ikeja GRA Lagos Nigeria",
-    image: oduduwaImage,
-    apartments: [
-      "2 Bedroom Deluxe",
-      "3 Bedroom Family Apartment",
-      "4 Bedroom Duplex",
-      "Penthouse Suite",
-    ],
-  },
-  {
-    id: "bateye",
-    title: "Bateye's Apartments",
-    location: "Ikeja GRA Lagos Nigeria",
-    image: bateyeImage,
-    apartments: [
-      "Single Room Apartment",
-      "Studio Apartment",
-      "1 Bedroom Apartment",
-      "2 Bedroom Apartment",
-    ],
-  },
-  {
-    id: "community",
-    title: "Community Apartments",
-    location: "Ikeja GRA Lagos Nigeria",
-    image: communityImage,
-    apartments: [
-      "Shared Apartment",
-      "1 Bedroom Apartment",
-      "2 Bedroom Apartment",
-      "Serviced Studio",
-    ],
-  },
-];
 
 const guestTypes = [
   { id: "adults", label: "Adults", hint: "Ages 13 or above" },
@@ -79,22 +30,6 @@ function formatShortDate(value) {
     month: "short",
     day: "numeric",
   }).format(new Date(`${value}T00:00:00`));
-}
-
-function getShortResidenceLabel(title) {
-  return String(title)
-    .replace(/'s Apartments/i, "")
-    .replace(/ Apartments/i, "")
-    .replace(/Community/i, "Community");
-}
-
-function getResidenceFilterLabel(item) {
-  const residenceName = String(item.title)
-    .replace(/'s Apartments/i, " Residence")
-    .replace(/ Apartments/i, " Residence");
-  const shortLocation = String(item.location).replace(/ Lagos Nigeria/i, "");
-
-  return `${residenceName} ${shortLocation}`;
 }
 
 function SearchBar({ onSearch, onResidenceSelect }) {
@@ -126,6 +61,9 @@ function SearchBar({ onSearch, onResidenceSelect }) {
       : dateRange.checkIn
         ? formatShortDate(dateRange.checkIn)
         : "Add date";
+  const mobileFilterRef = useDialogFocus(isMobileFilterOpen, {
+    onClose: closeMobileFilter,
+  });
 
   function handleSubmit(event) {
     event.preventDefault();
@@ -162,7 +100,7 @@ function SearchBar({ onSearch, onResidenceSelect }) {
   function shouldOpenResidencePage() {
     return (
       typeof window !== "undefined" &&
-      window.matchMedia("(max-width: 760px)").matches
+      window.matchMedia("(max-width: 910px)").matches
     );
   }
 
@@ -173,12 +111,16 @@ function SearchBar({ onSearch, onResidenceSelect }) {
       return;
     }
 
-    setSelectedResidenceId(residenceId);
+    setSelectedResidenceId((currentResidenceId) =>
+      currentResidenceId === residenceId ? "" : residenceId,
+    );
     setSelectedApartment(null);
   }
 
   function handleMobileResidenceSelect(residenceId) {
-    setSelectedResidenceId(residenceId);
+    setSelectedResidenceId((currentResidenceId) =>
+      currentResidenceId === residenceId ? "" : residenceId,
+    );
     setSelectedApartment(null);
   }
 
@@ -279,7 +221,7 @@ function SearchBar({ onSearch, onResidenceSelect }) {
             className={!selectedResidenceId ? "is-active" : ""}
             onClick={handleAllResidencesClick}
           >
-            <AppImage src={opebiImage} alt="" />
+            <AppImage src={residenceOptions[0]?.image} alt="" />
             <span>All</span>
           </button>
 
@@ -310,7 +252,11 @@ function SearchBar({ onSearch, onResidenceSelect }) {
               aria-label="Close filters"
             />
 
-            <div className="mobile-filter__sheet">
+            <div
+              className="mobile-filter__sheet"
+              ref={mobileFilterRef}
+              tabIndex={-1}
+            >
               <span className="mobile-filter__handle" aria-hidden="true" />
               <h2 id="mobile-filter-title">Filter by</h2>
 

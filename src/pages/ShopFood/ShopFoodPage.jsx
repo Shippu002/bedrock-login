@@ -360,6 +360,7 @@ function ShopCheckoutCard({
   onCancel,
   onQuantityChange,
   onTogglePolicy,
+  primaryDisabled = false,
   showCancel = false,
   showPolicy = false,
 }) {
@@ -423,7 +424,7 @@ function ShopCheckoutCard({
         type="button"
         className="shop-food-primary-button"
         onClick={onPrimary}
-        disabled={showPolicy && !orderDetails.agreedToPolicy}
+        disabled={primaryDisabled || (showPolicy && !orderDetails.agreedToPolicy)}
       >
         {primaryLabel}
       </button>
@@ -469,6 +470,7 @@ export default function ShopFoodPage({
     variant: "food",
     activeFilter: "all",
   });
+  const [pendingAction, setPendingAction] = useState("");
   const deliveryInputRef = useRef(null);
   const pageContent = getPageContent(variant);
   const usesCartCheckout = pageContent.checkoutStyle === "cart";
@@ -527,6 +529,13 @@ export default function ShopFoodPage({
     deliveryInputRef.current.focus();
   }
 
+  function runPendingAction(actionId, action) {
+    if (pendingAction) return;
+
+    setPendingAction(actionId);
+    action?.();
+  }
+
   if (mode === "detail") {
     return (
       <section className="shop-food-flow">
@@ -565,10 +574,15 @@ export default function ShopFoodPage({
                 orderDetails={safeOrderDetails}
                 totals={totals}
                 unitLabel={pageContent.unitLabel}
-                primaryLabel={pageContent.detailActionLabel}
-                onPrimary={onProceedToReview}
+                primaryLabel={
+                  pendingAction === "detail"
+                    ? "Please wait..."
+                    : pageContent.detailActionLabel
+                }
+                onPrimary={() => runPendingAction("detail", onProceedToReview)}
                 onCancel={onBackToFood}
                 onQuantityChange={(value) => updateOrder("guests", value)}
+                primaryDisabled={pendingAction === "detail"}
                 showCancel
               />
             ) : (
@@ -644,10 +658,12 @@ export default function ShopFoodPage({
                 <button
                   type="button"
                   className="shop-food-primary-button"
-                  onClick={onProceedToReview}
-                  disabled={!canProceed}
+                  onClick={() => runPendingAction("detail", onProceedToReview)}
+                  disabled={!canProceed || pendingAction === "detail"}
                 >
-                  {pageContent.detailActionLabel}
+                  {pendingAction === "detail"
+                    ? "Please wait..."
+                    : pageContent.detailActionLabel}
                 </button>
 
                 <div className="shop-food-policy">
@@ -743,9 +759,10 @@ export default function ShopFoodPage({
               <button
                 type="button"
                 className="shop-food-primary-button"
-                onClick={onProceedToPayment}
+                onClick={() => runPendingAction("review", onProceedToPayment)}
+                disabled={!safeOrderDetails.agreedToPolicy || pendingAction === "review"}
               >
-                Continue
+                {pendingAction === "review" ? "Please wait..." : "Continue"}
               </button>
 
               <div className="shop-food-policy">
@@ -796,12 +813,17 @@ export default function ShopFoodPage({
                 orderDetails={safeOrderDetails}
                 totals={totals}
                 unitLabel={pageContent.unitLabel}
-                primaryLabel={`Pay NGN ${totals.payable.toLocaleString()}`}
-                onPrimary={onPaymentContinue}
+                primaryLabel={
+                  pendingAction === "payment"
+                    ? "Processing..."
+                    : `Pay NGN ${totals.payable.toLocaleString()}`
+                }
+                onPrimary={() => runPendingAction("payment", onPaymentContinue)}
                 onQuantityChange={(value) => updateOrder("guests", value)}
                 onTogglePolicy={() =>
                   updateOrder("agreedToPolicy", !safeOrderDetails.agreedToPolicy)
                 }
+                primaryDisabled={pendingAction === "payment"}
                 showPolicy
               />
             ) : (
@@ -872,10 +894,12 @@ export default function ShopFoodPage({
                 <button
                   type="button"
                   className="shop-food-primary-button"
-                  onClick={onPaymentContinue}
-                  disabled={!canProceed}
+                  onClick={() => runPendingAction("payment", onPaymentContinue)}
+                  disabled={!canProceed || pendingAction === "payment"}
                 >
-                  Pay NGN {totals.payable.toLocaleString()}
+                  {pendingAction === "payment"
+                    ? "Processing..."
+                    : `Pay NGN ${totals.payable.toLocaleString()}`}
                 </button>
 
                 <div className="shop-food-policy">
@@ -935,9 +959,12 @@ export default function ShopFoodPage({
               <button
                 type="button"
                 className="shop-food-primary-button"
-                onClick={onFinishOrder}
+                onClick={() => runPendingAction("finish", onFinishOrder)}
+                disabled={pendingAction === "finish"}
               >
-                Let&apos;s create an experience
+                {pendingAction === "finish"
+                  ? "Please wait..."
+                  : "Let's create an experience"}
               </button>
             </div>
           </article>
@@ -983,17 +1010,24 @@ export default function ShopFoodPage({
           ))}
         </div>
 
-        <div className="shop-food-grid">
-          {visibleItems.map((item) => (
-            <FoodCard
-              item={item}
-              onSelect={onFoodSelect}
-              actionLabel={pageContent.actionLabel}
-              unitLabel={pageContent.unitLabel}
-              key={item.id}
-            />
-          ))}
-        </div>
+        {visibleItems.length > 0 ? (
+          <div className="shop-food-grid">
+            {visibleItems.map((item) => (
+              <FoodCard
+                item={item}
+                onSelect={onFoodSelect}
+                actionLabel={pageContent.actionLabel}
+                unitLabel={pageContent.unitLabel}
+                key={item.id}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="shop-food-empty">
+            <strong>No items found</strong>
+            <p>This category does not have available items yet.</p>
+          </div>
+        )}
       </div>
     </section>
   );

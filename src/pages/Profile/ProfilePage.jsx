@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  FiBell,
   FiCalendar,
   FiCheck,
   FiChevronDown,
@@ -19,8 +18,6 @@ import {
   FiMail,
   FiMapPin,
   FiMenu,
-  FiMessageSquare,
-  FiMoreVertical,
   FiPhone,
   FiPlus,
   FiSearch,
@@ -29,6 +26,7 @@ import {
   FiShoppingBag,
   FiStar,
   FiUsers,
+  FiX,
 } from "react-icons/fi";
 import {
   FaFacebookF,
@@ -41,6 +39,7 @@ import defaultApartmentImage from "../../assets/apart-1.jpg";
 import wishlistImage from "../../assets/wishlist.jpg";
 import AppImage from "../../components/AppImage";
 import { shopCategories } from "../../data/shopCategories";
+import { useDialogFocus } from "../../hooks/useDialogFocus";
 import {
   countryOptions,
   findCountryByDialCode,
@@ -49,19 +48,22 @@ import {
   normalizeLocalPhoneNumber,
 } from "../../utils/countries";
 import {
+  addDays,
+  calculateBookingTotals,
+  ensureCheckoutDate,
   formatShortDate,
   getGuestLabel,
   getNightLabel,
   isPastBooking,
 } from "../../utils/bookings";
-import { getUserMessageCount } from "../../utils/userMessages";
 import "./ProfilePage.css";
 
 const sidebarItems = [
   { id: "profile", label: "Home", icon: FiHome },
   { id: "wishlists", label: "Wishlists", icon: FiHeart },
   { id: "bookings", label: "Bookings", icon: FiCalendar },
-  { id: "messages", label: "Messages", icon: FiMessageSquare },
+  { id: "orders", label: "Orders", icon: FiShoppingBag },
+  // Messages are hidden for now. Re-enable this item when the feature returns.
   { id: "shop", label: "Shop", icon: FiShoppingBag },
   { id: "settings", label: "Change password", icon: FiLock },
   { id: "privacy", label: "Privacy", icon: FiGlobe },
@@ -69,21 +71,6 @@ const sidebarItems = [
   { id: "legal", label: "Legal", icon: FiHelpCircle },
   { id: "help", label: "Help Center", icon: FiHelpCircle },
 ];
-
-const wishlistItems = Array.from({ length: 6 }, (_, index) => ({
-  id: `wishlist-${index + 1}`,
-  title: index % 2 === 0 ? "Mega chicken" : "Rice bowl",
-  type: index % 2 === 0 ? "Vegetarian" : "Lunch",
-  image: wishlistImage,
-  price: index % 2 === 0 ? "NGN200,000" : "NGN225,000",
-}));
-
-const messageRows = Array.from({ length: 10 }, (_, index) => ({
-  id: `message-${index + 1}`,
-  label: index % 3 === 0 ? "Booking" : "Label",
-  title: index % 2 === 0 ? "Reservation update" : "Message title",
-  body: index % 2 === 0 ? "Your stay request has been received." : "Message body",
-}));
 
 const earningRows = [
   { title: "Booking bonus for 2 bed @Bateye", amount: "+200", balance: "200.00" },
@@ -144,6 +131,16 @@ function getProfileCurrency(user) {
   );
 }
 
+function formatOrderDate(value) {
+  if (!value) return "Pending";
+
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
 function isImportantProfileComplete(user) {
   return Boolean(
     (user?.name || user?.username)?.trim?.() &&
@@ -157,7 +154,6 @@ function isImportantProfileComplete(user) {
 function ProfileSidebar({
   activeView,
   isMenuOpen,
-  messageCount,
   onChangeView,
   onCloseMenu,
   onGoHome,
@@ -215,11 +211,6 @@ function ProfileSidebar({
             >
               <Icon />
               <span>{item.label}</span>
-              {item.id === "messages" && messageCount > 0 && (
-                <strong className="profile-sidebar__badge">
-                  {messageCount}
-                </strong>
-              )}
             </button>
           );
         })}
@@ -240,23 +231,9 @@ function ProfileSidebar({
   );
 }
 
-function ProfileTopbar({ user, messageCount, onMessages, onProfile }) {
+function ProfileTopbar({ user, onProfile }) {
   return (
     <header className="profile-topbar">
-      <button
-        type="button"
-        className="profile-topbar__bell"
-        onClick={onMessages}
-        aria-label={
-          messageCount > 0
-            ? `Open messages, ${messageCount} unread`
-            : "Open messages"
-        }
-      >
-        {messageCount > 0 && <span />}
-        <FiBell />
-      </button>
-
       <button
         type="button"
         className="profile-topbar__user"
@@ -291,6 +268,20 @@ function ViewHeading({ title, onBack }) {
         <FiChevronLeft />
       </button>
       <h1>{title}</h1>
+    </div>
+  );
+}
+
+function EmptyState({ title, message, actionLabel, onAction }) {
+  return (
+    <div className="profile-empty-state">
+      <strong>{title}</strong>
+      <p>{message}</p>
+      {actionLabel && onAction && (
+        <button type="button" className="profile-outline-button" onClick={onAction}>
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }
@@ -539,23 +530,254 @@ function FoodCard({ item }) {
   );
 }
 
-function WishlistView({ onBack }) {
+function WishlistView({ user, onBack }) {
+  const visibleWishlistItems = Array.isArray(user?.wishlists)
+    ? user.wishlists
+    : [];
+
   return (
     <section className="profile-panel">
       <ViewHeading title="Wishlist" onBack={onBack} />
 
-      <div className="profile-card-grid">
-        {wishlistItems.map((item) => (
-          <FoodCard item={item} key={item.id} />
-        ))}
-      </div>
+      {visibleWishlistItems.length > 0 ? (
+        <div className="profile-card-grid">
+          {visibleWishlistItems.map((item) => (
+            <FoodCard
+              item={{
+                ...item,
+                type: item.type || item.residenceName || "Saved item",
+                price:
+                  typeof item.price === "number"
+                    ? `NGN${item.price.toLocaleString()}`
+                    : item.price || "Saved",
+              }}
+              key={item.id}
+            />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title="No saved items yet"
+          message="Tap the heart on an apartment or shop item you like, and it will appear here."
+        />
+      )}
     </section>
   );
 }
 
-function BookingCard({ booking, isPast }) {
+function ExtendStayModal({ booking, onClose, onExtendStay }) {
+  const minimumCheckout = addDays(booking.checkOut, 1);
+  const [nextCheckout, setNextCheckout] = useState(minimumCheckout);
+  const [status, setStatus] = useState(null);
+  const dialogRef = useDialogFocus(true, { onClose });
+  const nightlyRate = Number(booking.nightlyRate || 0);
+  const currentTotal = Number(booking.totalAmount || 0);
+  const totals = calculateBookingTotals(
+    nightlyRate,
+    booking.checkIn,
+    ensureCheckoutDate(booking.checkIn, nextCheckout),
+    Number(booking.rockPointValue || 0) > 0,
+  );
+  const extraAmount = Math.max(0, totals.payable - currentTotal);
+
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    const safeCheckout = ensureCheckoutDate(booking.checkOut, nextCheckout);
+
+    if (safeCheckout <= booking.checkOut) {
+      setStatus({
+        type: "error",
+        text: "Choose a checkout date after your current checkout date.",
+      });
+      return;
+    }
+
+    const result = onExtendStay?.(booking.id, safeCheckout);
+
+    if (!result?.ok) {
+      setStatus({
+        type: "error",
+        text: result?.message || "Could not extend this booking.",
+      });
+      return;
+    }
+
+    setStatus({
+      type: "success",
+      text: result.message || "Stay extended successfully.",
+    });
+    onClose?.();
+  }
+
   return (
-    <article className="booking-row">
+    <div className="extend-stay-modal" role="dialog" aria-modal="true">
+      <button
+        type="button"
+        className="extend-stay-modal__backdrop"
+        onClick={onClose}
+        aria-label="Close extend stay"
+      />
+
+      <form
+        className="extend-stay-card"
+        onSubmit={handleSubmit}
+        ref={dialogRef}
+        tabIndex={-1}
+      >
+        <div className="extend-stay-card__head">
+          <span>Extend stay</span>
+          <button type="button" onClick={onClose} aria-label="Close">
+            <FiX />
+          </button>
+        </div>
+
+        <h2>{booking.title}</h2>
+        <p>{booking.location}</p>
+
+        <label className="extend-stay-field">
+          <span>New checkout date</span>
+          <input
+            type="date"
+            min={minimumCheckout}
+            value={nextCheckout}
+            onChange={(event) => setNextCheckout(event.target.value)}
+          />
+        </label>
+
+        <div className="extend-stay-summary">
+          <div>
+            <span>Current checkout</span>
+            <strong>{formatShortDate(booking.checkOut)}</strong>
+          </div>
+          <div>
+            <span>New checkout</span>
+            <strong>{formatShortDate(nextCheckout)}</strong>
+          </div>
+          <div>
+            <span>Total nights</span>
+            <strong>{getNightLabel(totals.nights)}</strong>
+          </div>
+          <div>
+            <span>Extra amount</span>
+            <strong>NGN{extraAmount.toLocaleString()}</strong>
+          </div>
+          <div>
+            <span>New total</span>
+            <strong>NGN{totals.payable.toLocaleString()}</strong>
+          </div>
+        </div>
+
+        {status && (
+          <p className={`extend-stay-message extend-stay-message--${status.type}`}>
+            {status.text}
+          </p>
+        )}
+
+        <button type="submit" className="profile-action-button">
+          Confirm extension
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function CancelBookingModal({ booking, onClose, onCancelBooking }) {
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [status, setStatus] = useState(null);
+  const dialogRef = useDialogFocus(true, { onClose });
+
+  function handleSubmit(event) {
+    event.preventDefault();
+
+    if (isCancelling) return;
+
+    setIsCancelling(true);
+    const result = onCancelBooking?.(booking.id) || {
+      ok: false,
+      message: "Booking cancellation is unavailable.",
+    };
+
+    if (!result.ok) {
+      setStatus({
+        type: "error",
+        text: result.message || "Could not cancel this booking.",
+      });
+      setIsCancelling(false);
+      return;
+    }
+
+    onClose?.();
+  }
+
+  return (
+    <div className="extend-stay-modal" role="dialog" aria-modal="true">
+      <button
+        type="button"
+        className="extend-stay-modal__backdrop"
+        onClick={onClose}
+        aria-label="Close cancellation dialog"
+      />
+
+      <form
+        className="extend-stay-card extend-stay-card--cancel"
+        onSubmit={handleSubmit}
+        ref={dialogRef}
+        tabIndex={-1}
+      >
+        <div className="extend-stay-card__head">
+          <span>Cancel booking</span>
+          <button type="button" onClick={onClose} aria-label="Close">
+            <FiX />
+          </button>
+        </div>
+
+        <h2>{booking.title}</h2>
+        <p>
+          This will move the booking out of upcoming bookings and mark it as
+          cancelled.
+        </p>
+
+        <div className="extend-stay-summary">
+          <div>
+            <span>Booking ID</span>
+            <strong>{booking.id}</strong>
+          </div>
+          <div>
+            <span>Check-in</span>
+            <strong>{formatShortDate(booking.checkIn)}</strong>
+          </div>
+          <div>
+            <span>Check-out</span>
+            <strong>{formatShortDate(booking.checkOut)}</strong>
+          </div>
+        </div>
+
+        {status && (
+          <p className={`extend-stay-message extend-stay-message--${status.type}`}>
+            {status.text}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          className="profile-action-button"
+          disabled={isCancelling}
+        >
+          {isCancelling ? "Cancelling..." : "Cancel booking"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function BookingCard({ booking, isPast, onExtendStay, onCancelBooking }) {
+  const [isExtending, setIsExtending] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const isCancelled = booking.status === "cancelled";
+
+  return (
+    <article className={`booking-row ${isCancelled ? "booking-row--cancelled" : ""}`}>
       <div className="booking-card__media">
         <AppImage
           src={booking.image}
@@ -568,7 +790,7 @@ function BookingCard({ booking, isPast }) {
         <div className="booking-card__header">
           <strong>{booking.title}</strong>
           <span className="booking-card__id">
-            <em>Booking ID</em>
+            <em>{isCancelled ? "Cancelled booking" : "Booking ID"}</em>
             <b>{booking.id}</b>
           </span>
         </div>
@@ -612,29 +834,54 @@ function BookingCard({ booking, isPast }) {
             <b>NGN{Number(booking.totalAmount || 0).toLocaleString()}</b>
           </strong>
 
-          {!isPast && (
+          {!isPast && !isCancelled && (
             <div className="booking-card__actions">
-              <button type="button" className="profile-outline-button">
+              <button
+                type="button"
+                className="profile-outline-button"
+                onClick={() => setIsCancelling(true)}
+              >
                 Cancel booking
               </button>
-              <button type="button" className="profile-action-button">
+              <button
+                type="button"
+                className="profile-action-button"
+                onClick={() => setIsExtending(true)}
+              >
                 Extend stay
               </button>
             </div>
           )}
         </div>
       </div>
+
+      {isExtending && (
+        <ExtendStayModal
+          booking={booking}
+          onClose={() => setIsExtending(false)}
+          onExtendStay={onExtendStay}
+        />
+      )}
+
+      {isCancelling && (
+        <CancelBookingModal
+          booking={booking}
+          onClose={() => setIsCancelling(false)}
+          onCancelBooking={onCancelBooking}
+        />
+      )}
     </article>
   );
 }
 
-function BookingsView({ bookings, onBack }) {
+function BookingsView({ bookings, onBack, onExtendStay, onCancelBooking }) {
   const [bookingTab, setBookingTab] = useState("upcoming");
   const upcomingBookings = bookings.filter(
-    (booking) => !isPastBooking(booking.checkOut),
+    (booking) =>
+      booking.status !== "cancelled" && !isPastBooking(booking.checkOut),
   );
   const pastBookings = bookings.filter((booking) =>
-    isPastBooking(booking.checkOut),
+    booking.status === "cancelled" || isPastBooking(booking.checkOut),
   );
   const visibleBookings =
     bookingTab === "upcoming" ? upcomingBookings : pastBookings;
@@ -666,63 +913,78 @@ function BookingsView({ bookings, onBack }) {
       <div className="booking-list">
         {visibleBookings.length > 0 ? (
           visibleBookings.map((booking) => (
-            <BookingCard
+          <BookingCard
               booking={booking}
               isPast={bookingTab === "past"}
+              onExtendStay={onExtendStay}
+              onCancelBooking={onCancelBooking}
               key={booking.id}
             />
           ))
         ) : (
-          <div className="bookings-empty">
-            <strong>No bookings yet</strong>
-            <p>
-              {bookingTab === "upcoming"
-                ? "Booked apartments will show up here once a user completes a booking."
-                : "Past bookings will appear here after your completed stays."}
-            </p>
-          </div>
+          <EmptyState
+            title="No bookings yet"
+            message={
+              bookingTab === "upcoming"
+                ? "Booked apartments will show up here once you complete a booking."
+                : "Past and cancelled bookings will appear here after your stays."
+            }
+          />
         )}
       </div>
     </section>
   );
 }
 
-function MessagesView() {
+function OrderCard({ order }) {
   return (
-    <section className="messages-board">
-      <div className="messages-board__search">
-        <FiSearch />
-        <input type="search" placeholder="Search all emails..." />
-      </div>
+    <article className="order-card">
+      <AppImage
+        src={order.image}
+        fallbackSrc={wishlistImage}
+        alt={order.title}
+      />
 
-      <div className="messages-board__tabs">
-        <button type="button" className="is-active">
-          All messages
-        </button>
-        <button type="button">Unread</button>
-        <button type="button">Starred</button>
+      <div className="order-card__body">
+        <div className="order-card__head">
+          <span>{order.category || "Order"}</span>
+          <strong>NGN{Number(order.totalAmount || 0).toLocaleString()}</strong>
+        </div>
 
-        <button type="button" className="messages-board__new">
-          New message
-        </button>
-      </div>
+        <h2>{order.title}</h2>
 
-      <div className="messages-table">
-        {messageRows.map((message) => (
-          <article className="messages-table__row" key={message.id}>
-            <input type="checkbox" aria-label={`Select ${message.title}`} />
-            <strong>Sender</strong>
-            <span>{message.label}</span>
-            <div>
-              <b>{message.title}</b>
-              <p>{message.body}</p>
-            </div>
-            <button type="button" aria-label="More message options">
-              <FiMoreVertical />
-            </button>
-          </article>
-        ))}
+        <p>
+          {order.apartmentNumber
+            ? `Delivery to ${order.apartmentNumber}`
+            : "Delivery details pending"}
+        </p>
+
+        <div className="order-card__meta">
+          <span>{formatOrderDate(order.createdAt)}</span>
+          <b>{order.id}</b>
+        </div>
       </div>
+    </article>
+  );
+}
+
+function OrdersView({ orders, onBack }) {
+  return (
+    <section className="profile-panel profile-panel--soft">
+      <ViewHeading title="Orders" onBack={onBack} />
+
+      {orders.length > 0 ? (
+        <div className="order-list">
+          {orders.map((order) => (
+            <OrderCard order={order} key={order.id} />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title="No orders yet"
+          message="Food, toiletries, service, and request orders will appear here after checkout."
+        />
+      )}
     </section>
   );
 }
@@ -732,22 +994,29 @@ function ShopView({ onBack, onShopSelect }) {
     <section className="profile-panel profile-panel--soft profile-shop-panel">
       <ViewHeading title="Shops" onBack={onBack} />
 
-      <div className="profile-shop-card">
-        {shopCategories.map((item) => (
-          <button
-            type="button"
-            className="profile-shop-card__item"
-            onClick={() => onShopSelect?.(item.id)}
-            key={item.id}
-          >
-            <AppImage src={item.image} alt="" />
-            <span>
-              <strong>{item.title}</strong>
-              <em>{item.location}</em>
-            </span>
-          </button>
-        ))}
-      </div>
+      {shopCategories.length > 0 ? (
+        <div className="profile-shop-card">
+          {shopCategories.map((item) => (
+            <button
+              type="button"
+              className="profile-shop-card__item"
+              onClick={() => onShopSelect?.(item.id)}
+              key={item.id}
+            >
+              <AppImage src={item.image} alt="" />
+              <span>
+                <strong>{item.title}</strong>
+                <em>{item.location}</em>
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title="No shop categories yet"
+          message="Available shop categories will appear here when they are added."
+        />
+      )}
     </section>
   );
 }
@@ -1084,17 +1353,19 @@ function HelpCenterView({ onBack }) {
 export default function ProfilePage({
   user,
   bookings = [],
+  orders = [],
   initialView = "profile",
   onGoHome,
   onProfileSave,
   onPasswordChange,
+  onExtendStay,
+  onCancelBooking,
   onShopSelect,
   onLogout,
 }) {
   const [activeView, setActiveView] = useState(() => initialView);
   const [viewHistory, setViewHistory] = useState([]);
   const [isSidebarMenuOpen, setIsSidebarMenuOpen] = useState(false);
-  const messageCount = getUserMessageCount(user);
 
   function navigateToView(nextView) {
     if (nextView === activeView) return;
@@ -1118,11 +1389,18 @@ export default function ProfilePage({
   function renderView() {
     switch (activeView) {
       case "wishlists":
-        return <WishlistView onBack={goBack} />;
+        return <WishlistView user={user} onBack={goBack} />;
       case "bookings":
-        return <BookingsView bookings={bookings} onBack={goBack} />;
-      case "messages":
-        return <MessagesView />;
+        return (
+          <BookingsView
+            bookings={bookings}
+            onBack={goBack}
+            onExtendStay={onExtendStay}
+            onCancelBooking={onCancelBooking}
+          />
+        );
+      case "orders":
+        return <OrdersView orders={orders} onBack={goBack} />;
       case "shop":
         return <ShopView onBack={goBack} onShopSelect={onShopSelect} />;
       case "settings":
@@ -1158,7 +1436,6 @@ export default function ProfilePage({
       <ProfileSidebar
         activeView={activeView}
         isMenuOpen={isSidebarMenuOpen}
-        messageCount={messageCount}
         onChangeView={navigateToView}
         onCloseMenu={() => setIsSidebarMenuOpen(false)}
         onGoHome={onGoHome}
@@ -1169,8 +1446,6 @@ export default function ProfilePage({
       <main className="profile-main">
         <ProfileTopbar
           user={user}
-          messageCount={messageCount}
-          onMessages={() => navigateToView("messages")}
           onProfile={() => navigateToView("profile")}
         />
 

@@ -12,8 +12,24 @@ function ListingCard({
     onApartmentSelect?.(item);
   }
 
+  function handleKeyDown(event) {
+    if (event.target !== event.currentTarget) return;
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleSelect();
+    }
+  }
+
   return (
-    <article className="listing-card">
+    <article
+      className="listing-card"
+      onClick={handleSelect}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label={`View ${item.title}`}
+    >
       <div className="listing-card__image-wrapper">
         <AppImage
           src={item.image}
@@ -69,7 +85,10 @@ function ListingCard({
           <button
             className="listing-card__button"
             type="button"
-            onClick={handleSelect}
+            onClick={(event) => {
+              event.stopPropagation();
+              handleSelect();
+            }}
           >
             Book apartment
           </button>

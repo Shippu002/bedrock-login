@@ -114,6 +114,9 @@ function ApartmentPage({
     apartmentId: null,
     index: 0,
   });
+  const [isSaved, setIsSaved] = useState(false);
+  const [actionFeedback, setActionFeedback] = useState("");
+  const [pendingAction, setPendingAction] = useState("");
   const checkInInputRef = useRef(null);
   const checkOutInputRef = useRef(null);
 
@@ -179,6 +182,50 @@ function ApartmentPage({
     }
 
     inputRef.current.focus();
+  }
+
+  function runPendingAction(actionId, action) {
+    if (pendingAction) return;
+
+    setPendingAction(actionId);
+    action?.();
+  }
+
+  async function handleShareApartment() {
+    const shareUrl =
+      typeof window !== "undefined" ? window.location.href : "";
+    const shareData = {
+      title: `${apartment.title} - Bedrock Residences`,
+      text: `Check out ${apartment.title} at ${apartment.residenceName}.`,
+      url: shareUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        setActionFeedback("Apartment shared.");
+        return;
+      }
+
+      if (navigator.clipboard && shareUrl) {
+        await navigator.clipboard.writeText(shareUrl);
+        setActionFeedback("Apartment link copied.");
+        return;
+      }
+
+      setActionFeedback("Sharing is not available on this browser.");
+    } catch (error) {
+      if (error?.name === "AbortError") return;
+      setActionFeedback("Could not share this apartment.");
+    }
+  }
+
+  function handleSaveApartment() {
+    const nextSavedState = !isSaved;
+    setIsSaved(nextSavedState);
+    setActionFeedback(
+      nextSavedState ? "Apartment saved." : "Apartment removed from saved.",
+    );
   }
 
   if (mode === "payment") {
@@ -364,10 +411,12 @@ function ApartmentPage({
               <button
                 type="button"
                 className="apartment-primary-button"
-                onClick={onPaymentContinue}
-                disabled={!canContinueBooking}
+                onClick={() => runPendingAction("payment", onPaymentContinue)}
+                disabled={!canContinueBooking || pendingAction === "payment"}
               >
-                Pay NGN {payable.toLocaleString()}
+                {pendingAction === "payment"
+                  ? "Processing..."
+                  : `Pay NGN ${payable.toLocaleString()}`}
               </button>
 
               <div className="apartment-policy-row apartment-policy-row--compact">
@@ -443,9 +492,15 @@ function ApartmentPage({
                 <button
                   type="button"
                   className="apartment-primary-button"
-                  onClick={isConfirmed ? onFinishBooking : onMoveToConfirmed}
+                  onClick={() =>
+                    runPendingAction(
+                      isConfirmed ? "finish" : "confirm",
+                      isConfirmed ? onFinishBooking : onMoveToConfirmed,
+                    )
+                  }
+                  disabled={Boolean(pendingAction)}
                 >
-                  Got it
+                  {pendingAction ? "Please wait..." : "Got it"}
                 </button>
               </div>
             </article>
@@ -468,14 +523,30 @@ function ApartmentPage({
           </h1>
 
           <div className="apartment-flow__actions">
-            <button type="button" aria-label="Share apartment">
+            <button
+              type="button"
+              onClick={handleShareApartment}
+              aria-label="Share apartment"
+            >
               <FiShare2 />
             </button>
-            <button type="button" aria-label="Save apartment">
+            <button
+              type="button"
+              className={isSaved ? "is-active" : ""}
+              onClick={handleSaveApartment}
+              aria-label={
+                isSaved ? "Remove apartment from saved" : "Save apartment"
+              }
+              aria-pressed={isSaved}
+            >
               <FiHeart />
             </button>
           </div>
         </div>
+
+        {actionFeedback && (
+          <p className="apartment-action-feedback">{actionFeedback}</p>
+        )}
 
         <div className="apartment-detail-layout">
           <div className="apartment-detail-main">
@@ -537,8 +608,9 @@ function ApartmentPage({
                   <ApartmentMetaPill icon={FiTruck}>
                     {apartment.cars} cars
                   </ApartmentMetaPill>
-                  <ApartmentMetaPill icon={FiWifi}>Wi-Fi</ApartmentMetaPill>
-                  <ApartmentMetaPill icon={FiWifi}>Wi-Fi</ApartmentMetaPill>
+                  {apartment.wifi && (
+                    <ApartmentMetaPill icon={FiWifi}>Wi-Fi</ApartmentMetaPill>
+                  )}
                 </div>
               </section>
 
@@ -664,10 +736,10 @@ function ApartmentPage({
             <button
               type="button"
               className="apartment-primary-button"
-              onClick={onOpenPayment}
-              disabled={!canContinueBooking}
+              onClick={() => runPendingAction("book", onOpenPayment)}
+              disabled={!canContinueBooking || pendingAction === "book"}
             >
-              Book Apartment
+              {pendingAction === "book" ? "Opening..." : "Book Apartment"}
             </button>
 
             <div className="apartment-policy-row">
@@ -702,10 +774,10 @@ function ApartmentPage({
           <button
             type="button"
             className="apartment-primary-button"
-            onClick={onOpenPayment}
-            disabled={!canContinueBooking}
+            onClick={() => runPendingAction("book", onOpenPayment)}
+            disabled={!canContinueBooking || pendingAction === "book"}
           >
-            Book Apartments
+            {pendingAction === "book" ? "Opening..." : "Book Apartments"}
           </button>
         </div>
       </div>

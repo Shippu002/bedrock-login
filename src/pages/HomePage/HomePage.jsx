@@ -4,6 +4,7 @@ import Header from "../../components/Header";
 import SearchBar from "../../components/SearchBar";
 import ListingSection from "../../components/ListingSection";
 import AppImage from "../../components/AppImage";
+import ToastHost from "../../components/ToastHost";
 import { listingSections } from "../../data/listings";
 import { shopCategories } from "../../data/shopCategories";
 import Footer from "../../components/Footer";
@@ -117,24 +118,31 @@ function ShopDirectoryPage({ onBack, onShopSelect }) {
       </div>
 
       <div className="shop-directory-page__list">
-        {shopCategories.map((item) => (
-          <button
-            type="button"
-            className="shop-directory-card"
-            onClick={() => onShopSelect?.(item.id)}
-            key={item.id}
-          >
-            <AppImage src={item.image} alt="" />
+        {shopCategories.length > 0 ? (
+          shopCategories.map((item) => (
+            <button
+              type="button"
+              className="shop-directory-card"
+              onClick={() => onShopSelect?.(item.id)}
+              key={item.id}
+            >
+              <AppImage src={item.image} alt="" />
 
-            <span>
-              <strong>{item.title}</strong>
-              <em>
-                <FiMapPin />
-                {item.location}
-              </em>
-            </span>
-          </button>
-        ))}
+              <span>
+                <strong>{item.title}</strong>
+                <em>
+                  <FiMapPin />
+                  {item.location}
+                </em>
+              </span>
+            </button>
+          ))
+        ) : (
+          <div className="shop-directory-empty">
+            <strong>No shop categories yet</strong>
+            <p>Available shops will appear here when they are added.</p>
+          </div>
+        )}
       </div>
     </section>
   );
@@ -196,11 +204,30 @@ function HomePage() {
   const [foodOrderDetails, setFoodOrderDetails] = useState(() =>
     createDefaultFoodOrderDetails(),
   );
+  const [toasts, setToasts] = useState([]);
   const filteredListingSections = filterListingSections(
     listingSections,
     apartmentFilters,
   );
   const hasApartmentFilters = hasActiveApartmentFilters(apartmentFilters);
+  const shouldShowSearchBar = ["home", "residence", "shopFood"].includes(
+    activePage,
+  );
+
+  function showToast(message, type = "success") {
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    setToasts((currentToasts) => [
+      ...currentToasts.slice(-2),
+      { id, message, type },
+    ]);
+  }
+
+  function dismissToast(toastId) {
+    setToasts((currentToasts) =>
+      currentToasts.filter((toast) => toast.id !== toastId),
+    );
+  }
 
   function readSavedAccount() {
     try {
@@ -265,6 +292,7 @@ function HomePage() {
     updateCurrentUser(authenticatedUser);
     setActivePage("home");
     setIsAuthModalOpen(false);
+    showToast("You are signed in.", "success");
   }
 
   function buildUserFromFirebaseUser(firebaseUser) {
@@ -297,6 +325,7 @@ function HomePage() {
       bookings: Array.isArray(matchedAccount.bookings)
         ? matchedAccount.bookings
         : [],
+      orders: Array.isArray(matchedAccount.orders) ? matchedAccount.orders : [],
       messageCount: matchedAccount.messageCount || 0,
     };
   }
@@ -334,8 +363,6 @@ function HomePage() {
 
       const result = await signInWithPopup(auth, provider);
       const nextUser = buildUserFromFirebaseUser(result.user);
-
-      console.log("Firebase social user:", result.user);
 
       localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(nextUser));
       handleAuthComplete(nextUser);
@@ -436,10 +463,6 @@ function HomePage() {
     setActivePage("profile");
   }
 
-  function showMessages() {
-    showProfile("messages");
-  }
-
   function showFoodDetail(foodItem) {
     setSelectedFoodItem(foodItem);
     setFoodOrderDetails(createDefaultFoodOrderDetails());
@@ -464,17 +487,21 @@ function HomePage() {
     );
 
     if (!savedAccount?.password) {
-      return {
+      const result = {
         ok: false,
         message: "No saved password found for this account.",
       };
+      showToast(result.message, "error");
+      return result;
     }
 
     if (savedAccount.password !== currentPassword) {
-      return {
+      const result = {
         ok: false,
         message: "Current password is incorrect.",
       };
+      showToast(result.message, "error");
+      return result;
     }
 
     localStorage.setItem(
@@ -485,14 +512,166 @@ function HomePage() {
       }),
     );
 
-    return {
+    const result = {
       ok: true,
       message: "Password updated successfully.",
+    };
+    showToast(result.message, "success");
+    return result;
+  }
+
+  function handleBookingExtension(bookingId, nextCheckout) {
+    if (!currentUser) {
+      const result = {
+        ok: false,
+        message: "Please log in to extend this booking.",
+      };
+      showToast(result.message, "error");
+      return result;
+    }
+
+    const booking = (currentUser.bookings || []).find(
+      (currentBooking) => currentBooking.id === bookingId,
+    );
+
+    if (!booking) {
+      const result = {
+        ok: false,
+        message: "Booking not found.",
+      };
+      showToast(result.message, "error");
+      return result;
+    }
+
+    if (!nextCheckout || nextCheckout <= booking.checkOut) {
+      const result = {
+        ok: false,
+        message: "Choose a checkout date after your current checkout date.",
+      };
+      showToast(result.message, "error");
+      return result;
+    }
+
+    const nightlyRate =
+      Number(booking.nightlyRate || 0) ||
+      (booking.subtotal && booking.nights
+        ? Math.round(Number(booking.subtotal) / Number(booking.nights))
+        : 0);
+
+    if (!nightlyRate) {
+      const result = {
+        ok: false,
+        message: "This booking is missing a nightly rate.",
+      };
+      showToast(result.message, "error");
+      return result;
+    }
+
+    const totals = calculateBookingTotals(
+      nightlyRate,
+      booking.checkIn,
+      nextCheckout,
+      Number(booking.rockPointValue || 0) > 0,
+    );
+    const extendedAt = new Date().toISOString();
+    const nextBooking = {
+      ...booking,
+      checkOut: nextCheckout,
+      nights: totals.nights,
+      nightlyRate,
+      subtotal: totals.subtotal,
+      taxesAndFees: totals.taxesAndFees,
+      cautionFee: totals.cautionFee,
+      rockPointValue: totals.rockPointValue,
+      totalAmount: totals.payable,
+      extendedAt,
+      extensionHistory: [
+        ...(booking.extensionHistory || []),
+        {
+          previousCheckOut: booking.checkOut,
+          nextCheckOut: nextCheckout,
+          extraAmount: Math.max(
+            0,
+            totals.payable - Number(booking.totalAmount || 0),
+          ),
+          createdAt: extendedAt,
+        },
+      ],
+    };
+
+    updateCurrentUser((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        bookings: (current.bookings || []).map((currentBooking) =>
+          currentBooking.id === bookingId ? nextBooking : currentBooking,
+        ),
+      };
+    });
+
+    const result = {
+      ok: true,
+      message: "Stay extended successfully.",
+    };
+    showToast(result.message, "success");
+    return result;
+  }
+
+  function handleBookingCancellation(bookingId) {
+    if (!currentUser) {
+      showToast("Please log in to cancel this booking.", "error");
+      return {
+        ok: false,
+        message: "Please log in to cancel this booking.",
+      };
+    }
+
+    const booking = (currentUser.bookings || []).find(
+      (currentBooking) => currentBooking.id === bookingId,
+    );
+
+    if (!booking) {
+      showToast("Booking not found.", "error");
+      return {
+        ok: false,
+        message: "Booking not found.",
+      };
+    }
+
+    if (booking.status === "cancelled") {
+      showToast("This booking is already cancelled.", "error");
+      return {
+        ok: false,
+        message: "This booking is already cancelled.",
+      };
+    }
+
+    const cancelledAt = new Date().toISOString();
+
+    updateCurrentUser({
+      ...currentUser,
+      bookings: (currentUser.bookings || []).map((currentBooking) =>
+        currentBooking.id === bookingId
+          ? {
+              ...currentBooking,
+              status: "cancelled",
+              cancelledAt,
+            }
+          : currentBooking,
+      ),
+    });
+
+    showToast(`${booking.title} booking cancelled.`, "success");
+
+    return {
+      ok: true,
+      message: "Booking cancelled successfully.",
     };
   }
 
   function handleBecomeAgent() {
-    console.log("Become agent clicked");
+    showToast("Agent applications are not available yet.", "error");
   }
 
   function handleLogout() {
@@ -550,6 +729,9 @@ function HomePage() {
 
   function finishApartmentFlow() {
     if (!selectedApartment || !currentUser) {
+      if (!currentUser) {
+        showToast("Please log in before completing your booking.", "error");
+      }
       setActivePage("home");
       return;
     }
@@ -595,10 +777,17 @@ function HomePage() {
 
     setProfileInitialView("bookings");
     setActivePage("profile");
+    showToast("Booking confirmed and added to your profile.", "success");
   }
 
   function finishFoodOrderFlow() {
-    if (currentUser && selectedFoodItem) {
+    if (!currentUser) {
+      showToast("Please log in before completing your order.", "error");
+      setActivePage("home");
+      return;
+    }
+
+    if (selectedFoodItem) {
       const totals = calculateFoodOrderTotals(
         selectedFoodItem.price,
         foodOrderDetails.guests,
@@ -634,6 +823,7 @@ function HomePage() {
     }
 
     setActivePage("home");
+    showToast("Order placed successfully.", "success");
   }
 
   return (
@@ -652,7 +842,10 @@ function HomePage() {
           onGoHome={showHome}
           onProfileSave={handleProfileSave}
           onPasswordChange={handlePasswordChange}
+          onExtendStay={handleBookingExtension}
+          onCancelBooking={handleBookingCancellation}
           onShopSelect={showShop}
+          orders={currentUser?.orders || []}
           onLogout={handleLogout}
         />
       ) : (
@@ -665,7 +858,6 @@ function HomePage() {
             onSignup={openSignup}
             onProfile={() => showProfile("profile")}
             onProfileView={showProfile}
-            onMessages={showMessages}
             onResidenceSelect={showResidence}
             onShopSelect={showShop}
             onShopDirectory={showShopDirectory}
@@ -680,13 +872,7 @@ function HomePage() {
               </section>
             )}
 
-            {[
-              "home",
-              "residence",
-              "shopFood",
-              "foodDetail",
-              "foodReview",
-            ].includes(activePage) && (
+            {shouldShowSearchBar && (
               <SearchBar
                 key={searchResetKey}
                 onSearch={handleApartmentSearch}
@@ -839,6 +1025,7 @@ function HomePage() {
         socialAuthError={socialAuthError}
         onAuthComplete={handleAuthComplete}
       />
+      <ToastHost toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

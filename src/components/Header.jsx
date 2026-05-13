@@ -1,66 +1,11 @@
 import { useState } from "react";
-import { FiBell, FiChevronDown, FiMenu } from "react-icons/fi";
+import { FiChevronDown, FiMenu } from "react-icons/fi";
 import bedrockLogo from "../assets/bedrock-logo.svg";
-import opebiImage from "../assets/opebi.jpg";
-import oduduwaImage from "../assets/oduduwa.jpg";
-import bateyeImage from "../assets/bateye.png";
-import communityImage from "../assets/community.jpg";
 import AppImage from "./AppImage";
+import { residenceOptions } from "../data/residences";
 import ProfileMenu from "./ProfileMenu";
 import { shopCategories } from "../data/shopCategories";
-import { getUserMessageCount } from "../utils/userMessages";
 import "../styles/header.css";
-
-const residencesMenu = [
-  {
-    id: "opebi",
-    title: "Opebi's Apartments",
-    location: "Ikeja GRA Lagos Nigeria",
-    image: opebiImage,
-    apartments: [
-      "1 Bedroom Apartment",
-      "2 Bedroom Apartment",
-      "3 Bedroom Apartment",
-      "Studio Apartment",
-    ],
-  },
-  {
-    id: "oduduwa",
-    title: "Oduduwa's Apartments",
-    location: "Ikeja GRA Lagos Nigeria",
-    image: oduduwaImage,
-    apartments: [
-      "2 Bedroom Deluxe",
-      "3 Bedroom Family Apartment",
-      "4 Bedroom Duplex",
-      "Penthouse Suite",
-    ],
-  },
-  {
-    id: "bateye",
-    title: "Bateye's Apartments",
-    location: "Ikeja GRA Lagos Nigeria",
-    image: bateyeImage,
-    apartments: [
-      "Single Room Apartment",
-      "Studio Apartment",
-      "1 Bedroom Apartment",
-      "2 Bedroom Apartment",
-    ],
-  },
-  {
-    id: "community",
-    title: "Community Apartments",
-    location: "Ikeja GRA Lagos Nigeria",
-    image: communityImage,
-    apartments: [
-      "Shared Apartment",
-      "1 Bedroom Apartment",
-      "2 Bedroom Apartment",
-      "Serviced Studio",
-    ],
-  },
-];
 
 function Dropdown({
   label,
@@ -74,14 +19,14 @@ function Dropdown({
 }) {
   const [selectedResidenceId, setSelectedResidenceId] = useState("opebi");
   const [selectedApartment, setSelectedApartment] = useState(null);
-  const selectedResidence = residencesMenu.find(
+  const selectedResidence = residenceOptions.find(
     (item) => item.id === selectedResidenceId,
   );
 
   function shouldOpenResidencePage() {
     return (
       typeof window !== "undefined" &&
-      window.matchMedia("(max-width: 760px)").matches
+      window.matchMedia("(max-width: 910px)").matches
     );
   }
 
@@ -146,7 +91,7 @@ function Dropdown({
             <h3>Residences</h3>
 
             <div className="nav-mega__list">
-              {residencesMenu.map((item) => (
+              {residenceOptions.map((item) => (
                 <button
                   type="button"
                   className={`nav-mega__item ${
@@ -231,7 +176,6 @@ export default function Header({
   onSignup,
   onProfile,
   onProfileView,
-  onMessages,
   onResidenceSelect,
   onShopSelect,
   onShopDirectory,
@@ -240,7 +184,6 @@ export default function Header({
 }) {
   const [openMenu, setOpenMenu] = useState(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const messageCount = getUserMessageCount(user);
 
   const toggleMenu = (menuName) => {
     setOpenMenu((current) => (current === menuName ? null : menuName));
@@ -258,11 +201,6 @@ export default function Header({
   function handleProfile() {
     setIsProfileMenuOpen(false);
     onProfile?.();
-  }
-
-  function handleMessages() {
-    setIsProfileMenuOpen(false);
-    onMessages?.();
   }
 
   function handleProfileView(view) {
@@ -289,7 +227,7 @@ export default function Header({
   function handleOrders() {
     setIsProfileMenuOpen(false);
     setOpenMenu(null);
-    onProfileView?.("bookings");
+    onProfileView?.("orders");
   }
 
   return (
@@ -344,20 +282,6 @@ export default function Header({
 
         {user ? (
           <div className="header-user-area">
-            <button
-              className={`icon-bell ${messageCount > 0 ? "icon-bell--alert" : ""}`}
-              type="button"
-              onClick={handleMessages}
-              aria-label={
-                messageCount > 0
-                  ? `Open messages, ${messageCount} unread`
-                  : "Open messages"
-              }
-            >
-              {messageCount > 0 && <span className="bell-dot" />}
-              <FiBell className="bell-icon" />
-            </button>
-
             <div className="header-user-menu">
               <button
                 className="user-pill"
@@ -384,11 +308,9 @@ export default function Header({
                 <ProfileMenu
                   isOpen={isProfileMenuOpen}
                   activeView={activeView}
-                  messageCount={messageCount}
                   onHome={handleHome}
                   onProfile={handleProfile}
                   onProfileView={handleProfileView}
-                  onMessages={handleMessages}
                   onBecomeAgent={onBecomeAgent}
                   onLogout={onLogout}
                 />
