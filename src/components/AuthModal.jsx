@@ -233,6 +233,35 @@ export default function AuthModal({
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen || typeof window === "undefined") return undefined;
+
+    const root = document.documentElement;
+    const visualViewport = window.visualViewport;
+
+    function updateAuthViewportSize() {
+      const viewportHeight = visualViewport?.height || window.innerHeight;
+      const viewportTop = visualViewport?.offsetTop || 0;
+
+      root.style.setProperty("--auth-viewport-height", `${viewportHeight}px`);
+      root.style.setProperty("--auth-viewport-top", `${viewportTop}px`);
+    }
+
+    updateAuthViewportSize();
+
+    visualViewport?.addEventListener("resize", updateAuthViewportSize);
+    visualViewport?.addEventListener("scroll", updateAuthViewportSize);
+    window.addEventListener("resize", updateAuthViewportSize);
+
+    return () => {
+      visualViewport?.removeEventListener("resize", updateAuthViewportSize);
+      visualViewport?.removeEventListener("scroll", updateAuthViewportSize);
+      window.removeEventListener("resize", updateAuthViewportSize);
+      root.style.removeProperty("--auth-viewport-height");
+      root.style.removeProperty("--auth-viewport-top");
+    };
+  }, [isOpen]);
+
   function handleFieldChange(field, value) {
     const nextValue =
       field === "phone"

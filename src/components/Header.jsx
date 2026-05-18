@@ -286,7 +286,9 @@ export default function Header({
               <button
                 className="user-pill"
                 type="button"
-                onClick={handleProfile}
+                onClick={toggleProfileMenu}
+                aria-haspopup="menu"
+                aria-expanded={isProfileMenuOpen}
               >
                 <span>{user.username || user.name}</span>
 
