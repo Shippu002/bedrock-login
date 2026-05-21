@@ -834,6 +834,12 @@
     white-space: nowrap;
   }
 
+  .mobile-filter__empty {
+    color: #667085;
+    font-family: "Urbanist", Arial, sans-serif;
+    font-size: 14px;
+  }
+
   .mobile-filter__date-input,
   .mobile-filter__guest-row {
     width: 100%;

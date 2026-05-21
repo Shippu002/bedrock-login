@@ -156,6 +156,10 @@
   line-height: 20px;
 }
 
+.apartment-copy__preline {
+  white-space: pre-line;
+}
+
 .apartment-copy__section p button {
   border: none;
   background: transparent;
@@ -230,12 +234,43 @@
   color: #dfcb1c;
 }
 
+.apartment-rating-summary {
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+}
+
+.apartment-rating-summary strong {
+  color: #101928;
+  font-weight: 800;
+}
+
+.apartment-rating-summary em {
+  color: #98a2b3;
+  font-style: normal;
+}
+
 .apartment-review p {
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
   margin-bottom: 12px;
+}
+
+.apartment-review-empty {
+  min-height: 80px;
+  padding: 18px;
+  border: 1px solid #ece8e2;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
 }
 
 .apartment-review__author {
@@ -514,6 +549,25 @@
 
 .apartment-payment-option--active .apartment-payment-option__radio {
   border: 5px solid #c58a68;
+}
+
+.apartment-payment-option--disabled {
+  color: #98a2b3;
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.apartment-payment-option--disabled .apartment-payment-option__left {
+  color: #98a2b3;
+}
+
+.apartment-payment-option__left em {
+  display: block;
+  margin-top: 2px;
+  color: #98a2b3;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
 }
 
 .apartment-payment-card__preview {

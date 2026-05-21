@@ -1,9 +1,15 @@
 import { FiChevronLeft, FiMapPin, FiStar, FiUsers } from "react-icons/fi";
 import AppImage from "../../components/AppImage";
 import ListingSection from "../../components/ListingSection";
-import { getResidencePage } from "../../data/listings";
 import { filterListingSections } from "../../utils/apartmentFilters";
 import "./ResidencePage.css";
+
+const fallbackResidenceTitles = {
+  opebi: "Opebi Residence",
+  oduduwa: "Oduduwa Residence",
+  bateye: "Bateye Residence",
+  community: "Community Residence",
+};
 
 function formatCurrency(value) {
   return `NGN${Number(value || 0).toLocaleString()}`;
@@ -45,13 +51,28 @@ function ResidenceMobileRow({ item, sectionTitle, onApartmentSelect }) {
   );
 }
 
-function ResidencePage({ residenceId, filters, onBack, onApartmentSelect }) {
-  const residence = getResidencePage(residenceId);
+function ResidencePage({
+  residenceId,
+  filters,
+  sections,
+  isLoading = false,
+  loadError = "",
+  onBack,
+  onApartmentSelect,
+}) {
+  const backendSections = Array.isArray(sections)
+    ? sections.filter((section) => section.residenceId === residenceId)
+    : [];
+  const sourceSections = backendSections;
   const selectedApartmentTitle = String(filters?.apartmentTitle || "").trim();
+  const residenceTitle =
+    backendSections[0]?.title ||
+    fallbackResidenceTitles[residenceId] ||
+    "Residences";
   const pageTitle = selectedApartmentTitle
-    ? `${selectedApartmentTitle} in ${residence.title}`
-    : residence.title;
-  const filteredSections = filterListingSections(residence.sections, {
+    ? `${selectedApartmentTitle} in ${residenceTitle}`
+    : residenceTitle;
+  const filteredSections = filterListingSections(sourceSections, {
     ...filters,
     residenceId,
   });
@@ -64,6 +85,15 @@ function ResidencePage({ residenceId, filters, onBack, onApartmentSelect }) {
 
   return (
     <section className="residence-page">
+      <button
+        type="button"
+        className="residence-page__back"
+        onClick={onBack}
+      >
+        <FiChevronLeft />
+        <span>Back to all residences</span>
+      </button>
+
       <div className="residence-mobile-head">
         <button
           type="button"
@@ -77,14 +107,19 @@ function ResidencePage({ residenceId, filters, onBack, onApartmentSelect }) {
 
         <div>
           <h1>{selectedApartmentTitle || "Apartments"}</h1>
-          <p>{residence.title}</p>
+          <p>{residenceTitle}</p>
         </div>
       </div>
 
       <h1 className="residence-page__title">{pageTitle}</h1>
 
       <div className="residence-page__sections">
-        {filteredSections.length > 0 ? (
+        {isLoading ? (
+          <div className="residence-page__empty">
+            <h2>Loading apartments</h2>
+            <p>Getting the latest apartments for this residence.</p>
+          </div>
+        ) : filteredSections.length > 0 ? (
           filteredSections.map((section) => (
             <ListingSection
               key={section.id}
@@ -95,13 +130,21 @@ function ResidencePage({ residenceId, filters, onBack, onApartmentSelect }) {
         ) : (
           <div className="residence-page__empty">
             <h2>No apartments match your search</h2>
-            <p>Try changing the date, apartment type, or number of guests.</p>
+            <p>
+              {loadError ||
+                "Try changing the date, apartment type, or number of guests."}
+            </p>
           </div>
         )}
       </div>
 
       <div className="residence-mobile-list">
-        {mobileApartments.length > 0 ? (
+        {isLoading ? (
+          <div className="residence-mobile-empty">
+            <h2>Loading apartments</h2>
+            <p>Getting the latest apartments for this residence.</p>
+          </div>
+        ) : mobileApartments.length > 0 ? (
           mobileApartments.map((item) => (
             <ResidenceMobileRow
               item={item}
@@ -113,7 +156,10 @@ function ResidencePage({ residenceId, filters, onBack, onApartmentSelect }) {
         ) : (
           <div className="residence-mobile-empty">
             <h2>No apartments match your search</h2>
-            <p>Try changing the date, apartment type, or number of guests.</p>
+            <p>
+              {loadError ||
+                "Try changing the date, apartment type, or number of guests."}
+            </p>
           </div>
         )}
       </div>

@@ -14,6 +14,9 @@ import {
   FiPackage,
   FiRefreshCw,
   FiTruck,
+  FiUploadCloud,
+  FiUser,
+  FiUsers,
   FiWifi,
   FiX,
 } from "react-icons/fi";
@@ -32,7 +35,10 @@ import {
   findCountryByName,
   normalizeLocalPhoneNumber,
 } from "../utils/countries";
+import * as authApi from "../api/auth";
+import * as profileApi from "../api/profile";
 import { useDialogFocus } from "../hooks/useDialogFocus";
+import { normalizeBackendUser } from "../utils/backendUser";
 import "../styles/auth-modal.css";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
@@ -51,6 +57,7 @@ const initialLoginData = {
 
 const initialResetData = {
   email: "",
+  otp: "",
   password: "",
   confirmPassword: "",
 };
@@ -63,6 +70,31 @@ const amenityOptions = [
   { id: "shuttle", label: "Airport shuttle", icon: FiTruck },
   { id: "breakfast", label: "Breakfast", icon: FiCoffee },
   { id: "restaurant", label: "Restaurant", icon: FaUtensils },
+];
+
+const agentAccountTypes = [
+  {
+    id: "individual",
+    title: "Individual Agent",
+    description:
+      "Sign up as an independent travel agent with your personal details and government-issued ID.",
+    icon: FiUser,
+  },
+  {
+    id: "corporate",
+    title: "Corporate Agent",
+    description:
+      "Register a business or agency team that refers guests and manages commissions.",
+    icon: FiUsers,
+  },
+];
+
+const agentDocumentTypes = [
+  { id: "nin", label: "National ID / NIN" },
+  { id: "passport", label: "International Passport" },
+  { id: "drivers_license", label: "Driver's License" },
+  { id: "voters_card", label: "Voter's Card" },
+  { id: "cac", label: "CAC / Business Document" },
 ];
 
 const unavailableUsernames = ["admin", "support", "bedrock", "takenname"];
@@ -98,7 +130,13 @@ export default function AuthModal({
   socialAuthError = "",
   onAuthComplete,
 }) {
+  const isAgentSignup = entryPoint === "agentSignup";
+  const isSignupEntry = entryPoint === "signup" || isAgentSignup;
+  const initialSignupStep = isAgentSignup ? "agentType" : "signup";
   const [selectedCountryId, setSelectedCountryId] = useState("US");
+  const [signupMode, setSignupMode] = useState(
+    isAgentSignup ? "agent" : "guest",
+  );
   const [formData, setFormData] = useState(initialFormData);
   const [loginData, setLoginData] = useState(initialLoginData);
   const [isReferralActive, setIsReferralActive] = useState(false);
@@ -113,7 +151,7 @@ export default function AuthModal({
   const [showResetConfirmPassword, setShowResetConfirmPassword] =
     useState(false);
   const [currentStep, setCurrentStep] = useState(
-    entryPoint === "signup" ? "signup" : "login",
+    isSignupEntry ? initialSignupStep : "login",
   );
 
   const [otp, setOtp] = useState(initialOtp);
@@ -133,14 +171,25 @@ export default function AuthModal({
   const [budgetRange, setBudgetRange] = useState("");
   const [profilePhotoPreview, setProfilePhotoPreview] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [agentAccountType, setAgentAccountType] = useState("individual");
+  const [agentDocumentType, setAgentDocumentType] = useState("");
+  const [agentDocumentFile, setAgentDocumentFile] = useState(null);
+  const [agentDocumentPreviewName, setAgentDocumentPreviewName] = useState("");
+  const [agentCertification, setAgentCertification] = useState(false);
+  const [agentOnboardingError, setAgentOnboardingError] = useState("");
 
   const [referralCopied, setReferralCopied] = useState(false);
+  const [authAction, setAuthAction] = useState("");
+  const [signupErrorMessage, setSignupErrorMessage] = useState("");
+  const [otpErrorMessage, setOtpErrorMessage] = useState("");
+  const [pendingSessionUser, setPendingSessionUser] = useState(null);
 
   const selectedCountry =
     findCountryById(selectedCountryId) ||
     countryOptions[0];
   const selectedCurrency = selectedCountry.currency;
   const isSocialAuthLoading = Boolean(socialAuthProvider);
+  const isAuthRequestLoading = Boolean(authAction);
   const isGoogleAuthLoading = socialAuthProvider === "google";
   const isAppleAuthLoading = socialAuthProvider === "apple";
   const modalRef = useDialogFocus(isOpen, { onClose: handleCloseModal });
@@ -166,6 +215,7 @@ export default function AuthModal({
 
   const resetErrors = {
     email: resetData.email.trim() === "",
+    otp: currentStep === "resetPassword" && resetData.otp.trim() === "",
     password: resetData.password === "",
     confirmPassword: resetData.confirmPassword === "",
   };
@@ -272,6 +322,7 @@ export default function AuthModal({
       ...currentData,
       [field]: nextValue,
     }));
+    setSignupErrorMessage("");
   }
 
   function handleCountryChange(countryId) {
@@ -294,9 +345,12 @@ export default function AuthModal({
   }
 
   function handleResetFieldChange(field, value) {
+    const nextValue =
+      field === "otp" ? value.replace(/\D/g, "").slice(0, 6) : value;
+
     setResetData((currentData) => ({
       ...currentData,
-      [field]: value,
+      [field]: nextValue,
     }));
     setShowResetErrors(false);
     setResetErrorMessage("");
@@ -311,6 +365,7 @@ export default function AuthModal({
     setResetErrorMessage("");
     setShowResetPassword(false);
     setShowResetConfirmPassword(false);
+    setAuthAction("");
     setCurrentStep("forgotPassword");
   }
 
@@ -322,6 +377,7 @@ export default function AuthModal({
       nextOtp[index] = cleanedValue;
       return nextOtp;
     });
+    setOtpErrorMessage("");
   }
 
   function evaluateUsername(value) {
@@ -373,9 +429,39 @@ export default function AuthModal({
     setUsernameFeedback(evaluateUsername(value));
   }
 
-  function handlePasswordContinue() {
-    if (isPasswordStrong && passwordsMatch) {
-      setCurrentStep("travelPreferences");
+  async function handlePasswordContinue() {
+    if (!isPasswordStrong || !passwordsMatch || isAuthRequestLoading) {
+      return;
+    }
+
+    setAuthAction("register");
+    setSignupErrorMessage("");
+
+    try {
+      const fallbackUser = buildRegisteredUser();
+      const register =
+        signupMode === "agent" ? authApi.registerAgent : authApi.registerGuest;
+      const response = await register({
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: `${selectedCountry.dialCode} ${formData.phone}`,
+        country: selectedCountry.name,
+        countryCode: selectedCountry.id,
+        username: chosenUsername,
+        referral: formData.referral.trim(),
+        agentType: signupMode === "agent" ? agentAccountType : undefined,
+        password,
+        passwordConfirmation: confirmPassword,
+      });
+
+      setPendingSessionUser(normalizeBackendUser(response, fallbackUser));
+      setCurrentStep("emailConfirmation");
+    } catch (error) {
+      setSignupErrorMessage(
+        error.message || "Unable to create your account. Please try again.",
+      );
+    } finally {
+      setAuthAction("");
     }
   }
 
@@ -441,6 +527,10 @@ export default function AuthModal({
     };
   }
 
+  function getSignupEmail() {
+    return formData.email.trim();
+  }
+
   function buildRegisteredUser() {
     const phone = normalizeLocalPhoneNumber(formData.phone, selectedCountry);
 
@@ -454,7 +544,6 @@ export default function AuthModal({
       countryCode: selectedCountry.dialCode,
       currency: selectedCountry.currency,
       profilePhoto: profilePhotoPreview,
-      password,
       messages: [],
       bookings: [],
       orders: [],
@@ -471,18 +560,16 @@ export default function AuthModal({
   }
 
   function completeSignupSession() {
-    const registeredUser = buildRegisteredUser();
-
-    localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(registeredUser));
+    const registeredUser = pendingSessionUser || buildSessionUser(buildRegisteredUser());
 
     resetModalState();
 
     if (onAuthComplete) {
-      onAuthComplete(buildSessionUser(registeredUser));
+      onAuthComplete(registeredUser);
     }
   }
 
-  function handleLoginSubmit(event) {
+  async function handleLoginSubmit(event) {
     event.preventDefault();
 
     if (!isLoginComplete) {
@@ -491,32 +578,34 @@ export default function AuthModal({
       return;
     }
 
-    const savedAccount = readSavedAccount();
+    setAuthAction("login");
 
-    if (!savedAccount) {
-      setLoginErrorMessage("No saved account found. Please sign up first.");
-      return;
-    }
+    try {
+      const response = await authApi.login({
+        email: loginData.email.trim(),
+        password: loginData.password,
+      });
+      const savedAccount = readSavedAccount() || {};
+      const nextUser = normalizeBackendUser(response, {
+        ...savedAccount,
+        email: loginData.email.trim(),
+      });
 
-    const emailMatches =
-      savedAccount.email?.toLowerCase() ===
-      loginData.email.trim().toLowerCase();
+      resetModalState();
 
-    const passwordMatches = savedAccount.password === loginData.password;
-
-    if (!emailMatches || !passwordMatches) {
-      setLoginErrorMessage("Email or password is incorrect.");
-      return;
-    }
-
-    resetModalState();
-
-    if (onAuthComplete) {
-      onAuthComplete(buildSessionUser(savedAccount));
+      if (onAuthComplete) {
+        onAuthComplete(nextUser);
+      }
+    } catch (error) {
+      setLoginErrorMessage(
+        error.message || "Email or password is incorrect.",
+      );
+    } finally {
+      setAuthAction("");
     }
   }
 
-  function handleForgotPasswordSubmit(event) {
+  async function handleForgotPasswordSubmit(event) {
     event.preventDefault();
 
     if (resetErrors.email) {
@@ -525,35 +614,34 @@ export default function AuthModal({
       return;
     }
 
-    const savedAccount = readSavedAccount();
     const email = resetData.email.trim();
 
-    if (!savedAccount?.email) {
-      setResetErrorMessage("No saved account found. Please sign up first.");
-      return;
-    }
+    setAuthAction("forgotPassword");
 
-    if (savedAccount.email.toLowerCase() !== email.toLowerCase()) {
-      setResetErrorMessage("No account found for this email address.");
-      return;
+    try {
+      await authApi.forgotPassword(email);
+      setResetData({
+        ...initialResetData,
+        email,
+      });
+      setShowResetErrors(false);
+      setResetErrorMessage("");
+      setCurrentStep("resetPassword");
+    } catch (error) {
+      setResetErrorMessage(
+        error.message || "Unable to send reset instructions. Please try again.",
+      );
+    } finally {
+      setAuthAction("");
     }
-
-    setResetData({
-      email: savedAccount.email,
-      password: "",
-      confirmPassword: "",
-    });
-    setShowResetErrors(false);
-    setResetErrorMessage("");
-    setCurrentStep("resetPassword");
   }
 
-  function handleResetPasswordSubmit(event) {
+  async function handleResetPasswordSubmit(event) {
     event.preventDefault();
 
-    if (resetErrors.password || resetErrors.confirmPassword) {
+    if (resetErrors.otp || resetErrors.password || resetErrors.confirmPassword) {
       setShowResetErrors(true);
-      setResetErrorMessage("Enter and confirm your new password.");
+      setResetErrorMessage("Enter your OTP, then enter and confirm your new password.");
       return;
     }
 
@@ -571,38 +659,36 @@ export default function AuthModal({
       return;
     }
 
-    const savedAccount = readSavedAccount();
     const email = resetData.email.trim();
 
-    if (
-      !savedAccount?.email ||
-      savedAccount.email.toLowerCase() !== email.toLowerCase()
-    ) {
+    setAuthAction("resetPassword");
+
+    try {
+      await authApi.resetPassword({
+        email,
+        otp: resetData.otp,
+        password: resetData.password,
+        passwordConfirmation: resetData.confirmPassword,
+      });
+
+      setLoginData({
+        email,
+        password: "",
+      });
+      setShowLoginErrors(false);
+      setLoginErrorMessage("");
+      setShowResetErrors(false);
+      setResetErrorMessage("");
+      setShowResetPassword(false);
+      setShowResetConfirmPassword(false);
+      setCurrentStep("resetPasswordSuccess");
+    } catch (error) {
       setResetErrorMessage(
-        "We could not find that account. Confirm your email again.",
+        error.message || "Unable to update your password. Please try again.",
       );
-      setCurrentStep("forgotPassword");
-      return;
+    } finally {
+      setAuthAction("");
     }
-
-    const updatedAccount = {
-      ...savedAccount,
-      password: resetData.password,
-    };
-
-    localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(updatedAccount));
-
-    setLoginData({
-      email: updatedAccount.email,
-      password: "",
-    });
-    setShowLoginErrors(false);
-    setLoginErrorMessage("");
-    setShowResetErrors(false);
-    setResetErrorMessage("");
-    setShowResetPassword(false);
-    setShowResetConfirmPassword(false);
-    setCurrentStep("resetPasswordSuccess");
   }
 
   function handleResetBackToLogin() {
@@ -616,6 +702,7 @@ export default function AuthModal({
 
   function resetModalState() {
     setSelectedCountryId("US");
+    setSignupMode(isAgentSignup ? "agent" : "guest");
     setFormData(initialFormData);
     setLoginData(initialLoginData);
     setIsReferralActive(false);
@@ -628,9 +715,13 @@ export default function AuthModal({
     setResetErrorMessage("");
     setShowResetPassword(false);
     setShowResetConfirmPassword(false);
-    setCurrentStep(entryPoint === "signup" ? "signup" : "login");
+    setCurrentStep(isSignupEntry ? initialSignupStep : "login");
     setOtp(initialOtp);
     setResendTimer(60);
+    setAuthAction("");
+    setSignupErrorMessage("");
+    setOtpErrorMessage("");
+    setPendingSessionUser(null);
 
     setSuggestedUsernameIndex(0);
     setCustomUsername("");
@@ -646,6 +737,12 @@ export default function AuthModal({
     setBudgetRange("");
     setProfilePhotoPreview("");
     setAgreedToTerms(false);
+    setAgentAccountType("individual");
+    setAgentDocumentType("");
+    setAgentDocumentFile(null);
+    setAgentDocumentPreviewName("");
+    setAgentCertification(false);
+    setAgentOnboardingError("");
 
     setReferralCopied(false);
   }
@@ -664,32 +761,136 @@ export default function AuthModal({
     }
 
     setShowSignupErrors(false);
-    setCurrentStep("emailConfirmation");
+    setSignupErrorMessage("");
+    setCurrentStep("usernameCreation");
   }
 
-  function openOtpVerificationStep() {
-    setOtp(initialOtp);
-    setResendTimer(60);
-    setCurrentStep("otpVerification");
+  function handleSignupModeChange(nextMode) {
+    setSignupMode(nextMode);
+    setSignupErrorMessage("");
+    setShowSignupErrors(false);
+
+    if (nextMode === "agent") {
+      setCurrentStep("agentType");
+      return;
+    }
+
+    setCurrentStep("signup");
   }
 
-  function handleOtpContinue() {
-    const otpCode = otp.join("");
+  function handleAgentTypeContinue() {
+    setSignupMode("agent");
+    setCurrentStep("signup");
+  }
 
-    if (otpCode === "123456") {
-      setCurrentStep("otpSuccess");
-    } else {
-      setCurrentStep("otpFailed");
+  function handleAgentDocumentChange(event) {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    setAgentDocumentFile(file);
+    setAgentDocumentPreviewName(file.name);
+    setAgentOnboardingError("");
+  }
+
+  async function handleAgentDocumentSubmit(event) {
+    event.preventDefault();
+
+    if (!agentDocumentType || !agentDocumentFile || !agentCertification) {
+      setAgentOnboardingError(
+        "Select an ID type, upload your document, and confirm the declaration.",
+      );
+      return;
+    }
+
+    setAuthAction("submitAgentDocument");
+    setAgentOnboardingError("");
+
+    try {
+      await profileApi.uploadDocument({
+        file: agentDocumentFile,
+        type: agentDocumentType,
+        name: agentDocumentFile.name,
+      });
+      await profileApi.submitKyc();
+      setCurrentStep("agentReview");
+    } catch (error) {
+      setAgentOnboardingError(
+        error.message || "Unable to submit your verification document.",
+      );
+    } finally {
+      setAuthAction("");
     }
   }
 
-  function handleResendCode() {
+  async function openOtpVerificationStep() {
+    setOtp(initialOtp);
+    setResendTimer(60);
+    setOtpErrorMessage("");
+    setAuthAction("sendOtp");
+
+    try {
+      await authApi.resendOtp(getSignupEmail());
+    } catch (error) {
+      setOtpErrorMessage(
+        error.message ||
+          "We could not send a fresh OTP, but you can enter the code already sent to your email.",
+      );
+    } finally {
+      setAuthAction("");
+    }
+
+    setCurrentStep("otpVerification");
+  }
+
+  async function handleOtpContinue() {
+    const otpCode = otp.join("");
+
+    if (otpCode.length !== initialOtp.length) {
+      setOtpErrorMessage("Enter the complete OTP code.");
+      return;
+    }
+
+    setAuthAction("verifyOtp");
+    setOtpErrorMessage("");
+
+    try {
+      const response = await authApi.verifyOtp(getSignupEmail(), otpCode);
+      setPendingSessionUser((currentUser) =>
+        normalizeBackendUser(response, currentUser || buildRegisteredUser()),
+      );
+      setCurrentStep("otpSuccess");
+    } catch (error) {
+      setOtpErrorMessage(error.message || "OTP verification failed.");
+      setCurrentStep("otpFailed");
+    } finally {
+      setAuthAction("");
+    }
+  }
+
+  async function handleResendCode() {
+    setAuthAction("resendOtp");
+    setOtpErrorMessage("");
+
+    try {
+      await authApi.resendOtp(getSignupEmail());
+    } catch (error) {
+      setOtpErrorMessage(error.message || "Unable to resend OTP.");
+    } finally {
+      setAuthAction("");
+    }
+
     setOtp(initialOtp);
     setResendTimer(60);
   }
 
   function handleVerifiedProceed() {
-    setCurrentStep("usernameCreation");
+    if (signupMode === "agent") {
+      setCurrentStep("agentDocument");
+      return;
+    }
+
+    setCurrentStep("travelPreferences");
   }
 
   function getModalClassName() {
@@ -717,11 +918,44 @@ export default function AuthModal({
       return "auth-modal auth-modal--travel";
     }
 
+    if (currentStep === "agentType" || currentStep === "agentDocument") {
+      return "auth-modal auth-modal--agent";
+    }
+
+    if (currentStep === "agentReview") {
+      return "auth-modal auth-modal--agent-status";
+    }
+
     if (currentStep === "welcome") {
       return "auth-modal auth-modal--welcome";
     }
 
     return "auth-modal";
+  }
+
+  function renderSignupTabs() {
+    return (
+      <div className="auth-signup-tabs" role="tablist" aria-label="Signup type">
+        <button
+          type="button"
+          className={signupMode === "guest" ? "is-active" : ""}
+          onClick={() => handleSignupModeChange("guest")}
+          role="tab"
+          aria-selected={signupMode === "guest"}
+        >
+          Guest Sign Up
+        </button>
+        <button
+          type="button"
+          className={signupMode === "agent" ? "is-active" : ""}
+          onClick={() => handleSignupModeChange("agent")}
+          role="tab"
+          aria-selected={signupMode === "agent"}
+        >
+          Agent Registration
+        </button>
+      </div>
+    );
   }
 
   if (!isOpen) return null;
@@ -731,7 +965,7 @@ export default function AuthModal({
       className="auth-overlay"
       role="dialog"
       aria-modal="true"
-      aria-label={entryPoint === "signup" ? "Create account" : "Login"}
+      aria-label={isSignupEntry ? "Create account" : "Login"}
     >
       <div className={getModalClassName()} ref={modalRef} tabIndex={-1}>
         {currentStep === "login" && (
@@ -842,8 +1076,12 @@ export default function AuthModal({
                 <p className="auth-field-error">{socialAuthError}</p>
               )}
 
-              <button type="submit" className="auth-primary-button">
-                Continue
+              <button
+                type="submit"
+                className="auth-primary-button"
+                disabled={authAction === "login"}
+              >
+                {authAction === "login" ? "Signing in..." : "Continue"}
               </button>
 
               <p className="auth-login__footer">
@@ -904,8 +1142,12 @@ export default function AuthModal({
                 <p className="auth-field-error">{resetErrorMessage}</p>
               )}
 
-              <button type="submit" className="auth-primary-button">
-                Continue
+              <button
+                type="submit"
+                className="auth-primary-button"
+                disabled={authAction === "forgotPassword"}
+              >
+                {authAction === "forgotPassword" ? "Sending..." : "Continue"}
               </button>
             </form>
           </div>
@@ -932,6 +1174,28 @@ export default function AuthModal({
               className="auth-reset__form"
               onSubmit={handleResetPasswordSubmit}
             >
+              <label className="auth-field">
+                <span className="auth-label">OTP</span>
+                <div className="auth-input-wrap auth-input-wrap--plain">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    placeholder="Enter OTP"
+                    value={resetData.otp}
+                    onChange={(event) =>
+                      handleResetFieldChange("otp", event.target.value)
+                    }
+                    className={
+                      showResetErrors && resetErrors.otp
+                        ? "auth-input-error"
+                        : ""
+                    }
+                    aria-invalid={showResetErrors && resetErrors.otp}
+                  />
+                </div>
+              </label>
+
               <label className="auth-field">
                 <span className="auth-label">New password</span>
                 <div className="auth-password__input-wrap">
@@ -1045,8 +1309,14 @@ export default function AuthModal({
                 <p className="auth-field-error">{resetErrorMessage}</p>
               )}
 
-              <button type="submit" className="auth-primary-button">
-                Update password
+              <button
+                type="submit"
+                className="auth-primary-button"
+                disabled={authAction === "resetPassword"}
+              >
+                {authAction === "resetPassword"
+                  ? "Updating..."
+                  : "Update password"}
               </button>
             </form>
           </div>
@@ -1088,6 +1358,8 @@ export default function AuthModal({
             </button>
 
             <form className="auth-form" onSubmit={handleSignupSubmit}>
+              {renderSignupTabs()}
+
               <label className="auth-field">
                 <span className="auth-label">Full name</span>
                 <div className="auth-input-wrap auth-input-wrap--plain">
@@ -1255,6 +1527,74 @@ export default function AuthModal({
           </>
         )}
 
+        {currentStep === "agentType" && (
+          <>
+            <button
+              type="button"
+              className="auth-close"
+              onClick={handleCloseModal}
+              aria-label="Close modal"
+            >
+              <FiX />
+            </button>
+
+            <div className="auth-agent">
+              {renderSignupTabs()}
+
+              <div className="auth-agent__panel">
+                <h2 className="auth-agent__title">Select account type</h2>
+                <p className="auth-agent__subtitle">
+                  Choose the type that best describes your agent account.
+                </p>
+
+                <div className="auth-agent__cards">
+                  {agentAccountTypes.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = agentAccountType === item.id;
+
+                    return (
+                      <button
+                        type="button"
+                        className={`auth-agent__card ${
+                          isActive ? "is-active" : ""
+                        }`}
+                        onClick={() => setAgentAccountType(item.id)}
+                        key={item.id}
+                      >
+                        <span className="auth-agent__radio" />
+                        <span className="auth-agent__icon">
+                          <Icon />
+                        </span>
+                        <strong>{item.title}</strong>
+                        <em>{item.description}</em>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  className="auth-primary-button"
+                  onClick={handleAgentTypeContinue}
+                >
+                  Continue
+                </button>
+
+                <p className="auth-footer-text">
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    className="auth-text-button"
+                    onClick={onSwitchToLogin}
+                  >
+                    Log in
+                  </button>
+                </p>
+              </div>
+            </div>
+          </>
+        )}
+
         {currentStep === "emailConfirmation" && (
           <div className="auth-stage auth-stage--confirmation">
             <div className="auth-stage__icon auth-stage__icon--mail">
@@ -1274,8 +1614,9 @@ export default function AuthModal({
               type="button"
               className="auth-primary-button auth-primary-button--block-gap"
               onClick={openOtpVerificationStep}
+              disabled={authAction === "sendOtp"}
             >
-              Continue
+              {authAction === "sendOtp" ? "Sending code..." : "Continue"}
             </button>
 
             <button
@@ -1302,7 +1643,7 @@ export default function AuthModal({
             <h2 className="auth-stage__title">Confirm your Email</h2>
 
             <p className="auth-stage__text auth-stage__text--centered">
-              We&apos;ve sent a verification link to your email address.
+              We&apos;ve sent a 6-digit verification code to your email address.
             </p>
 
             <div className="auth-otp-block">
@@ -1334,19 +1675,25 @@ export default function AuthModal({
                     type="button"
                     className="auth-resend-button"
                     onClick={handleResendCode}
+                    disabled={authAction === "resendOtp"}
                   >
-                    Resend
+                    {authAction === "resendOtp" ? "Resending..." : "Resend"}
                   </button>
                 )}
               </p>
+
+              {otpErrorMessage && (
+                <p className="auth-field-error">{otpErrorMessage}</p>
+              )}
             </div>
 
             <button
               type="button"
               className="auth-primary-button auth-primary-button--block-gap"
               onClick={handleOtpContinue}
+              disabled={authAction === "verifyOtp"}
             >
-              Continue
+              {authAction === "verifyOtp" ? "Verifying..." : "Continue"}
             </button>
 
             <button
@@ -1370,7 +1717,8 @@ export default function AuthModal({
             </h2>
 
             <p className="auth-stage__text auth-stage__text--status">
-              We&apos;re sorry, something has gone wrong please try later.
+              {otpErrorMessage ||
+                "We're sorry, something has gone wrong. Please try again."}
             </p>
 
             <button
@@ -1403,6 +1751,169 @@ export default function AuthModal({
               onClick={handleVerifiedProceed}
             >
               Proceed
+            </button>
+          </div>
+        )}
+
+        {currentStep === "agentDocument" && (
+          <form className="auth-agent-doc" onSubmit={handleAgentDocumentSubmit}>
+            <h2 className="auth-agent-doc__title">Verification Document</h2>
+            <p className="auth-agent-doc__subtitle">
+              Upload a valid document so Bedrock can verify your agent account.
+            </p>
+
+            <label className="auth-field">
+              <span className="auth-label">ID Document Type*</span>
+              <div className="auth-select-wrap">
+                <select
+                  value={agentDocumentType}
+                  onChange={(event) => {
+                    setAgentDocumentType(event.target.value);
+                    setAgentOnboardingError("");
+                  }}
+                >
+                  <option value="">Select ID type</option>
+                  {agentDocumentTypes.map((item) => (
+                    <option value={item.id} key={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+                <FiChevronDown className="auth-select-arrow" />
+              </div>
+            </label>
+
+            <div className="auth-field">
+              <span className="auth-label">Upload Document*</span>
+
+              {agentDocumentFile ? (
+                <div className="auth-agent-doc__file">
+                  <FiCheckCircle />
+                  <span>
+                    <strong>{agentDocumentPreviewName}</strong>
+                    <em>
+                      {(agentDocumentFile.size / 1024).toFixed(1)}KB
+                    </em>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAgentDocumentFile(null);
+                      setAgentDocumentPreviewName("");
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <label className="auth-agent-doc__upload">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,application/pdf"
+                    onChange={handleAgentDocumentChange}
+                    hidden
+                  />
+                  <FiUploadCloud />
+                  <strong>Click to upload document</strong>
+                  <span>PNG, JPG or PDF, max 5MB</span>
+                </label>
+              )}
+
+              <p className="auth-agent-doc__helper">
+                Ensure the document is clear, unedited and all information is
+                visible.
+              </p>
+            </div>
+
+            <label className="auth-agent-doc__certify">
+              <input
+                type="checkbox"
+                checked={agentCertification}
+                onChange={(event) => {
+                  setAgentCertification(event.target.checked);
+                  setAgentOnboardingError("");
+                }}
+              />
+              <span>
+                I certify that the information provided is true, accurate and
+                complete to the best knowledge. I understand that providing
+                false info may result in rejection of my application.
+              </span>
+            </label>
+
+            {agentOnboardingError && (
+              <p className="auth-field-error">{agentOnboardingError}</p>
+            )}
+
+            <div className="auth-username__actions">
+              <button
+                type="button"
+                className="auth-username__back-button"
+                onClick={() => setCurrentStep("otpSuccess")}
+              >
+                Back
+              </button>
+
+              <button
+                type="submit"
+                className="auth-username__continue-button"
+                disabled={authAction === "submitAgentDocument"}
+              >
+                {authAction === "submitAgentDocument"
+                  ? "Submitting..."
+                  : "Submit Application"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {currentStep === "agentReview" && (
+          <div className="auth-agent-status">
+            <div className="auth-agent-status__hero">
+              <span className="auth-agent-status__icon">
+                <FiRefreshCw />
+              </span>
+              <em>In Review</em>
+              <h2>Application Under Review</h2>
+              <p>
+                Thank you for submitting your agent application. Our verification
+                team is reviewing your documents. This process typically takes
+                24-48 hours.
+              </p>
+            </div>
+
+            <div className="auth-agent-status__timeline">
+              {[
+                "Application Submitted",
+                "Document Verification",
+                "Account Verified",
+              ].map((item, index) => (
+                <article key={item}>
+                  <span className={index < 2 ? "is-done" : ""}>
+                    {index < 2 ? <FiCheck /> : <FiRefreshCw />}
+                  </span>
+                  <div>
+                    <strong>{item}</strong>
+                    <em>
+                      {new Intl.DateTimeFormat("en", {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      }).format(new Date())}
+                    </em>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              className="auth-primary-button auth-welcome__cta"
+              onClick={completeSignupSession}
+            >
+              Let&apos;s create an experience
             </button>
           </div>
         )}
@@ -1492,7 +2003,7 @@ export default function AuthModal({
               <button
                 type="button"
                 className="auth-username__back-button"
-                onClick={() => setCurrentStep("otpSuccess")}
+                onClick={() => setCurrentStep("signup")}
               >
                 Back
               </button>
@@ -1599,6 +2110,10 @@ export default function AuthModal({
                 : "Create a strong password to continue."}
             </p>
 
+            {signupErrorMessage && (
+              <p className="auth-field-error">{signupErrorMessage}</p>
+            )}
+
             <div className="auth-username__actions">
               <button
                 type="button"
@@ -1612,8 +2127,13 @@ export default function AuthModal({
                 type="button"
                 className="auth-username__continue-button"
                 onClick={handlePasswordContinue}
+                disabled={
+                  authAction === "register" ||
+                  !isPasswordStrong ||
+                  !passwordsMatch
+                }
               >
-                Continue
+                {authAction === "register" ? "Creating account..." : "Continue"}
               </button>
             </div>
           </div>

@@ -1,9 +1,3 @@
-import bookingsImage from "../assets/bookings.jpg";
-import foodHeroImage from "../assets/food-1.jpg";
-import foodImage from "../assets/food.png";
-
-const foodImages = [bookingsImage, foodHeroImage, foodImage];
-
 const foodCatalog = [
   {
     title: "Classic breakfast",
@@ -103,6 +97,6 @@ export const foodItems = foodCatalog.map((item, index) => ({
   preparationTime: "Preparation takes: 39 - 40 min",
   rating: "4.8",
   price: 200000,
-  image: foodImages[index % foodImages.length],
-  detailImage: foodImages[(index + 1) % foodImages.length],
+  image: "",
+  detailImage: "",
 }));

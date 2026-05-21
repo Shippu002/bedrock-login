@@ -1,5 +1,3 @@
-import listingPrimary from "../assets/listing-primary.png";
-import listingSecondary from "../assets/listing-secondary.png";
 import {
   listingResidenceSections,
   residencePageTitles,
@@ -42,7 +40,7 @@ function makeItem(sectionIndex, itemIndex) {
     wifi: true,
     rating: 4.8,
     price: 200000 + itemIndex * 25000,
-    image: itemIndex === 0 ? listingPrimary : listingSecondary,
+    image: "",
     available: itemIndex % 3 !== 1,
   };
 }
@@ -83,7 +81,7 @@ function makeResidenceItem(residenceId, sectionIndex, itemIndex) {
     wifi: true,
     rating: 4.8,
     price: 200000,
-    image: itemIndex === 0 ? listingPrimary : listingSecondary,
+    image: "",
     available: itemIndex === 0,
   };
 }

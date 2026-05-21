@@ -1,14 +1,9 @@
-import opebiImage from "../assets/opebi.jpg";
-import oduduwaImage from "../assets/oduduwa.jpg";
-import bateyeImage from "../assets/bateye.png";
-import communityImage from "../assets/community.jpg";
-
 export const residenceOptions = [
   {
     id: "opebi",
     title: "Opebi's Apartments",
     location: "Ikeja GRA Lagos Nigeria",
-    image: opebiImage,
+    image: "",
     apartments: [
       "1 Bedroom Apartment",
       "2 Bedroom Apartment",
@@ -20,7 +15,7 @@ export const residenceOptions = [
     id: "oduduwa",
     title: "Oduduwa's Apartments",
     location: "Ikeja GRA Lagos Nigeria",
-    image: oduduwaImage,
+    image: "",
     apartments: [
       "2 Bedroom Deluxe",
       "3 Bedroom Family Apartment",
@@ -32,7 +27,7 @@ export const residenceOptions = [
     id: "bateye",
     title: "Bateye's Apartments",
     location: "Ikeja GRA Lagos Nigeria",
-    image: bateyeImage,
+    image: "",
     apartments: [
       "Single Room Apartment",
       "Studio Apartment",
@@ -44,7 +39,7 @@ export const residenceOptions = [
     id: "community",
     title: "Community Apartments",
     location: "Ikeja GRA Lagos Nigeria",
-    image: communityImage,
+    image: "",
     apartments: [
       "Shared Apartment",
       "1 Bedroom Apartment",

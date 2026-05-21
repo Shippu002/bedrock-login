@@ -1,9 +1,8 @@
 import { useState } from "react";
-import fallbackImage from "../assets/listing-primary.png";
 
 export default function AppImage({
   src,
-  fallbackSrc = fallbackImage,
+  fallbackSrc = "",
   alt = "",
   loading = "lazy",
   decoding = "async",
@@ -20,6 +19,16 @@ export default function AppImage({
     if (currentSrc !== fallbackSrc) {
       setFailedSrc(requestedSrc);
     }
+  }
+
+  if (!currentSrc) {
+    return (
+      <span
+        {...imageProps}
+        role={alt ? "img" : undefined}
+        aria-label={alt || undefined}
+      />
+    );
   }
 
   return (

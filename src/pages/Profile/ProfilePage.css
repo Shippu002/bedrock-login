@@ -42,6 +42,48 @@
 .profile-sidebar__brand img {
   width: 112px;
   height: auto;
+  display: block;
+}
+
+.profile-sidebar__account {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 38px;
+  padding: 5px 8px;
+  border: 1px solid #f0ebe5;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #101928;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  font-family: "Urbanist", Arial, sans-serif;
+  cursor: pointer;
+}
+
+.profile-sidebar__account span {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #202a45;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.profile-sidebar__account strong {
+  min-width: 0;
+  max-width: 92px;
+  overflow: hidden;
+  color: #101928;
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-sidebar__menu-button {
@@ -491,7 +533,7 @@
 }
 
 .profile-field--with-icon {
-  padding-left: 48px;
+  padding-left: 54px;
 }
 
 .profile-field--with-icon > svg {
@@ -501,6 +543,10 @@
   width: 18px;
   height: 18px;
   color: #667085;
+}
+
+.profile-field--with-icon input {
+  min-width: 0;
 }
 
 .edit-profile-security-link {
@@ -608,13 +654,16 @@
   background: #f2efeb;
 }
 
-.profile-food-card__image img {
+.profile-food-card__image img,
+.profile-food-card__photo {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-
   filter: brightness(0.55) contrast(1.05);
+  background:
+    linear-gradient(135deg, rgba(197, 138, 104, 0.12), rgba(32, 42, 69, 0.08)),
+    #f7f7f7;
 }
 .profile-food-card__image::before,
 .profile-food-card__image::after {
@@ -622,8 +671,10 @@
   content: none;
 }
 
-.profile-food-card__image:hover img {
-  transform: scale(1.04);
+@media (hover: hover) and (pointer: fine) {
+  .profile-food-card__image:hover img {
+    transform: scale(1.04);
+  }
 }
 
 /* AVAILABLE BADGE */
@@ -804,11 +855,16 @@
   background: #fff2eb;
 }
 
-.profile-shop-card__item img {
+.profile-shop-card__item img,
+.profile-shop-card__image {
   width: 52px;
   height: 52px;
   border-radius: 8px;
   object-fit: cover;
+  display: block;
+  background:
+    linear-gradient(135deg, rgba(197, 138, 104, 0.12), rgba(32, 42, 69, 0.08)),
+    #f7f7f7;
 }
 
 .profile-shop-card__item span {
@@ -944,11 +1000,15 @@
   background: #f2efeb;
 }
 
-.booking-card__media img {
+.booking-card__media img,
+.booking-card__image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  background:
+    linear-gradient(135deg, rgba(197, 138, 104, 0.12), rgba(32, 42, 69, 0.08)),
+    #f7f7f7;
 }
 
 .booking-card {
@@ -1158,11 +1218,16 @@
   box-shadow: 0 12px 26px rgba(16, 25, 40, 0.06);
 }
 
-.order-card img {
+.order-card img,
+.order-card__image {
   width: 112px;
   height: 112px;
   border-radius: 14px;
   object-fit: cover;
+  display: block;
+  background:
+    linear-gradient(135deg, rgba(197, 138, 104, 0.12), rgba(32, 42, 69, 0.08)),
+    #f7f7f7;
 }
 
 .order-card__body {
@@ -1195,6 +1260,30 @@
   white-space: nowrap;
 }
 
+.order-card__status {
+  width: max-content;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #1d4ed8;
+  display: inline-flex;
+  align-items: center;
+  font-family: "Inter", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.order-card__status--cancelled,
+.order-card__status--canceled {
+  background: #fff1f0;
+  color: #d92d20;
+}
+
+.order-card--cancelled {
+  opacity: 0.78;
+}
+
 .order-card h2 {
   margin: 0;
   color: #101928;
@@ -1219,6 +1308,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.order-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.order-card__cancel {
+  min-height: 36px;
+  border-color: #f04438;
+  color: #d92d20;
 }
 
 .extend-stay-modal {
@@ -1307,7 +1408,9 @@
   font-weight: 700;
 }
 
-.extend-stay-field input {
+.extend-stay-field input,
+.extend-stay-field select,
+.extend-stay-field textarea {
   width: 100%;
   min-height: 52px;
   padding: 0 14px;
@@ -1318,6 +1421,41 @@
   font-family: "Urbanist", Arial, sans-serif;
   font-size: 15px;
   outline: none;
+}
+
+.extend-stay-field textarea {
+  min-height: 92px;
+  padding-block: 12px;
+  resize: vertical;
+}
+
+.booking-review-form {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid #ece8e2;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.booking-review-form .extend-stay-field {
+  margin: 0 0 14px;
+}
+
+.booking-review-form .profile-action-button {
+  width: 100%;
+}
+
+.booking-card__reviewed {
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #027a48;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .extend-stay-summary {
@@ -1608,6 +1746,39 @@
   line-height: 24px;
 }
 
+.policy-document-shell {
+  width: min(960px, 100%);
+  height: min(680px, calc(100vh - 280px));
+  min-height: 440px;
+  border: 1px solid #ece8e2;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.policy-document-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #ffffff;
+}
+
+.policy-link {
+  width: fit-content;
+  min-height: 42px;
+  margin-top: 14px;
+  padding: 0 16px;
+  border: 1px solid #ece8e2;
+  border-radius: 999px;
+  color: #101928;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .policy-actions {
   display: flex;
   gap: 16px;
@@ -1639,6 +1810,31 @@
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.legal-list__card button span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+}
+
+.legal-list__card button strong {
+  color: #101928;
+  font-size: 14px;
+}
+
+.legal-list__card button em {
+  max-width: min(620px, 72vw);
+  color: #98a2b3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 500;
 }
 
 .legal-list__card button + button {
@@ -1726,6 +1922,55 @@
   cursor: pointer;
 }
 
+.referral-card button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.referral-card__link {
+  max-width: min(520px, calc(100% - 28px));
+  margin-top: 6px;
+  color: #c58a68;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.referral-stats {
+  width: min(640px, 100%);
+  margin: 14px auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.referral-stats article {
+  min-height: 72px;
+  padding: 14px 12px;
+  border: 1px solid #ece8e2;
+  border-radius: 14px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.referral-stats span {
+  color: #98a2b3;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.referral-stats strong {
+  color: #101928;
+  font-size: 18px;
+  font-weight: 800;
+}
+
 .earn-card {
   width: min(640px, 100%);
   margin: 0 auto;
@@ -1761,6 +2006,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+
+.earning-row > span img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .earning-row strong,
@@ -1815,6 +2067,15 @@
   font-weight: 700;
 }
 
+.earn-rule small {
+  display: block;
+  margin-top: 4px;
+  color: #98a2b3;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
 .help-panel {
   width: min(1040px, 100%);
 }
@@ -1853,7 +2114,8 @@
   font-size: 13px;
 }
 
-.help-card--socials button {
+.help-card--socials button,
+.help-card--socials a {
   width: 100%;
   min-height: 42px;
   background: transparent;
@@ -1866,6 +2128,35 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  text-decoration: none;
+}
+
+.help-card--socials a[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.help-card--faqs article {
+  padding: 14px 0 0;
+  border-top: 1px solid #f0ebe5;
+}
+
+.help-card--faqs article:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.help-card--faqs b {
+  color: #101928;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.help-card--faqs p {
+  margin-top: 6px;
+  display: block;
+  color: #667085;
+  line-height: 1.55;
 }
 
 @media (max-width: 1200px) {
@@ -1907,6 +2198,10 @@
 
   .profile-sidebar__head {
     padding: 0 20px;
+  }
+
+  .profile-sidebar__brand img {
+    width: 96px;
   }
 
   .profile-sidebar__menu-button {
@@ -1956,7 +2251,8 @@
     gap: 16px;
   }
 
-  .profile-shop-card__item img {
+  .profile-shop-card__item img,
+  .profile-shop-card__image {
     width: 48px;
     height: 48px;
   }
@@ -2020,7 +2316,8 @@
     gap: 12px;
   }
 
-  .order-card img {
+  .order-card img,
+  .order-card__image {
     width: 84px;
     height: 92px;
   }
@@ -2046,13 +2343,14 @@
   }
 
   .profile-topbar {
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 12px;
+    min-height: 32px;
+    padding-bottom: 18px;
   }
 
-  .profile-topbar__user {
-    max-width: calc(100vw - 92px);
+  .profile-sidebar__account {
+    display: inline-flex;
+    flex: 1;
+    justify-content: flex-start;
   }
 
   .profile-search-row {
@@ -2084,7 +2382,8 @@
     gap: 12px;
   }
 
-  .profile-shop-card__item img {
+  .profile-shop-card__item img,
+  .profile-shop-card__image {
     width: 42px;
     height: 42px;
   }
@@ -2199,9 +2498,15 @@
     grid-template-columns: 1fr;
   }
 
-  .order-card img {
+  .order-card img,
+  .order-card__image {
     width: 100%;
     height: 132px;
+  }
+
+  .order-card__actions,
+  .order-card__cancel {
+    width: 100%;
   }
 
   .messages-board {
@@ -2298,6 +2603,15 @@
     padding: 12px 14px;
   }
 
+  .profile-field--with-icon {
+    padding-left: 52px;
+  }
+
+  .profile-field--with-icon > svg {
+    left: 16px;
+    bottom: 17px;
+  }
+
   .profile-card-grid {
     gap: 20px;
   }
@@ -2322,6 +2636,12 @@
     padding-top: 40px;
   }
 
+  .policy-document-shell {
+    height: min(620px, calc(100vh - 220px));
+    min-height: 360px;
+    border-radius: 12px;
+  }
+
   .policy-actions {
     margin-top: 40px;
   }
@@ -2332,6 +2652,10 @@
 
   .rocks-banner strong b {
     font-size: 34px;
+  }
+
+  .referral-stats {
+    grid-template-columns: 1fr;
   }
 
   .referral-card {

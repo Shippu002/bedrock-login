@@ -8,11 +8,6 @@ import {
   FiSliders,
 } from "react-icons/fi";
 import AppImage from "./AppImage";
-import {
-  getResidenceFilterLabel,
-  getShortResidenceLabel,
-  residenceOptions,
-} from "../data/residences";
 import { useDialogFocus } from "../hooks/useDialogFocus";
 import "../styles/searchbar.css";
 
@@ -32,7 +27,25 @@ function formatShortDate(value) {
   }).format(new Date(`${value}T00:00:00`));
 }
 
-function SearchBar({ onSearch, onResidenceSelect }) {
+function getShortResidenceLabel(title) {
+  return String(title || "Residence")
+    .replace(/\s*Residence.*/i, "")
+    .replace(/'s Apartments/i, "")
+    .replace(/ Apartments/i, "");
+}
+
+function getResidenceFilterLabel(item) {
+  return [item.title, item.location].filter(Boolean).join(" ");
+}
+
+function SearchBar({
+  onSearch,
+  onResidenceSelect,
+  residences = [],
+  apartmentCategories = [],
+  isLoading = false,
+}) {
+  const residenceOptions = residences;
   const [openPanel, setOpenPanel] = useState(null);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [selectedResidenceId, setSelectedResidenceId] = useState("");
@@ -51,6 +64,12 @@ function SearchBar({ onSearch, onResidenceSelect }) {
   const totalGuests = guestCounts.adults + guestCounts.children;
   const selectedResidence =
     residenceOptions.find((item) => item.id === selectedResidenceId) || null;
+  const selectedApartmentOptions =
+    selectedResidence?.apartments?.length > 0
+      ? selectedResidence.apartments
+      : apartmentCategories
+          .filter((category) => category.bedrooms)
+          .map((category) => `${category.bedrooms} Bedroom Apartment`);
   const residenceLabel =
     selectedApartment || selectedResidence?.title || "Search by Residence";
   const dateLabel =
@@ -221,7 +240,7 @@ function SearchBar({ onSearch, onResidenceSelect }) {
             className={!selectedResidenceId ? "is-active" : ""}
             onClick={handleAllResidencesClick}
           >
-            <AppImage src={residenceOptions[0]?.image} alt="" />
+            <AppImage src={residenceOptions[0]?.image} fallbackSrc="" alt="" />
             <span>All</span>
           </button>
 
@@ -232,7 +251,7 @@ function SearchBar({ onSearch, onResidenceSelect }) {
               onClick={() => handleResidenceClick(item.id)}
               key={item.id}
             >
-              <AppImage src={item.image} alt="" />
+              <AppImage src={item.image} fallbackSrc="" alt="" />
               <span>{getShortResidenceLabel(item.title)}</span>
             </button>
             ))}
@@ -263,7 +282,11 @@ function SearchBar({ onSearch, onResidenceSelect }) {
               <div className="mobile-filter__group">
                 <span className="mobile-filter__label">Select Location</span>
                 <div className="mobile-filter__locations">
-                  {residenceOptions.map((item) => (
+                  {isLoading && residenceOptions.length === 0 ? (
+                    <div className="mobile-filter__empty">
+                      Loading residences...
+                    </div>
+                  ) : residenceOptions.map((item) => (
                     <button
                       type="button"
                       className={
@@ -272,7 +295,7 @@ function SearchBar({ onSearch, onResidenceSelect }) {
                       onClick={() => handleMobileResidenceSelect(item.id)}
                       key={item.id}
                     >
-                      <AppImage src={item.image} alt="" />
+                      <AppImage src={item.image} fallbackSrc="" alt="" />
                       <span>{getResidenceFilterLabel(item)}</span>
                     </button>
                   ))}
@@ -425,7 +448,7 @@ function SearchBar({ onSearch, onResidenceSelect }) {
                     onClick={() => handleResidenceClick(item.id)}
                     key={item.title}
                   >
-                    <AppImage src={item.image} alt="" />
+                    <AppImage src={item.image} fallbackSrc="" alt="" />
                     <span>
                       <strong>{item.title}</strong>
                       <em>{item.location}</em>
@@ -447,7 +470,7 @@ function SearchBar({ onSearch, onResidenceSelect }) {
               </p>
 
               <div className="search-popover__types">
-                {(selectedResidence?.apartments || []).map((item) => (
+                {selectedApartmentOptions.map((item) => (
                   <button
                     type="button"
                     className={

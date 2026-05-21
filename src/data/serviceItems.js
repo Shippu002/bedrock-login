@@ -1,8 +1,3 @@
-import laundryImage from "../assets/toiletries.jpg";
-import massageImage from "../assets/massage.jpg";
-import ps5Image from "../assets/ps5-rental.svg";
-import requestImage from "../assets/request.png";
-
 const serviceCatalog = [
   {
     title: "Wash and fold",
@@ -120,24 +115,11 @@ const serviceCatalog = [
   },
 ];
 
-function getServiceImage(item) {
-  if (item.tags.includes("Laundry")) return laundryImage;
-  if (item.tags.includes("Massage")) return massageImage;
-  if (item.tags.includes("PS5 Rentals")) return ps5Image;
-  if (item.tags.includes("Request")) return requestImage;
-
-  return laundryImage;
-}
-
-export const serviceItems = serviceCatalog.map((item, index) => {
-  const image = getServiceImage(item);
-
-  return {
-    id: `service-${index + 1}`,
-    ...item,
-    rating: "4.8",
-    price: 200000,
-    image,
-    detailImage: image,
-  };
-});
+export const serviceItems = serviceCatalog.map((item, index) => ({
+  id: `service-${index + 1}`,
+  ...item,
+  rating: "4.8",
+  price: 200000,
+  image: "",
+  detailImage: "",
+}));

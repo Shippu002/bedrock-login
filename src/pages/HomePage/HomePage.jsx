@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { FiChevronLeft, FiMapPin, FiShoppingBag } from "react-icons/fi";
 import Header from "../../components/Header";
 import SearchBar from "../../components/SearchBar";
 import ListingSection from "../../components/ListingSection";
 import AppImage from "../../components/AppImage";
 import ToastHost from "../../components/ToastHost";
-import { listingSections } from "../../data/listings";
 import { shopCategories } from "../../data/shopCategories";
 import Footer from "../../components/Footer";
 import AuthModal from "../../components/AuthModal";
@@ -13,15 +12,13 @@ import ProfilePage from "../Profile/ProfilePage";
 import ResidencePage from "../Residence/ResidencePage";
 import ApartmentPage from "../Apartment/ApartmentPage";
 import ShopFoodPage from "../ShopFood/ShopFoodPage";
-import { foodItems } from "../../data/foodItems";
-import { serviceItems } from "../../data/serviceItems";
-import { shopItems } from "../../data/shopItems";
 import { decorateApartmentWithMedia } from "../../utils/apartmentMedia";
 import {
   addDays,
   calculateBookingTotals,
   createBookingId,
   ensureCheckoutDate,
+  formatShortDate,
   getTodayDateValue,
 } from "../../utils/bookings";
 import {
@@ -42,8 +39,149 @@ import {
   OAuthProvider,
   signInWithPopup,
 } from "../../firebase";
+import {
+  apartmentsApi,
+  authApi,
+  bookingsApi,
+  clearAuthToken,
+  favoritesApi,
+  foodApi,
+  getAuthToken,
+  ordersApi,
+  profileApi,
+  requestsApi,
+  servicesApi,
+  shopApi,
+} from "../../api";
+import {
+  buildListingSectionsFromApartments,
+  extractObject,
+  extractCollection,
+  extractLegalDocuments,
+  normalizeBackendAvailability,
+  normalizeBackendApartment,
+  normalizeBackendApartmentCategory,
+  normalizeBackendBooking,
+  normalizeBackendCatalogItem,
+  normalizeBackendDocument,
+  normalizeBackendFavorite,
+  normalizeBackendLegalItem,
+  normalizeBackendNotification,
+  normalizeBackendOrder,
+  normalizeBackendPayment,
+  normalizeBackendPricing,
+  normalizeBackendResidence,
+  normalizeBackendReview,
+} from "../../utils/backendCollections";
+import { normalizeBackendUser } from "../../utils/backendUser";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
+const PAYMENT_CONTEXT_STORAGE_KEY = "bedrockPendingPaymentContext";
+const PAYMENT_REFERENCE_QUERY_KEYS = [
+  "reference",
+  "trxref",
+  "payment_reference",
+  "paymentReference",
+];
+
+function sanitizeStoredAccount(account) {
+  if (!account) return null;
+
+  const safeAccount = { ...account };
+  delete safeAccount.password;
+
+  return safeAccount;
+}
+
+function readStoredAccount() {
+  try {
+    return sanitizeStoredAccount(
+      JSON.parse(localStorage.getItem(ACCOUNT_STORAGE_KEY) || "null"),
+    );
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredAccount(nextUser) {
+  const safeUser = sanitizeStoredAccount(nextUser);
+
+  if (!safeUser) return;
+
+  localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(safeUser));
+}
+
+function readPendingPaymentContext() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    return JSON.parse(
+      window.localStorage.getItem(PAYMENT_CONTEXT_STORAGE_KEY) || "null",
+    );
+  } catch {
+    return null;
+  }
+}
+
+function savePendingPaymentContext(context) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(
+    PAYMENT_CONTEXT_STORAGE_KEY,
+    JSON.stringify({
+      ...context,
+      createdAt: new Date().toISOString(),
+    }),
+  );
+}
+
+function clearPendingPaymentContext() {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.removeItem(PAYMENT_CONTEXT_STORAGE_KEY);
+}
+
+function getReturnedPaymentReference() {
+  if (typeof window === "undefined") return "";
+
+  const params = new URLSearchParams(window.location.search);
+
+  return (
+    PAYMENT_REFERENCE_QUERY_KEYS.map((key) => params.get(key)).find(Boolean) ||
+    ""
+  );
+}
+
+function clearPaymentReturnParams() {
+  if (typeof window === "undefined") return;
+
+  const url = new URL(window.location.href);
+
+  PAYMENT_REFERENCE_QUERY_KEYS.forEach((key) => url.searchParams.delete(key));
+  url.searchParams.delete("status");
+  url.searchParams.delete("transaction_id");
+
+  window.history.replaceState(
+    {},
+    document.title,
+    `${url.pathname}${url.search}${url.hash}`,
+  );
+}
+
+async function verifyPaymentReference(context, reference) {
+  if (context?.type === "services" && context.recordId) {
+    try {
+      return await servicesApi.verifyServicePayment(
+        context.recordId,
+        reference,
+      );
+    } catch (error) {
+      console.error("Service-specific payment verification failed", error);
+    }
+  }
+
+  return bookingsApi.verifyPayment(reference);
+}
 
 function getShopVariant(shopId) {
   if (shopId === "foods") return "food";
@@ -53,16 +191,189 @@ function getShopVariant(shopId) {
   return null;
 }
 
-function getDefaultShopItem(variant) {
-  if (variant === "toiletries") return shopItems[0];
-  if (variant === "services") return serviceItems[0];
-  if (variant === "requests") {
-    return (
-      serviceItems.find((item) => item.tags.includes("Request")) ||
-      serviceItems[0]
+function toBackendFilterId(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+function normalizeBackendFilterItem(item = {}, index = 0, fallbackLabel = "All") {
+  const label =
+    item.name ||
+    item.title ||
+    item.label ||
+    item.slug ||
+    item.id ||
+    `${fallbackLabel} ${index + 1}`;
+  const rawValue = item.value ?? item.slug ?? item.id ?? label;
+  const isAllFilter =
+    String(item.id || "").toLowerCase() === "all" ||
+    String(rawValue || "").toLowerCase() === "all" ||
+    /^all\b/i.test(String(label));
+  const id = isAllFilter ? "all" : toBackendFilterId(rawValue || label);
+
+  return {
+    id,
+    label: isAllFilter ? fallbackLabel : label,
+  };
+}
+
+function normalizeBackendFilters(response, fallbackLabel = "All") {
+  const filters = extractCollection(response)
+    .map((item, index) => normalizeBackendFilterItem(item, index, fallbackLabel))
+    .filter((filter) => filter.id && filter.label);
+  const seen = new Set();
+  const uniqueFilters = filters.filter((filter) => {
+    if (seen.has(filter.id)) return false;
+
+    seen.add(filter.id);
+    return true;
+  });
+
+  if (!uniqueFilters.some((filter) => filter.id === "all")) {
+    uniqueFilters.unshift({ id: "all", label: fallbackLabel });
+  }
+
+  return [
+    ...uniqueFilters.filter((filter) => filter.id === "all"),
+    ...uniqueFilters.filter((filter) => filter.id !== "all"),
+  ];
+}
+
+function buildShopCategoriesWithBackendImages(
+  categories,
+  backendItemsByVariant = {},
+) {
+  return categories.map((category) => {
+    const variant = getShopVariant(category.id);
+    const image =
+      backendItemsByVariant[variant]?.find((item) => item.image)?.image || "";
+
+    return {
+      ...category,
+      image,
+    };
+  });
+}
+
+function getPaymentMethodForBackend(paymentMethod) {
+  // The current Postman collection documents Paystack for booking/shop payments.
+  // Keep the backend payload on the supported value until bank transfer is exposed.
+  const supportedPaymentMethods = {
+    card: "paystack",
+    bank: "paystack",
+  };
+
+  return supportedPaymentMethods[paymentMethod] || "paystack";
+}
+
+function makePaymentReference(prefix = "TXN") {
+  const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
+
+  return `${prefix}_${Date.now()}_${suffix}`;
+}
+
+function getBackendRecordId(record) {
+  return record?.backendId || record?.id || "";
+}
+
+function getActiveBackendBookingId(user) {
+  const bookings = Array.isArray(user?.bookings) ? user.bookings : [];
+  const activeBooking =
+    bookings.find(
+      (booking) => booking.backendId && booking.status !== "cancelled",
+    ) || bookings.find((booking) => booking.backendId);
+
+  return getBackendRecordId(activeBooking);
+}
+
+function getApartmentTypeLabel(apartment) {
+  const bedrooms = Number(apartment?.bedrooms || 0);
+
+  if (bedrooms > 0) {
+    return `${bedrooms} Bedroom Apartment`;
+  }
+
+  return apartment?.title || "Apartment";
+}
+
+function getBedroomCountFromText(value) {
+  const text = String(value || "").toLowerCase();
+  const numericMatch = text.match(/(\d+)\s*(bed|bedroom)/);
+
+  if (numericMatch) return Number(numericMatch[1]);
+
+  const wordMatch = text.match(
+    /\b(one|two|three|four|five|six)\s*(bed|bedroom)\b/,
+  );
+  const wordToNumber = {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+  };
+
+  return wordMatch ? wordToNumber[wordMatch[1]] : null;
+}
+
+function attachApartmentTypesToResidences(residences = [], sections = []) {
+  return residences.map((residence) => {
+    const matchingSection = sections.find(
+      (section) => section.residenceId === residence.id,
+    );
+    const apartmentTypes =
+      matchingSection?.items?.map(getApartmentTypeLabel).filter(Boolean) || [];
+
+    return {
+      ...residence,
+      apartments: [...new Set(apartmentTypes)],
+    };
+  });
+}
+
+function splitProfileName(name = "") {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  const firstName = parts.shift() || "";
+  const lastName = parts.join(" ");
+
+  return { firstName, lastName };
+}
+
+async function fetchBackendUserCollections(baseUser) {
+  if (!baseUser || !getAuthToken()) {
+    return baseUser;
+  }
+
+  const [bookingsResult, ordersResult, favoritesResult] =
+    await Promise.allSettled([
+      bookingsApi.getBookings({ perPage: 30 }),
+      ordersApi.getAllOrders({ perPage: 30 }),
+      favoritesApi.getFavorites(),
+    ]);
+  const nextUser = { ...baseUser };
+
+  if (bookingsResult.status === "fulfilled") {
+    nextUser.bookings = extractCollection(bookingsResult.value).map((booking) =>
+      normalizeBackendBooking(booking),
     );
   }
-  return foodItems[0];
+
+  if (ordersResult.status === "fulfilled") {
+    nextUser.orders = extractCollection(ordersResult.value).map((order) =>
+      normalizeBackendOrder(order),
+    );
+  }
+
+  if (favoritesResult.status === "fulfilled") {
+    nextUser.wishlists = extractCollection(favoritesResult.value).map(
+      normalizeBackendFavorite,
+    );
+  }
+
+  return nextUser;
 }
 
 function createDefaultBookingDetails() {
@@ -93,7 +404,9 @@ function createBookingDetailsFromFilters(filters) {
   };
 }
 
-function ShopDirectoryPage({ onBack, onShopSelect }) {
+function ShopDirectoryPage({ categories = [], onBack, onShopSelect }) {
+  const directoryCategories = categories.length ? categories : shopCategories;
+
   return (
     <section className="shop-directory-page">
       <div className="shop-directory-page__top">
@@ -118,15 +431,20 @@ function ShopDirectoryPage({ onBack, onShopSelect }) {
       </div>
 
       <div className="shop-directory-page__list">
-        {shopCategories.length > 0 ? (
-          shopCategories.map((item) => (
+        {directoryCategories.length > 0 ? (
+          directoryCategories.map((item) => (
             <button
               type="button"
               className="shop-directory-card"
               onClick={() => onShopSelect?.(item.id)}
               key={item.id}
             >
-              <AppImage src={item.image} alt="" />
+              <AppImage
+                className="shop-directory-card__image"
+                src={item.image}
+                fallbackSrc=""
+                alt=""
+              />
 
               <span>
                 <strong>{item.title}</strong>
@@ -184,7 +502,7 @@ function HomePage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authEntry, setAuthEntry] = useState("login");
   const [authModalKey, setAuthModalKey] = useState(0);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => readStoredAccount());
   const [socialAuthProvider, setSocialAuthProvider] = useState("");
   const [socialAuthError, setSocialAuthError] = useState("");
   const [activePage, setActivePage] = useState("home");
@@ -199,20 +517,515 @@ function HomePage() {
   const [bookingDetails, setBookingDetails] = useState(() =>
     createDefaultBookingDetails(),
   );
-  const [selectedFoodItem, setSelectedFoodItem] = useState(foodItems[0]);
+  const [selectedFoodItem, setSelectedFoodItem] = useState(null);
   const [shopVariant, setShopVariant] = useState("food");
   const [foodOrderDetails, setFoodOrderDetails] = useState(() =>
     createDefaultFoodOrderDetails(),
   );
+  const [backendListingSections, setBackendListingSections] = useState([]);
+  const [backendResidenceOptions, setBackendResidenceOptions] = useState([]);
+  const [backendApartmentCategories, setBackendApartmentCategories] = useState(
+    [],
+  );
+  const [isApartmentsLoading, setIsApartmentsLoading] = useState(true);
+  const [apartmentLoadError, setApartmentLoadError] = useState("");
+  const [backendShopItems, setBackendShopItems] = useState({});
+  const [backendShopFilters, setBackendShopFilters] = useState({});
+  const [isShopLoading, setIsShopLoading] = useState(true);
+  const [shopLoadError, setShopLoadError] = useState("");
+  const [shopLoadErrors, setShopLoadErrors] = useState({});
+  const [apartmentQuote, setApartmentQuote] = useState(null);
+  const [pendingBooking, setPendingBooking] = useState(null);
+  const [pendingOrder, setPendingOrder] = useState(null);
+  const [profileResources, setProfileResources] = useState({
+    notifications: [],
+    documents: [],
+    legalDocuments: [],
+    helpInfo: null,
+    referralInfo: null,
+    rockPoints: null,
+    notificationCount: null,
+    orderCounts: null,
+  });
   const [toasts, setToasts] = useState([]);
   const filteredListingSections = filterListingSections(
-    listingSections,
+    backendListingSections,
     apartmentFilters,
+  );
+  const shopDirectoryCategories = buildShopCategoriesWithBackendImages(
+    shopCategories,
+    backendShopItems,
   );
   const hasApartmentFilters = hasActiveApartmentFilters(apartmentFilters);
   const shouldShowSearchBar = ["home", "residence", "shopFood"].includes(
     activePage,
   );
+  const profileResourceKey = currentUser?.backendId || currentUser?.email || "";
+  const unreadMessageCount = (profileResources.notifications || []).filter(
+    (notification) => !notification.read,
+  ).length ||
+    Number(
+      profileResources.notificationCount?.unread ||
+        profileResources.notificationCount?.unread_count ||
+        profileResources.notificationCount?.count ||
+        0,
+    );
+
+  useEffect(() => {
+    let ignoreProfileResponse = false;
+    const savedAccount = readStoredAccount();
+
+    if (savedAccount) {
+      saveStoredAccount(savedAccount);
+    }
+
+    if (!getAuthToken()) {
+      return () => {
+        ignoreProfileResponse = true;
+      };
+    }
+
+    authApi
+      .getCurrentUser()
+      .then(async (response) => {
+        if (ignoreProfileResponse) return;
+
+        const nextUser = normalizeBackendUser(response, savedAccount || {});
+        const hydratedUser = await fetchBackendUserCollections(nextUser);
+
+        if (ignoreProfileResponse) return;
+
+        setCurrentUser(hydratedUser);
+        saveStoredAccount(hydratedUser);
+      })
+      .catch((error) => {
+        console.error("Unable to load current user profile", error);
+      });
+
+    return () => {
+      ignoreProfileResponse = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let ignoreApartmentResponse = false;
+
+    async function loadApartments() {
+      setIsApartmentsLoading(true);
+      setApartmentLoadError("");
+
+      try {
+        const [apartmentsResponse, residencesResponse, categoriesResponse] =
+          await Promise.all([
+            apartmentsApi.getApartments({ perPage: 100 }),
+            apartmentsApi.getResidences(),
+            apartmentsApi.getBedroomCategories(),
+          ]);
+
+        if (ignoreApartmentResponse) return;
+
+        const sections = buildListingSectionsFromApartments(
+          extractCollection(apartmentsResponse),
+        );
+        const residences = extractCollection(residencesResponse).map(
+          normalizeBackendResidence,
+        );
+        const categories = extractCollection(categoriesResponse).map(
+          normalizeBackendApartmentCategory,
+        );
+
+        setBackendListingSections(sections);
+        setBackendResidenceOptions(
+          attachApartmentTypesToResidences(residences, sections),
+        );
+        setBackendApartmentCategories(categories);
+      } catch (error) {
+        if (ignoreApartmentResponse) return;
+
+        console.error("Unable to load backend apartments", error);
+        setBackendListingSections([]);
+        setBackendResidenceOptions([]);
+        setBackendApartmentCategories([]);
+        setApartmentLoadError(
+          error.message || "Unable to load apartments from the backend.",
+        );
+      } finally {
+        if (!ignoreApartmentResponse) {
+          setIsApartmentsLoading(false);
+        }
+      }
+    }
+
+    loadApartments();
+
+    return () => {
+      ignoreApartmentResponse = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let ignoreShopResponse = false;
+
+    Promise.allSettled([
+      foodApi.getMenu(),
+      foodApi.getMealTypes(),
+      shopApi.getProducts(),
+      shopApi.getCategories(),
+      servicesApi.getServices(),
+      servicesApi.getServiceCategories(),
+      requestsApi.getQuickRequestTypes(),
+    ]).then(
+      ([
+        foodResult,
+        mealTypesResult,
+        shopResult,
+        shopCategoriesResult,
+        servicesResult,
+        serviceCategoriesResult,
+        requestsResult,
+      ]) => {
+        if (ignoreShopResponse) return;
+
+        const nextShopItems = {};
+        const nextShopErrors = {};
+        const nextShopFilters = {};
+
+        if (foodResult.status === "fulfilled") {
+          const items = extractCollection(foodResult.value).map((item, index) =>
+            normalizeBackendCatalogItem(item, "food", index),
+          );
+
+          if (items.length) nextShopItems.food = items;
+          else
+            nextShopErrors.food =
+              "No food items were returned from the backend.";
+        } else {
+          nextShopErrors.food =
+            foodResult.reason?.message || "Unable to load food menu.";
+        }
+
+        if (mealTypesResult.status === "fulfilled") {
+          nextShopFilters.food = normalizeBackendFilters(
+            mealTypesResult.value,
+            "All Menu",
+          );
+        }
+
+        if (shopResult.status === "fulfilled") {
+          const items = extractCollection(shopResult.value).map((item, index) =>
+            normalizeBackendCatalogItem(item, "toiletries", index),
+          );
+
+          if (items.length) nextShopItems.toiletries = items;
+          else nextShopErrors.toiletries = "No shop products were returned.";
+        } else {
+          nextShopErrors.toiletries =
+            shopResult.reason?.message || "Unable to load shop products.";
+        }
+
+        if (shopCategoriesResult.status === "fulfilled") {
+          nextShopFilters.toiletries = normalizeBackendFilters(
+            shopCategoriesResult.value,
+            "All Items",
+          );
+        }
+
+        if (servicesResult.status === "fulfilled") {
+          const items = extractCollection(servicesResult.value).map(
+            (item, index) =>
+              normalizeBackendCatalogItem(item, "services", index),
+          );
+
+          if (items.length) nextShopItems.services = items;
+          else nextShopErrors.services = "No services were returned.";
+        } else {
+          nextShopErrors.services =
+            servicesResult.reason?.message || "Unable to load services.";
+        }
+
+        if (serviceCategoriesResult.status === "fulfilled") {
+          nextShopFilters.services = normalizeBackendFilters(
+            serviceCategoriesResult.value,
+            "All Services",
+          );
+        }
+
+        if (requestsResult.status === "fulfilled") {
+          const items = extractCollection(requestsResult.value).map(
+            (item, index) =>
+              normalizeBackendCatalogItem(item, "requests", index),
+          );
+
+          if (items.length) nextShopItems.requests = items;
+          else nextShopErrors.requests = "No request types were returned.";
+        } else {
+          nextShopErrors.requests =
+            requestsResult.reason?.message || "Unable to load request types.";
+        }
+
+        if (Object.keys(nextShopItems).length) {
+          setBackendShopItems(nextShopItems);
+          setShopLoadError("");
+        } else {
+          setBackendShopItems({});
+          setShopLoadError("No shop items were returned from the backend.");
+        }
+
+        setBackendShopFilters(nextShopFilters);
+        setShopLoadErrors(nextShopErrors);
+        setIsShopLoading(false);
+      },
+    )
+      .catch((error) => {
+        if (ignoreShopResponse) return;
+
+        console.error("Unable to load backend shop items", error);
+        setBackendShopItems({});
+        setBackendShopFilters({});
+        setShopLoadError(
+          error.message || "Unable to load shop items from the backend.",
+        );
+        setShopLoadErrors({});
+        setIsShopLoading(false);
+      });
+
+    return () => {
+      ignoreShopResponse = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let ignorePublicResourceResponse = false;
+
+    Promise.allSettled([
+      profileApi.getLegalDocuments(),
+      profileApi.getHelpInfo(),
+    ]).then(([legalResult, helpResult]) => {
+      if (ignorePublicResourceResponse) return;
+
+      setProfileResources((current) => ({
+        ...current,
+        legalDocuments:
+          legalResult.status === "fulfilled"
+            ? extractLegalDocuments(legalResult.value).map(
+                normalizeBackendLegalItem,
+              )
+            : current.legalDocuments,
+        helpInfo:
+          helpResult.status === "fulfilled"
+            ? extractObject(helpResult.value)
+            : current.helpInfo,
+      }));
+    });
+
+    return () => {
+      ignorePublicResourceResponse = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!profileResourceKey || !getAuthToken()) return undefined;
+
+    let ignoreResourceResponse = false;
+
+    Promise.allSettled([
+      profileApi.getNotifications({ perPage: 20 }),
+      profileApi.getNotificationsCount(),
+      profileApi.getDocuments(),
+      profileApi.getLegalDocuments(),
+      profileApi.getHelpInfo(),
+      profileApi.getReferralInfo(),
+      profileApi.getRockPoints(),
+      ordersApi.getOrderCounts(),
+    ]).then(
+      ([
+        notificationsResult,
+        notificationsCountResult,
+        documentsResult,
+        legalResult,
+        helpResult,
+        referralResult,
+        rockPointsResult,
+        orderCountsResult,
+      ]) => {
+        if (ignoreResourceResponse) return;
+
+        setProfileResources((current) => ({
+          ...current,
+          notifications:
+            notificationsResult.status === "fulfilled"
+              ? extractCollection(notificationsResult.value).map(
+                  normalizeBackendNotification,
+                )
+              : current.notifications,
+          notificationCount:
+            notificationsCountResult.status === "fulfilled"
+              ? extractObject(notificationsCountResult.value)
+              : current.notificationCount,
+          documents:
+            documentsResult.status === "fulfilled"
+              ? extractCollection(documentsResult.value).map(
+                  normalizeBackendDocument,
+                )
+              : current.documents,
+          legalDocuments:
+            legalResult.status === "fulfilled"
+              ? extractLegalDocuments(legalResult.value).map(
+                  normalizeBackendLegalItem,
+                )
+              : current.legalDocuments,
+          helpInfo:
+            helpResult.status === "fulfilled"
+              ? extractObject(helpResult.value)
+              : current.helpInfo,
+          referralInfo:
+            referralResult.status === "fulfilled"
+              ? extractObject(referralResult.value)
+              : current.referralInfo,
+          rockPoints:
+            rockPointsResult.status === "fulfilled"
+              ? extractObject(rockPointsResult.value)
+              : current.rockPoints,
+          orderCounts:
+            orderCountsResult.status === "fulfilled"
+              ? extractObject(orderCountsResult.value)
+              : current.orderCounts,
+        }));
+      },
+    );
+
+    return () => {
+      ignoreResourceResponse = true;
+    };
+  }, [profileResourceKey]);
+
+  useEffect(() => {
+    if (
+      !selectedApartment?.backendId ||
+      !bookingDetails.checkIn ||
+      !bookingDetails.checkOut
+    ) {
+      return undefined;
+    }
+
+    let ignoreQuoteResponse = false;
+
+    Promise.allSettled([
+      apartmentsApi.checkAvailability({
+        apartmentId: selectedApartment.backendId,
+        checkIn: bookingDetails.checkIn,
+        checkOut: bookingDetails.checkOut,
+      }),
+      apartmentsApi.calculatePricing({
+        apartmentId: selectedApartment.backendId,
+        checkIn: bookingDetails.checkIn,
+        checkOut: bookingDetails.checkOut,
+        guests: bookingDetails.guests,
+        couponCode: bookingDetails.promo,
+      }),
+    ]).then(([availabilityResult, pricingResult]) => {
+      if (ignoreQuoteResponse) return;
+
+      setApartmentQuote({
+        loading: false,
+        available:
+          availabilityResult.status === "fulfilled"
+            ? normalizeBackendAvailability(availabilityResult.value)
+            : true,
+        pricing:
+          pricingResult.status === "fulfilled"
+            ? normalizeBackendPricing(pricingResult.value)
+            : null,
+        error:
+          availabilityResult.status === "rejected" &&
+          pricingResult.status === "rejected"
+            ? "Could not refresh live availability and pricing."
+            : "",
+      });
+    });
+
+    return () => {
+      ignoreQuoteResponse = true;
+    };
+  }, [
+    selectedApartment?.backendId,
+    bookingDetails.checkIn,
+    bookingDetails.checkOut,
+    bookingDetails.guests,
+    bookingDetails.promo,
+  ]);
+
+  async function refreshProfileResources({ silent = false, ignore } = {}) {
+    if (!getAuthToken()) return;
+
+    const [
+      notificationsResult,
+      notificationsCountResult,
+      documentsResult,
+      legalResult,
+      helpResult,
+      referralResult,
+      rockPointsResult,
+      orderCountsResult,
+    ] = await Promise.allSettled([
+      profileApi.getNotifications({ perPage: 20 }),
+      profileApi.getNotificationsCount(),
+      profileApi.getDocuments(),
+      profileApi.getLegalDocuments(),
+      profileApi.getHelpInfo(),
+      profileApi.getReferralInfo(),
+      profileApi.getRockPoints(),
+      ordersApi.getOrderCounts(),
+    ]);
+
+    if (ignore?.()) return;
+
+    setProfileResources((current) => ({
+      ...current,
+      notifications:
+        notificationsResult.status === "fulfilled"
+          ? extractCollection(notificationsResult.value).map(
+              normalizeBackendNotification,
+            )
+          : current.notifications,
+      notificationCount:
+        notificationsCountResult.status === "fulfilled"
+          ? extractObject(notificationsCountResult.value)
+          : current.notificationCount,
+      documents:
+        documentsResult.status === "fulfilled"
+          ? extractCollection(documentsResult.value).map(
+              normalizeBackendDocument,
+            )
+          : current.documents,
+      legalDocuments:
+        legalResult.status === "fulfilled"
+          ? extractLegalDocuments(legalResult.value).map(
+              normalizeBackendLegalItem,
+            )
+          : current.legalDocuments,
+      helpInfo:
+        helpResult.status === "fulfilled"
+          ? extractObject(helpResult.value)
+          : current.helpInfo,
+      referralInfo:
+        referralResult.status === "fulfilled"
+          ? extractObject(referralResult.value)
+          : current.referralInfo,
+      rockPoints:
+        rockPointsResult.status === "fulfilled"
+          ? extractObject(rockPointsResult.value)
+          : current.rockPoints,
+      orderCounts:
+        orderCountsResult.status === "fulfilled"
+          ? extractObject(orderCountsResult.value)
+          : current.orderCounts,
+    }));
+
+    if (!silent) {
+      showToast("Profile data refreshed.", "success");
+    }
+  }
 
   function showToast(message, type = "success") {
     const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -230,41 +1043,110 @@ function HomePage() {
   }
 
   function readSavedAccount() {
-    try {
-      return JSON.parse(localStorage.getItem(ACCOUNT_STORAGE_KEY) || "null");
-    } catch {
-      return null;
-    }
+    return readStoredAccount();
   }
 
-  function syncSavedAccount(nextUser) {
-    const savedAccount = readSavedAccount();
-
-    if (!savedAccount || !nextUser) {
-      return;
-    }
-
-    localStorage.setItem(
-      ACCOUNT_STORAGE_KEY,
-      JSON.stringify({
-        ...savedAccount,
-        ...nextUser,
-      }),
-    );
-  }
-
-  function updateCurrentUser(nextUserOrUpdater) {
+  const updateCurrentUser = useCallback((nextUserOrUpdater) => {
     setCurrentUser((currentUserValue) => {
       const nextUser =
         typeof nextUserOrUpdater === "function"
           ? nextUserOrUpdater(currentUserValue)
           : nextUserOrUpdater;
 
-      syncSavedAccount(nextUser);
+      if (nextUser) {
+        const savedAccount = readStoredAccount();
+
+        saveStoredAccount({
+          ...(savedAccount || {}),
+          ...nextUser,
+        });
+      }
 
       return nextUser;
     });
-  }
+  }, []);
+
+  const addActivityMessage = useCallback(
+    (title, message) => {
+      const nextMessage = {
+        id: `local-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        title,
+        message,
+        read: false,
+        createdAt: new Date().toISOString(),
+      };
+
+      setProfileResources((current) => ({
+        ...current,
+        notifications: [nextMessage, ...(current.notifications || [])],
+      }));
+
+      updateCurrentUser((current) => {
+        if (!current) return current;
+
+        return {
+          ...current,
+          messages: [nextMessage, ...(current.messages || [])],
+          messageCount: Number(current.messageCount || 0) + 1,
+        };
+      });
+    },
+    [updateCurrentUser],
+  );
+
+  useEffect(() => {
+    const returnedReference = getReturnedPaymentReference();
+
+    if (!returnedReference || !getAuthToken() || !currentUser) {
+      return undefined;
+    }
+
+    let ignorePaymentResponse = false;
+
+    async function verifyReturnedPayment() {
+      const paymentContext = readPendingPaymentContext();
+
+      try {
+        await verifyPaymentReference(paymentContext, returnedReference);
+
+        if (ignorePaymentResponse) return;
+
+        clearPendingPaymentContext();
+        clearPaymentReturnParams();
+
+        const hydratedUser = await fetchBackendUserCollections(currentUser);
+
+        if (ignorePaymentResponse) return;
+
+        updateCurrentUser(hydratedUser);
+        addActivityMessage(
+          "Payment verified",
+          "Your payment was verified successfully and your profile has been refreshed.",
+        );
+        setProfileInitialView(
+          paymentContext?.type === "booking" ? "bookings" : "orders",
+        );
+        setActivePage("profile");
+        showToast("Payment verified successfully.", "success");
+      } catch (error) {
+        if (ignorePaymentResponse) return;
+
+        console.error("Payment verification failed", error);
+        clearPaymentReturnParams();
+        showToast(
+          error.message ||
+            "Payment returned, but verification failed. Please check your profile shortly.",
+          "error",
+        );
+      }
+    }
+
+    verifyReturnedPayment();
+
+    return () => {
+      ignorePaymentResponse = true;
+    };
+  }, [addActivityMessage, currentUser, updateCurrentUser]);
 
   function openLogin() {
     setAuthEntry("login");
@@ -282,17 +1164,35 @@ function HomePage() {
     setIsAuthModalOpen(true);
   }
 
+  function openAgentSignup() {
+    setAuthEntry("agentSignup");
+    setSocialAuthError("");
+    setSocialAuthProvider("");
+    setAuthModalKey((current) => current + 1);
+    setIsAuthModalOpen(true);
+  }
+
   function closeAuthModal() {
     setSocialAuthError("");
     setSocialAuthProvider("");
     setIsAuthModalOpen(false);
   }
 
-  function handleAuthComplete(authenticatedUser) {
+  async function handleAuthComplete(authenticatedUser) {
     updateCurrentUser(authenticatedUser);
     setActivePage("home");
     setIsAuthModalOpen(false);
     showToast("You are signed in.", "success");
+    addActivityMessage(
+      "Welcome to Bedrock",
+      "You are signed in. Booking, order, and service updates will appear here.",
+    );
+
+    const hydratedUser = await fetchBackendUserCollections(authenticatedUser);
+
+    if (hydratedUser !== authenticatedUser) {
+      updateCurrentUser(hydratedUser);
+    }
   }
 
   function buildUserFromFirebaseUser(firebaseUser) {
@@ -382,22 +1282,48 @@ function HomePage() {
     handleSocialSignIn("apple");
   }
 
+  function getShopItemsForVariant(variant) {
+    const backendItems = backendShopItems[variant];
+
+    return Array.isArray(backendItems) ? backendItems : [];
+  }
+
+  function getShopFiltersForVariant(variant) {
+    const backendFilters = backendShopFilters[variant];
+
+    return Array.isArray(backendFilters) ? backendFilters : [];
+  }
+
+  function getShopLoadErrorForVariant(variant) {
+    return shopLoadErrors[variant] || shopLoadError;
+  }
+
   function showHome() {
     setActivePage("home");
     setProfileInitialView("profile");
   }
 
-  function showResidence(residenceId, apartmentTitle = "") {
-    const normalizedApartmentTitle = String(apartmentTitle || "").trim();
+  async function showAllApartments() {
+    setActivePage("home");
+    setProfileInitialView("profile");
+    setApartmentFilters(defaultApartmentFilters);
+    setSearchResetKey((currentKey) => currentKey + 1);
+    await refreshApartmentListings(defaultApartmentFilters);
+  }
 
-    setSelectedResidenceId(residenceId);
-    setApartmentFilters({
+  async function showResidence(residenceId, apartmentTitle = "") {
+    const normalizedApartmentTitle = String(apartmentTitle || "").trim();
+    const nextFilters = {
       ...defaultApartmentFilters,
       residenceId,
       apartmentTitle: normalizedApartmentTitle,
-    });
+    };
+
+    setSelectedResidenceId(residenceId);
+    setApartmentFilters(nextFilters);
     setActivePage("residence");
     setProfileInitialView("profile");
+    await refreshApartmentListings(nextFilters);
   }
 
   function showShop(shopId) {
@@ -408,7 +1334,7 @@ function HomePage() {
     }
 
     setShopVariant(nextShopVariant);
-    setSelectedFoodItem(getDefaultShopItem(nextShopVariant));
+    setSelectedFoodItem(getShopItemsForVariant(nextShopVariant)[0] || null);
     setFoodOrderDetails(createDefaultFoodOrderDetails());
     setActivePage("shopFood");
     setProfileInitialView("profile");
@@ -425,19 +1351,95 @@ function HomePage() {
     setProfileInitialView("profile");
   }
 
-  function showApartment(apartment) {
+  async function showApartment(apartment) {
     setApartmentReturnPage(activePage === "residence" ? "residence" : "home");
-    setSelectedApartment(decorateApartmentWithMedia(apartment));
+    const fallbackApartment = decorateApartmentWithMedia(apartment);
+
+    setSelectedApartment(fallbackApartment);
+    setApartmentQuote(null);
+    setPendingBooking(null);
     setBookingDetails(createBookingDetailsFromFilters(apartmentFilters));
     setActivePage("apartment");
     setProfileInitialView("profile");
+
+    if (!apartment.backendId) {
+      return;
+    }
+
+    try {
+      const [detailsResult, reviewsResult] = await Promise.allSettled([
+        apartmentsApi.getApartmentDetails(apartment.backendId),
+        apartmentsApi.getApartmentReviews(apartment.backendId, { perPage: 10 }),
+      ]);
+      let nextApartment = fallbackApartment;
+
+      if (detailsResult.status === "fulfilled") {
+        nextApartment = decorateApartmentWithMedia({
+          ...fallbackApartment,
+          ...normalizeBackendApartment(extractObject(detailsResult.value), 0),
+        });
+      }
+
+      if (reviewsResult.status === "fulfilled") {
+        nextApartment = {
+          ...nextApartment,
+          reviews: extractCollection(reviewsResult.value).map(
+            normalizeBackendReview,
+          ),
+        };
+      }
+
+      setSelectedApartment(nextApartment);
+    } catch (error) {
+      console.error("Unable to load apartment details", error);
+    }
   }
 
   function showApartmentReturnPage() {
     setActivePage(apartmentReturnPage);
   }
 
-  function handleApartmentSearch(nextFilters) {
+  async function refreshApartmentListings(
+    nextFilters = defaultApartmentFilters,
+  ) {
+    const selectedResidence = backendResidenceOptions.find(
+      (residence) => residence.id === nextFilters.residenceId,
+    );
+    const selectedBedrooms = getBedroomCountFromText(
+      nextFilters.apartmentTitle,
+    );
+    const selectedCategory = backendApartmentCategories.find(
+      (category) => category.bedrooms === selectedBedrooms,
+    );
+
+    setIsApartmentsLoading(true);
+    setApartmentLoadError("");
+
+    try {
+      const response = await apartmentsApi.getApartments({
+        perPage: 100,
+        residenceId: selectedResidence?.backendId,
+        categoryId: selectedCategory?.id,
+        checkIn: nextFilters.checkIn,
+        checkOut: nextFilters.checkOut,
+        guests: nextFilters.guests,
+      });
+
+      setBackendListingSections(
+        buildListingSectionsFromApartments(extractCollection(response)),
+      );
+    } catch (error) {
+      console.error("Unable to filter backend apartments", error);
+      setBackendListingSections([]);
+      setApartmentLoadError(
+        error.message || "Unable to filter apartments from the backend.",
+      );
+    } finally {
+      setIsApartmentsLoading(false);
+    }
+  }
+
+  async function handleApartmentSearch(nextFilters) {
     setApartmentFilters(nextFilters);
 
     if (nextFilters.residenceId) {
@@ -446,11 +1448,13 @@ function HomePage() {
 
     setActivePage("home");
     setProfileInitialView("profile");
+    await refreshApartmentListings(nextFilters);
   }
 
-  function clearApartmentSearch() {
+  async function clearApartmentSearch() {
     setApartmentFilters(defaultApartmentFilters);
     setSearchResetKey((currentKey) => currentKey + 1);
+    await refreshApartmentListings(defaultApartmentFilters);
   }
 
   function showProfile(profileView = "profile") {
@@ -470,57 +1474,419 @@ function HomePage() {
     setProfileInitialView("profile");
   }
 
-  function handleProfileSave(profileUpdates) {
+  function isApartmentSaved(apartment) {
+    if (!apartment || !Array.isArray(currentUser?.wishlists)) return false;
+
+    return currentUser.wishlists.some(
+      (item) =>
+        item.id === apartment.id ||
+        item.backendId === apartment.backendId ||
+        item.id === String(apartment.backendId),
+    );
+  }
+
+  async function handleFavoriteToggle(apartment) {
+    if (!currentUser) {
+      openLogin();
+      return {
+        ok: false,
+        isSaved: false,
+        message: "Please log in to save apartments.",
+      };
+    }
+
+    const currentWishlists = Array.isArray(currentUser.wishlists)
+      ? currentUser.wishlists
+      : [];
+    const isAlreadySaved = currentWishlists.some(
+      (item) =>
+        item.id === apartment.id ||
+        item.backendId === apartment.backendId ||
+        item.id === String(apartment.backendId),
+    );
+    let nextIsSaved = !isAlreadySaved;
+    let favoriteApartment = apartment;
+
+    if (getAuthToken() && apartment.backendId) {
+      try {
+        const response = await favoritesApi.toggleFavorite(apartment.backendId);
+        const responsePayload = extractObject(response);
+
+        nextIsSaved =
+          responsePayload.is_favorite ??
+          responsePayload.isFavorite ??
+          responsePayload.favorited ??
+          nextIsSaved;
+        favoriteApartment = normalizeBackendFavorite(
+          responsePayload.favorite || responsePayload.apartment || apartment,
+        );
+      } catch (error) {
+        const message = error.message || "Could not update wishlist.";
+        showToast(message, "error");
+        return { ok: false, isSaved: isAlreadySaved, message };
+      }
+    }
+
     updateCurrentUser((current) => {
       if (!current) return current;
 
+      const wishlists = Array.isArray(current.wishlists)
+        ? current.wishlists
+        : [];
+      const withoutApartment = wishlists.filter(
+        (item) =>
+          item.id !== apartment.id &&
+          item.backendId !== apartment.backendId &&
+          item.id !== String(apartment.backendId),
+      );
+
       return {
         ...current,
-        ...profileUpdates,
+        wishlists: nextIsSaved
+          ? [favoriteApartment, ...withoutApartment]
+          : withoutApartment,
       };
     });
+
+    const message = nextIsSaved
+      ? "Apartment saved to wishlist."
+      : "Apartment removed from wishlist.";
+
+    showToast(message, "success");
+    addActivityMessage("Wishlist updated", message);
+
+    return { ok: true, isSaved: nextIsSaved, message };
   }
 
-  function handlePasswordChange({ currentPassword, nextPassword }) {
-    const savedAccount = JSON.parse(
-      localStorage.getItem(ACCOUNT_STORAGE_KEY) || "null",
-    );
-
-    if (!savedAccount?.password) {
+  async function handleProfileSave(profileUpdates) {
+    if (!currentUser) {
       const result = {
         ok: false,
-        message: "No saved password found for this account.",
+        message: "Please log in before updating your profile.",
       };
       showToast(result.message, "error");
       return result;
     }
 
-    if (savedAccount.password !== currentPassword) {
-      const result = {
-        ok: false,
-        message: "Current password is incorrect.",
-      };
-      showToast(result.message, "error");
-      return result;
-    }
-
-    localStorage.setItem(
-      ACCOUNT_STORAGE_KEY,
-      JSON.stringify({
-        ...savedAccount,
-        password: nextPassword,
-      }),
-    );
-
-    const result = {
-      ok: true,
-      message: "Password updated successfully.",
+    const { firstName, lastName } = splitProfileName(profileUpdates.name);
+    const fallbackProfile = {
+      ...currentUser,
+      ...profileUpdates,
     };
-    showToast(result.message, "success");
-    return result;
+
+    try {
+      const response = await profileApi.updateProfile({
+        ...profileUpdates,
+        firstName,
+        lastName,
+      });
+      const nextProfile = normalizeBackendUser(response, fallbackProfile);
+      const result = {
+        ok: true,
+        message: "Profile updated successfully.",
+      };
+
+      updateCurrentUser(nextProfile);
+      showToast(result.message, "success");
+      addActivityMessage(
+        "Profile updated",
+        "Your profile details were updated successfully.",
+      );
+
+      return result;
+    } catch (error) {
+      const result = {
+        ok: false,
+        message: error.message || "Unable to update your profile.",
+      };
+
+      showToast(result.message, "error");
+
+      return result;
+    }
   }
 
-  function handleBookingExtension(bookingId, nextCheckout) {
+  async function handleAvatarUpload(file) {
+    if (!file || !getAuthToken()) return;
+
+    try {
+      const response = await profileApi.updateAvatar(file);
+      const nextUser = normalizeBackendUser(response, currentUser || {});
+
+      updateCurrentUser(nextUser);
+      showToast("Profile photo updated.", "success");
+      addActivityMessage(
+        "Profile photo updated",
+        "Your profile picture was updated successfully.",
+      );
+    } catch (error) {
+      showToast(error.message || "Unable to upload profile photo.", "error");
+    }
+  }
+
+  async function handlePasswordChange({ currentPassword, nextPassword }) {
+    try {
+      await profileApi.changePassword({
+        currentPassword,
+        newPassword: nextPassword,
+        newPasswordConfirmation: nextPassword,
+      });
+
+      const result = {
+        ok: true,
+        message: "Password updated successfully.",
+      };
+
+      showToast(result.message, "success");
+      addActivityMessage(
+        "Password changed",
+        "Your account password was updated successfully.",
+      );
+
+      return result;
+    } catch (error) {
+      const result = {
+        ok: false,
+        message: error.message || "Unable to update your password.",
+      };
+
+      showToast(result.message, "error");
+
+      return result;
+    }
+  }
+
+  async function handleSubmitKyc() {
+    try {
+      await profileApi.submitKyc();
+      await refreshProfileResources({ silent: true });
+      showToast("KYC submitted successfully.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to submit KYC.", "error");
+    }
+  }
+
+  async function handleUploadDocument(file) {
+    try {
+      await profileApi.uploadDocument({
+        file,
+        type: "kyc",
+        name: file.name,
+      });
+      await refreshProfileResources({ silent: true });
+      showToast("Document uploaded successfully.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to upload document.", "error");
+    }
+  }
+
+  async function handleMarkNotificationRead(notificationId) {
+    const isLocalNotification = String(notificationId || "").startsWith(
+      "local-",
+    );
+
+    try {
+      if (!isLocalNotification) {
+        await profileApi.markNotificationAsRead(notificationId);
+      }
+
+      setProfileResources((current) => ({
+        ...current,
+        notifications: current.notifications.map((notification) =>
+          notification.id === notificationId
+            ? { ...notification, read: true }
+            : notification,
+        ),
+      }));
+      showToast("Notification marked as read.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to update notification.", "error");
+    }
+  }
+
+  async function handleMarkAllNotificationsRead() {
+    try {
+      if (getAuthToken()) {
+        await profileApi.markAllNotificationsAsRead();
+      }
+
+      setProfileResources((current) => ({
+        ...current,
+        notifications: current.notifications.map((notification) => ({
+          ...notification,
+          read: true,
+        })),
+      }));
+      showToast("All notifications marked as read.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to update notifications.", "error");
+    }
+  }
+
+  async function handleDeleteAccount() {
+    const shouldDelete =
+      typeof window !== "undefined" &&
+      window.confirm("Delete your Bedrock account permanently?");
+
+    if (!shouldDelete) return;
+
+    try {
+      await authApi.deleteAccount();
+      clearAuthToken();
+      localStorage.removeItem(ACCOUNT_STORAGE_KEY);
+      setCurrentUser(null);
+      setActivePage("home");
+      showToast("Account deleted successfully.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to delete account.", "error");
+    }
+  }
+
+  async function handleDownloadInvoice(booking) {
+    const bookingId = getBackendRecordId(booking);
+
+    if (!bookingId || !getAuthToken()) {
+      return {
+        ok: false,
+        message: "Invoice is only available for backend bookings.",
+      };
+    }
+
+    try {
+      const response = await bookingsApi.getInvoice(bookingId);
+      const invoice = extractObject(response);
+      const invoiceUrl =
+        invoice.url ||
+        invoice.invoice_url ||
+        invoice.invoiceUrl ||
+        invoice.download_url ||
+        invoice.downloadUrl;
+
+      if (invoiceUrl && typeof window !== "undefined") {
+        window.open(invoiceUrl, "_blank", "noopener,noreferrer");
+      }
+
+      return {
+        ok: true,
+        message: invoiceUrl
+          ? "Invoice opened."
+          : "Invoice loaded, but no download URL was returned.",
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error.message || "Unable to load invoice.",
+      };
+    }
+  }
+
+  async function handleLoadTimeline(booking) {
+    const bookingId = getBackendRecordId(booking);
+
+    if (!bookingId || !getAuthToken()) {
+      return {
+        ok: false,
+        message: "Timeline is only available for backend bookings.",
+      };
+    }
+
+    try {
+      const response = await ordersApi.getOrderTimeline(bookingId);
+      const timeline = extractCollection(response);
+
+      updateCurrentUser((current) => {
+        if (!current) return current;
+
+        return {
+          ...current,
+          bookings: (current.bookings || []).map((currentBooking) =>
+            currentBooking.id === booking.id
+              ? { ...currentBooking, timeline }
+              : currentBooking,
+          ),
+        };
+      });
+
+      return {
+        ok: true,
+        message: timeline.length
+          ? "Timeline loaded."
+          : "No timeline updates yet.",
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error.message || "Unable to load timeline.",
+      };
+    }
+  }
+
+  async function handleSubmitReview(booking, reviewPayload = {}) {
+    const bookingId = getBackendRecordId(booking);
+
+    if (!bookingId || !getAuthToken()) {
+      return {
+        ok: false,
+        message: "Reviews are only available for backend bookings.",
+      };
+    }
+
+    const rating = Number(reviewPayload.rating || 5);
+    const comment = String(reviewPayload.comment || "").trim();
+
+    if (!comment) {
+      return {
+        ok: false,
+        message: "Please add a short review before submitting.",
+      };
+    }
+
+    try {
+      await bookingsApi.submitReview(bookingId, {
+        rating,
+        comment,
+      });
+
+      updateCurrentUser((current) => {
+        if (!current) return current;
+
+        return {
+          ...current,
+          bookings: (current.bookings || []).map((currentBooking) =>
+            currentBooking.id === booking.id
+              ? {
+                  ...currentBooking,
+                  reviewed: true,
+                  review: {
+                    rating,
+                    comment,
+                    createdAt: new Date().toISOString(),
+                  },
+                }
+              : currentBooking,
+          ),
+        };
+      });
+
+      showToast("Review submitted successfully.", "success");
+      addActivityMessage(
+        "Review submitted",
+        `Your review for ${booking.title || "your stay"} has been sent.`,
+      );
+
+      return {
+        ok: true,
+        message: "Review submitted successfully.",
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        message: error.message || "Unable to submit review.",
+      };
+    }
+  }
+
+  async function handleBookingExtension(bookingId, nextCheckout) {
     if (!currentUser) {
       const result = {
         ok: false,
@@ -574,7 +1940,7 @@ function HomePage() {
       Number(booking.rockPointValue || 0) > 0,
     );
     const extendedAt = new Date().toISOString();
-    const nextBooking = {
+    let nextBooking = {
       ...booking,
       checkOut: nextCheckout,
       nights: totals.nights,
@@ -599,6 +1965,25 @@ function HomePage() {
       ],
     };
 
+    if (getAuthToken() && booking.backendId) {
+      try {
+        const response = await bookingsApi.extendBooking(booking.backendId, {
+          newCheckOutDate: nextCheckout,
+          agreeToPolicies: true,
+        });
+
+        nextBooking = normalizeBackendBooking(response, nextBooking);
+      } catch (error) {
+        const result = {
+          ok: false,
+          message: error.message || "Could not extend this booking.",
+        };
+
+        showToast(result.message, "error");
+        return result;
+      }
+    }
+
     updateCurrentUser((current) => {
       if (!current) return current;
 
@@ -615,10 +2000,14 @@ function HomePage() {
       message: "Stay extended successfully.",
     };
     showToast(result.message, "success");
+    addActivityMessage(
+      "Stay extended",
+      `${nextBooking.title || booking.title} now checks out on ${formatShortDate(nextCheckout)}.`,
+    );
     return result;
   }
 
-  function handleBookingCancellation(bookingId) {
+  async function handleBookingCancellation(bookingId) {
     if (!currentUser) {
       showToast("Please log in to cancel this booking.", "error");
       return {
@@ -648,21 +2037,43 @@ function HomePage() {
     }
 
     const cancelledAt = new Date().toISOString();
+    let cancelledBooking = {
+      ...booking,
+      status: "cancelled",
+      cancelledAt,
+    };
+
+    if (getAuthToken() && booking.backendId) {
+      try {
+        const response = await bookingsApi.cancelBooking(
+          booking.backendId,
+          "Cancelled by guest",
+        );
+
+        cancelledBooking = normalizeBackendBooking(response, cancelledBooking);
+      } catch (error) {
+        const message = error.message || "Could not cancel this booking.";
+
+        showToast(message, "error");
+        return {
+          ok: false,
+          message,
+        };
+      }
+    }
 
     updateCurrentUser({
       ...currentUser,
       bookings: (currentUser.bookings || []).map((currentBooking) =>
-        currentBooking.id === bookingId
-          ? {
-              ...currentBooking,
-              status: "cancelled",
-              cancelledAt,
-            }
-          : currentBooking,
+        currentBooking.id === bookingId ? cancelledBooking : currentBooking,
       ),
     });
 
     showToast(`${booking.title} booking cancelled.`, "success");
+    addActivityMessage(
+      "Booking cancelled",
+      `${booking.title} was cancelled successfully.`,
+    );
 
     return {
       ok: true,
@@ -670,11 +2081,100 @@ function HomePage() {
     };
   }
 
-  function handleBecomeAgent() {
-    showToast("Agent applications are not available yet.", "error");
+  async function handleOrderCancellation(order) {
+    if (!currentUser) {
+      const message = "Please log in to cancel this order.";
+
+      showToast(message, "error");
+      return { ok: false, message };
+    }
+
+    const orderId = order?.id;
+    const existingOrder = (currentUser.orders || []).find(
+      (currentOrder) => currentOrder.id === orderId,
+    );
+
+    if (!existingOrder) {
+      const message = "Order not found.";
+
+      showToast(message, "error");
+      return { ok: false, message };
+    }
+
+    const status = String(existingOrder.status || "").toLowerCase();
+
+    if (status === "cancelled" || status === "canceled") {
+      const message = "This order is already cancelled.";
+
+      showToast(message, "error");
+      return { ok: false, message };
+    }
+
+    const cancelledOrder = {
+      ...existingOrder,
+      status: "cancelled",
+      cancelledAt: new Date().toISOString(),
+    };
+
+    updateCurrentUser((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        orders: (current.orders || []).map((currentOrder) =>
+          currentOrder.id === orderId ? cancelledOrder : currentOrder,
+        ),
+      };
+    });
+
+    showToast(`${existingOrder.title || "Order"} cancelled.`, "success");
+    addActivityMessage(
+      "Order cancelled",
+      `${existingOrder.title || "Your order"} was cancelled successfully.`,
+    );
+
+    return {
+      ok: true,
+      message:
+        "Order cancelled. Backend does not expose a shop order cancel endpoint yet, so this is saved in the frontend profile for now.",
+    };
   }
 
-  function handleLogout() {
+  async function handleBecomeAgent() {
+    if (!currentUser || !getAuthToken()) {
+      showToast("Create an agent account to continue.", "success");
+      openAgentSignup();
+      return;
+    }
+
+    try {
+      const response = await authApi.getOnboardingStatus();
+      const status = extractObject(response);
+      const statusLabel =
+        status.status ||
+        status.onboarding_status ||
+        status.stage ||
+        status.message ||
+        "loaded";
+
+      showToast(`Agent onboarding status: ${statusLabel}.`, "success");
+    } catch (error) {
+      showToast(
+        error.message || "Unable to load agent onboarding status.",
+        "error",
+      );
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
+
+    clearAuthToken();
+    localStorage.removeItem(ACCOUNT_STORAGE_KEY);
     setCurrentUser(null);
     setActivePage("home");
     setProfileInitialView("profile");
@@ -719,7 +2219,73 @@ function HomePage() {
     setActivePage("payment");
   }
 
-  function openPendingStep() {
+  async function openPendingStep() {
+    if (!selectedApartment || !currentUser) {
+      showToast("Please log in before paying for your booking.", "error");
+      openLogin();
+      return;
+    }
+
+    if (getAuthToken() && selectedApartment.backendId) {
+      try {
+        const createResponse = await bookingsApi.createBooking({
+          apartmentId: selectedApartment.backendId,
+          checkIn: bookingDetails.checkIn,
+          checkOut: bookingDetails.checkOut,
+          guests: bookingDetails.guests,
+          couponCode: bookingDetails.promo,
+          useRockPoints: bookingDetails.useRockPoints,
+          agreeToPolicies: bookingDetails.agreedToPolicy,
+        });
+        const booking = normalizeBackendBooking(createResponse);
+        const bookingId = getBackendRecordId(booking);
+
+        if (!bookingId) {
+          throw new Error(
+            "Booking ID missing from createBooking response. Backend may be returning a wrapped payload.",
+          );
+        }
+
+        const paymentResponse = await bookingsApi.initiatePayment(
+          bookingId,
+          getPaymentMethodForBackend(bookingDetails.paymentMethod),
+        );
+        const payment = normalizeBackendPayment(paymentResponse);
+
+        setPendingBooking({
+          ...booking,
+          paymentReference: payment.reference || booking.paymentReference,
+        });
+        addActivityMessage(
+          "Booking payment started",
+          `${booking.title || selectedApartment.title} is waiting for payment confirmation.`,
+        );
+
+        savePendingPaymentContext({
+          type: "booking",
+          recordId: bookingId,
+          reference: payment.reference || booking.paymentReference || "",
+        });
+
+        if (payment.authorizationUrl && typeof window !== "undefined") {
+          showToast("Opening secure payment page.", "success");
+          window.location.assign(payment.authorizationUrl);
+          return;
+        }
+
+        if (!payment.reference) {
+          showToast(
+            "Payment was created, but the backend did not return a payment link or reference.",
+            "error",
+          );
+        }
+      } catch (error) {
+        const message = error.message || "Could not start booking payment.";
+        showToast(message, "error");
+        return;
+      }
+    }
+
     setActivePage("pending");
   }
 
@@ -727,7 +2293,183 @@ function HomePage() {
     setActivePage("confirmed");
   }
 
-  function finishApartmentFlow() {
+  async function openFoodStatusStep() {
+    if (!selectedFoodItem) {
+      showToast(
+        "This item is still loading. Please choose an available item.",
+        "error",
+      );
+      return;
+    }
+
+    if (!currentUser) {
+      showToast("Please log in before completing your order.", "error");
+      openLogin();
+      return;
+    }
+
+    if (getAuthToken() && selectedFoodItem?.backendId) {
+      try {
+        let createResponse;
+        let payOrder;
+        let paymentPrefix = "TXN_ORDER";
+        const bookingId = getActiveBackendBookingId(currentUser);
+
+        if (!bookingId) {
+          showToast(
+            "Please complete an apartment booking before placing food, shop, service, or request orders.",
+            "error",
+          );
+          return;
+        }
+
+        const basePayload = {
+          bookingId,
+          apartmentNumber: foodOrderDetails.apartmentNumber || "Pending",
+          deliveryTime: foodOrderDetails.deliveryTime,
+          guests: foodOrderDetails.guests,
+          note: foodOrderDetails.note,
+          useRockPoints: foodOrderDetails.useRockPoints,
+        };
+
+        if (shopVariant === "food") {
+          createResponse = await foodApi.createFoodOrder({
+            ...basePayload,
+            items: [
+              {
+                food_item_id: selectedFoodItem.backendId,
+                quantity: foodOrderDetails.guests,
+              },
+            ],
+          });
+          payOrder = foodApi.payFoodOrder;
+          paymentPrefix = "TXN_FOOD";
+        } else if (shopVariant === "toiletries") {
+          createResponse = await shopApi.createShopOrder({
+            ...basePayload,
+            items: [
+              {
+                shop_product_id: selectedFoodItem.backendId,
+                quantity: foodOrderDetails.guests,
+              },
+            ],
+          });
+          payOrder = shopApi.payShopOrder;
+          paymentPrefix = "TXN_SHOP";
+        } else if (shopVariant === "services") {
+          createResponse = await servicesApi.createServiceOrder({
+            ...basePayload,
+            serviceId: selectedFoodItem.backendId,
+            scheduledAt: foodOrderDetails.deliveryTime,
+            duration: 60,
+          });
+          payOrder = servicesApi.payServiceOrder;
+          paymentPrefix = "TXN_SVC";
+        } else {
+          const requestLabel =
+            `${selectedFoodItem.title} ${selectedFoodItem.category}`.toLowerCase();
+
+          if (requestLabel.includes("chauffeur")) {
+            createResponse = await requestsApi.createChauffeurRequest({
+              bookingId,
+              destination: foodOrderDetails.note || "Destination pending",
+              pickupTime: foodOrderDetails.deliveryTime,
+              notes: selectedFoodItem.description,
+            });
+          } else if (
+            requestLabel.includes("bureau") ||
+            requestLabel.includes("exchange")
+          ) {
+            createResponse = await requestsApi.createBureauDeChangeRequest({
+              bookingId,
+              currencyFrom: "USD",
+              currencyTo: "NGN",
+              amount: selectedFoodItem.price || 1,
+              notes: foodOrderDetails.note || selectedFoodItem.description,
+            });
+          } else {
+            createResponse = await requestsApi.createQuickRequest({
+              bookingId,
+              requestType: selectedFoodItem.title,
+              description:
+                foodOrderDetails.note || selectedFoodItem.description,
+            });
+          }
+        }
+
+        let order = normalizeBackendOrder(createResponse, {
+          title: selectedFoodItem.title,
+          category: shopVariant,
+          image: selectedFoodItem.image,
+          totalAmount: selectedFoodItem.price,
+        });
+
+        if (payOrder) {
+          const orderId = getBackendRecordId(order);
+
+          if (!orderId) {
+            showToast(
+              "Order was created, but the backend did not return an order ID for payment.",
+              "error",
+            );
+            return;
+          }
+
+          const requestedReference = makePaymentReference(paymentPrefix);
+          const paymentResponse = await payOrder(orderId, {
+            paymentMethod: getPaymentMethodForBackend(foodOrderDetails.paymentMethod),
+            reference: requestedReference,
+          });
+          const payment = normalizeBackendPayment(paymentResponse);
+          const paymentReference = payment.reference || requestedReference;
+
+          order = {
+            ...order,
+            paymentReference,
+          };
+
+          setPendingOrder(order);
+          addActivityMessage(
+            "Order payment started",
+            `${order.title || selectedFoodItem.title} is waiting for payment confirmation.`,
+          );
+          savePendingPaymentContext({
+            type: shopVariant,
+            recordId: orderId,
+            reference: paymentReference,
+          });
+
+          if (payment.authorizationUrl && typeof window !== "undefined") {
+            showToast("Opening secure payment page.", "success");
+            window.location.assign(payment.authorizationUrl);
+            return;
+          }
+
+          showToast(
+            "Order payment was created, but the backend did not return a Paystack payment link.",
+            "error",
+          );
+          return;
+        }
+
+        setPendingOrder(order);
+        addActivityMessage(
+          shopVariant === "services"
+            ? "Service order created"
+            : "Order created",
+          `${order.title || selectedFoodItem.title} has been sent to Bedrock.`,
+        );
+      } catch (error) {
+        const message = error.message || "Could not start order payment.";
+        showToast(message, "error");
+        return;
+      }
+    }
+
+    setActivePage("foodStatus");
+  }
+
+  async function finishApartmentFlow() {
     if (!selectedApartment || !currentUser) {
       if (!currentUser) {
         showToast("Please log in before completing your booking.", "error");
@@ -765,19 +2507,47 @@ function HomePage() {
       totalAmount: totals.payable,
       createdAt: new Date().toISOString(),
     };
+    let bookingToStore = pendingBooking || nextBooking;
+
+    if (!pendingBooking && getAuthToken() && selectedApartment.backendId) {
+      try {
+        const response = await bookingsApi.createBooking({
+          apartmentId: selectedApartment.backendId,
+          checkIn: bookingDetails.checkIn,
+          checkOut: bookingDetails.checkOut,
+          guests: bookingDetails.guests,
+          couponCode: bookingDetails.promo,
+          useRockPoints: bookingDetails.useRockPoints,
+          agreeToPolicies: bookingDetails.agreedToPolicy,
+        });
+
+        bookingToStore = normalizeBackendBooking(response, nextBooking);
+      } catch (error) {
+        console.error("Backend booking creation failed", error);
+        showToast(
+          "Booking saved locally, but backend booking sync failed.",
+          "error",
+        );
+      }
+    }
 
     updateCurrentUser((current) => {
       if (!current) return current;
 
       return {
         ...current,
-        bookings: [nextBooking, ...(current.bookings || [])],
+        bookings: [bookingToStore, ...(current.bookings || [])],
       };
     });
 
     setProfileInitialView("bookings");
+    setPendingBooking(null);
     setActivePage("profile");
     showToast("Booking confirmed and added to your profile.", "success");
+    addActivityMessage(
+      "Booking confirmed",
+      `${bookingToStore.title || selectedApartment.title} has been added to your bookings.`,
+    );
   }
 
   function finishFoodOrderFlow() {
@@ -794,7 +2564,7 @@ function HomePage() {
         foodOrderDetails.useRockPoints,
       );
 
-      const nextOrder = {
+      const nextOrder = pendingOrder || {
         id: createFoodOrderId(),
         title: selectedFoodItem.title,
         category: shopVariant,
@@ -822,8 +2592,13 @@ function HomePage() {
       });
     }
 
+    setPendingOrder(null);
     setActivePage("home");
     showToast("Order placed successfully.", "success");
+    addActivityMessage(
+      "Order placed",
+      `${selectedFoodItem?.title || "Your order"} has been placed successfully.`,
+    );
   }
 
   return (
@@ -841,10 +2616,21 @@ function HomePage() {
           initialView={profileInitialView}
           onGoHome={showHome}
           onProfileSave={handleProfileSave}
+          onAvatarUpload={handleAvatarUpload}
           onPasswordChange={handlePasswordChange}
           onExtendStay={handleBookingExtension}
           onCancelBooking={handleBookingCancellation}
+          onCancelOrder={handleOrderCancellation}
+          onDownloadInvoice={handleDownloadInvoice}
+          onLoadTimeline={handleLoadTimeline}
+          onSubmitReview={handleSubmitReview}
           onShopSelect={showShop}
+          profileResources={profileResources}
+          onMarkNotificationRead={handleMarkNotificationRead}
+          onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
+          onUploadDocument={handleUploadDocument}
+          onSubmitKyc={handleSubmitKyc}
+          onDeleteAccount={handleDeleteAccount}
           orders={currentUser?.orders || []}
           onLogout={handleLogout}
         />
@@ -853,6 +2639,10 @@ function HomePage() {
           <Header
             user={currentUser}
             activeView="home"
+            residences={backendResidenceOptions}
+            apartmentCategories={backendApartmentCategories}
+            isResidencesLoading={isApartmentsLoading}
+            shopCategories={shopDirectoryCategories}
             onHome={showHome}
             onLogin={openLogin}
             onSignup={openSignup}
@@ -863,6 +2653,7 @@ function HomePage() {
             onShopDirectory={showShopDirectory}
             onBecomeAgent={handleBecomeAgent}
             onLogout={handleLogout}
+            unreadCount={unreadMessageCount}
           />
 
           <main className="home-page__main">
@@ -875,6 +2666,9 @@ function HomePage() {
             {shouldShowSearchBar && (
               <SearchBar
                 key={searchResetKey}
+                residences={backendResidenceOptions}
+                apartmentCategories={backendApartmentCategories}
+                isLoading={isApartmentsLoading}
                 onSearch={handleApartmentSearch}
                 onResidenceSelect={showResidence}
               />
@@ -884,7 +2678,10 @@ function HomePage() {
               <ResidencePage
                 residenceId={selectedResidenceId}
                 filters={apartmentFilters}
-                onBack={showHome}
+                sections={backendListingSections}
+                isLoading={isApartmentsLoading}
+                loadError={apartmentLoadError}
+                onBack={showAllApartments}
                 onApartmentSelect={showApartment}
               />
             ) : activePage === "apartment" ? (
@@ -892,37 +2689,53 @@ function HomePage() {
                 mode="details"
                 apartment={selectedApartment}
                 bookingDetails={bookingDetails}
+                quote={apartmentQuote}
+                isInitiallySaved={isApartmentSaved(selectedApartment)}
+                onToggleFavorite={handleFavoriteToggle}
                 onBookingChange={handleBookingChange}
                 onOpenPayment={openPaymentStep}
                 onBackToListings={showApartmentReturnPage}
+                backLabel={
+                  apartmentReturnPage === "residence"
+                    ? "Back to residence"
+                    : "Back to listings"
+                }
               />
             ) : activePage === "payment" ? (
               <ApartmentPage
                 mode="payment"
                 apartment={selectedApartment}
                 bookingDetails={bookingDetails}
+                quote={apartmentQuote}
+                isInitiallySaved={isApartmentSaved(selectedApartment)}
+                onToggleFavorite={handleFavoriteToggle}
                 onBookingChange={handleBookingChange}
                 onPaymentContinue={openPendingStep}
                 onBackToApartment={() => setActivePage("apartment")}
+                backLabel="Back to apartment"
               />
             ) : activePage === "pending" ? (
               <ApartmentPage
                 mode="pending"
                 apartment={selectedApartment}
                 bookingDetails={bookingDetails}
+                quote={apartmentQuote}
                 onBackToPayment={() => setActivePage("payment")}
                 onMoveToConfirmed={openConfirmedStep}
+                backLabel="Back to payment"
               />
             ) : activePage === "confirmed" ? (
               <ApartmentPage
                 mode="confirmed"
                 apartment={selectedApartment}
                 bookingDetails={bookingDetails}
+                quote={apartmentQuote}
                 onBackToPayment={() => setActivePage("pending")}
                 onFinishBooking={finishApartmentFlow}
               />
             ) : activePage === "shopDirectory" ? (
               <ShopDirectoryPage
+                categories={shopDirectoryCategories}
                 onBack={showHome}
                 onShopSelect={showShop}
               />
@@ -930,12 +2743,20 @@ function HomePage() {
               <ShopFoodPage
                 mode="list"
                 variant={shopVariant}
+                items={getShopItemsForVariant(shopVariant)}
+                filters={getShopFiltersForVariant(shopVariant)}
+                isLoading={isShopLoading}
+                loadError={getShopLoadErrorForVariant(shopVariant)}
                 onFoodSelect={showFoodDetail}
               />
             ) : activePage === "foodDetail" ? (
               <ShopFoodPage
                 mode="detail"
                 variant={shopVariant}
+                items={getShopItemsForVariant(shopVariant)}
+                filters={getShopFiltersForVariant(shopVariant)}
+                isLoading={isShopLoading}
+                loadError={getShopLoadErrorForVariant(shopVariant)}
                 foodItem={selectedFoodItem}
                 orderDetails={foodOrderDetails}
                 onOrderChange={handleFoodOrderChange}
@@ -950,6 +2771,10 @@ function HomePage() {
               <ShopFoodPage
                 mode="review"
                 variant={shopVariant}
+                items={getShopItemsForVariant(shopVariant)}
+                filters={getShopFiltersForVariant(shopVariant)}
+                isLoading={isShopLoading}
+                loadError={getShopLoadErrorForVariant(shopVariant)}
                 foodItem={selectedFoodItem}
                 orderDetails={foodOrderDetails}
                 onOrderChange={handleFoodOrderChange}
@@ -960,6 +2785,10 @@ function HomePage() {
               <ShopFoodPage
                 mode="payment"
                 variant={shopVariant}
+                items={getShopItemsForVariant(shopVariant)}
+                filters={getShopFiltersForVariant(shopVariant)}
+                isLoading={isShopLoading}
+                loadError={getShopLoadErrorForVariant(shopVariant)}
                 foodItem={selectedFoodItem}
                 orderDetails={foodOrderDetails}
                 onOrderChange={handleFoodOrderChange}
@@ -968,19 +2797,28 @@ function HomePage() {
                     shopVariant === "food" ? "foodReview" : "foodDetail",
                   )
                 }
-                onPaymentContinue={() => setActivePage("foodStatus")}
+                onPaymentContinue={openFoodStatusStep}
               />
             ) : activePage === "foodStatus" ? (
               <ShopFoodPage
                 mode="status"
                 variant={shopVariant}
+                items={getShopItemsForVariant(shopVariant)}
+                filters={getShopFiltersForVariant(shopVariant)}
+                isLoading={isShopLoading}
+                loadError={getShopLoadErrorForVariant(shopVariant)}
                 foodItem={selectedFoodItem}
                 orderDetails={foodOrderDetails}
                 onFinishOrder={finishFoodOrderFlow}
               />
             ) : (
               <section className="home-page__listings">
-                {filteredListingSections.length > 0 ? (
+                {isApartmentsLoading ? (
+                  <div className="home-page__empty home-page__empty--loading">
+                    <h2>Loading apartments</h2>
+                    <p>Getting the latest apartments from Bedrock.</p>
+                  </div>
+                ) : filteredListingSections.length > 0 ? (
                   filteredListingSections.map((section) => (
                     <ListingSection
                       key={section.id}
@@ -992,13 +2830,11 @@ function HomePage() {
                   <div className="home-page__empty">
                     <h2>No apartments match your search</h2>
                     <p>
-                      Try changing the residence, dates, or number of guests.
+                      {apartmentLoadError ||
+                        "Try changing the residence, dates, or number of guests."}
                     </p>
                     {hasApartmentFilters && (
-                      <button
-                        type="button"
-                        onClick={clearApartmentSearch}
-                      >
+                      <button type="button" onClick={clearApartmentSearch}>
                         Clear filters
                       </button>
                     )}
@@ -1008,7 +2844,12 @@ function HomePage() {
             )}
           </main>
 
-          <Footer />
+          <Footer
+            helpInfo={profileResources.helpInfo}
+            legalDocuments={profileResources.legalDocuments}
+            onResidenceSelect={showResidence}
+            onProfileView={showProfile}
+          />
         </>
       )}
 

@@ -224,11 +224,16 @@
   color: #ffffff;
 }
 
-.nav-mega__item img {
+.nav-mega__item img,
+.nav-mega__item-image {
   width: 68px;
   height: 68px;
   border-radius: 8px;
   object-fit: cover;
+  display: block;
+  background:
+    linear-gradient(135deg, rgba(197, 138, 104, 0.12), rgba(32, 42, 69, 0.08)),
+    #f7f7f7;
 }
 
 .nav-mega__item span,
@@ -272,6 +277,12 @@
   background: transparent;
   text-align: left;
   cursor: pointer;
+}
+
+.nav-mega__empty {
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
 }
 
 .nav-mega__type--active {
@@ -339,10 +350,12 @@
 .icon-bell {
   width: 28px;
   height: 28px;
+  flex: 0 0 auto;
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border: 0;
   border-radius: 999px;
   background: transparent;
   color: #101928;
@@ -599,7 +612,8 @@
     color: inherit;
   }
 
-  .nav-mega--residences .nav-mega__item img {
+  .nav-mega--residences .nav-mega__item img,
+  .nav-mega--residences .nav-mega__item-image {
     width: 42px;
     height: 42px;
     border-radius: 10px;
@@ -769,7 +783,8 @@
     color: inherit;
   }
 
-  .nav-mega--residences .nav-mega__item img {
+  .nav-mega--residences .nav-mega__item img,
+  .nav-mega--residences .nav-mega__item-image {
     width: 42px;
     height: 42px;
     border-radius: 10px;
@@ -946,7 +961,8 @@
     padding: 12px;
   }
 
-  .nav-mega__item img {
+  .nav-mega__item img,
+  .nav-mega__item-image {
     width: 52px;
     height: 52px;
   }
@@ -957,7 +973,8 @@
     padding: 7px;
   }
 
-  .nav-mega--residences .nav-mega__item img {
+  .nav-mega--residences .nav-mega__item img,
+  .nav-mega--residences .nav-mega__item-image {
     width: 40px;
     height: 40px;
   }

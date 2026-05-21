@@ -33,13 +33,28 @@
   line-height: 24px;
 }
 
-.site-footer__column a {
+.site-footer__column a,
+.site-footer__column button {
   color: #101928;
   font-family: "Urbanist", Arial, sans-serif;
   font-size: 13px;
   font-weight: 500;
   line-height: 24px;
   text-decoration: none;
+}
+
+.site-footer__column button {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.site-footer__column a:hover,
+.site-footer__column button:hover {
+  color: #c58a68;
 }
 
 .site-footer__newsletter {
@@ -222,4 +237,3 @@
     font-size: 13px;
   }
 }
-

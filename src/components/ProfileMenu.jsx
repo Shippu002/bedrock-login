@@ -4,6 +4,7 @@ import {
   FiHeart,
   FiHelpCircle,
   FiLogOut,
+  FiMail,
   FiSettings,
   FiShoppingBag,
   FiUser,
@@ -26,7 +27,7 @@ export default function ProfileMenu({
       { id: "wishlists", label: "Wishlists", icon: FiHeart, view: "wishlists" },
       { id: "bookings", label: "Bookings", icon: FiCalendar, view: "bookings" },
       { id: "orders", label: "Orders", icon: FiShoppingBag, view: "orders" },
-      // Messages are hidden for now. Re-enable this item when the feature returns.
+      { id: "notifications", label: "Messages", icon: FiMail, view: "notifications" },
       { id: "shop", label: "Shop", icon: FiShoppingBag, view: "shop" },
       { id: "profile", label: "Profile", icon: FiUser, onClick: onProfile },
     ],
@@ -43,6 +44,9 @@ export default function ProfileMenu({
         icon: FiGlobe,
         view: "settings",
       },
+      { id: "refer", label: "Refer and Earn", icon: FiUserPlus, view: "refer" },
+      { id: "privacy", label: "Privacy Policy", icon: FiGlobe, view: "privacy" },
+      { id: "legal", label: "Legal", icon: FiHelpCircle, view: "legal" },
       { id: "help", label: "Help Center", icon: FiHelpCircle, view: "help" },
     ],
     [

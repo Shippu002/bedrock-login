@@ -11,18 +11,6 @@ import {
   FiStar,
 } from "react-icons/fi";
 import { FaUniversity } from "react-icons/fa";
-import { foodItems } from "../../data/foodItems";
-import { serviceItems } from "../../data/serviceItems";
-import { shopItems } from "../../data/shopItems";
-import breakfastImage from "../../assets/bookings.jpg";
-import foodHeroImage from "../../assets/food-1.jpg";
-import foodImage from "../../assets/food.png";
-import laundryImage from "../../assets/toiletries.jpg";
-import massageImage from "../../assets/massage.jpg";
-import ps5Image from "../../assets/ps5-rental.svg";
-import requestImage from "../../assets/request.png";
-import toiletriesOneImage from "../../assets/toiletries-1.jpg";
-import toiletriesTwoImage from "../../assets/toiletries-2.jpg";
 import AppImage from "../../components/AppImage";
 import {
   calculateFoodOrderTotals,
@@ -32,70 +20,37 @@ import {
 import "./ShopFoodPage.css";
 
 const foodCategoryFilters = [
-  { id: "all", label: "All Menu", image: foodImage },
-  { id: "breakfast", label: "Breakfast", image: breakfastImage },
-  { id: "lunch", label: "Lunch", image: foodHeroImage },
-  { id: "dinner", label: "Dinner", image: foodImage },
+  { id: "all", label: "All Menu" },
+  { id: "breakfast", label: "Breakfast" },
+  { id: "lunch", label: "Lunch" },
+  { id: "dinner", label: "Dinner" },
 ];
 
 const shopCategoryFilters = [
-  { id: "all", label: "All Items", image: toiletriesOneImage },
-  { id: "toiletries", label: "Toiletries", image: toiletriesOneImage },
-  { id: "personal-care", label: "Personal Care", image: toiletriesTwoImage },
-  { id: "essentials", label: "Essentials", image: toiletriesTwoImage },
+  { id: "all", label: "All Items" },
+  { id: "toiletries", label: "Toiletries" },
+  { id: "personal-care", label: "Personal Care" },
+  { id: "essentials", label: "Essentials" },
 ];
 
 const serviceCategoryFilters = [
-  { id: "all", label: "All Services", image: laundryImage },
-  { id: "laundry", label: "Laundry", image: laundryImage },
-  { id: "massage", label: "Massage", image: massageImage },
-  { id: "ps5-rentals", label: "PS5 Rentals", image: ps5Image },
+  { id: "all", label: "All Services" },
+  { id: "laundry", label: "Laundry" },
+  { id: "massage", label: "Massage" },
+  { id: "ps5-rentals", label: "PS5 Rentals" },
 ];
 
 const requestCategoryFilters = [
-  { id: "all", label: "All Requests", image: requestImage },
-  { id: "request", label: "Request", image: requestImage },
+  { id: "all", label: "All Requests" },
+  { id: "request", label: "Request" },
 ];
-
-const requestItems = serviceItems.filter((item) =>
-  item.tags.includes("Request"),
-);
-
-const featuredServiceItems = ["laundry", "massage", "ps5-rentals"].flatMap(
-  (filterId) =>
-    serviceItems
-      .filter((item) => item.tags.some((tag) => toFilterId(tag) === filterId))
-      .slice(0, 2),
-);
-
-const serviceHeroImagesByFilter = {
-  all: [
-    { src: laundryImage, alt: "Laundry services" },
-    { src: laundryImage, alt: "Laundry service setup" },
-  ],
-  laundry: [
-    { src: laundryImage, alt: "Laundry services" },
-    { src: laundryImage, alt: "Laundry service setup" },
-  ],
-  massage: [
-    { src: massageImage, alt: "Massage service" },
-    { src: massageImage, alt: "Massage therapy session" },
-  ],
-  "ps5-rentals": [
-    { src: ps5Image, alt: "PS5 rental service" },
-    { src: ps5Image, alt: "PS5 games rental" },
-  ],
-};
 
 const pageContentByVariant = {
   food: {
     title: "Food",
     filters: foodCategoryFilters,
-    items: foodItems,
-    heroImages: [
-      { src: foodHeroImage, alt: "Jollof rice and chicken" },
-      { src: foodHeroImage, alt: "Jollof rice plate" },
-    ],
+    items: [],
+    heroImages: [],
     actionLabel: "Add meal",
     detailActionLabel: "Proceed to payment",
     itemLabel: "meal",
@@ -105,11 +60,8 @@ const pageContentByVariant = {
   toiletries: {
     title: "Toiletries",
     filters: shopCategoryFilters,
-    items: shopItems,
-    heroImages: [
-      { src: toiletriesOneImage, alt: "Toiletries display" },
-      { src: toiletriesTwoImage, alt: "Toiletries products" },
-    ],
+    items: [],
+    heroImages: [],
     actionLabel: "Add item",
     detailActionLabel: "Checkout",
     itemLabel: "item",
@@ -120,13 +72,8 @@ const pageContentByVariant = {
   services: {
     title: "Services",
     filters: serviceCategoryFilters,
-    items: serviceItems,
-    featuredItems: featuredServiceItems,
-    heroImages: [
-      { src: laundryImage, alt: "Laundry services" },
-      { src: laundryImage, alt: "Laundry service setup" },
-    ],
-    heroImagesByFilter: serviceHeroImagesByFilter,
+    items: [],
+    heroImages: [],
     actionLabel: "Book service",
     detailActionLabel: "Checkout",
     itemLabel: "service",
@@ -136,11 +83,8 @@ const pageContentByVariant = {
   requests: {
     title: "Request",
     filters: requestCategoryFilters,
-    items: requestItems,
-    heroImages: [
-      { src: requestImage, alt: "Request essentials" },
-      { src: massageImage, alt: "Service request" },
-    ],
+    items: [],
+    heroImages: [],
     actionLabel: "Make request",
     detailActionLabel: "Checkout",
     itemLabel: "request",
@@ -175,9 +119,76 @@ function pluralizeUnit(unitLabel, amount) {
 
 function toFilterId(value) {
   return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+    ? String(value)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "")
+    : "";
+}
+
+function toTitleCase(value) {
+  return String(value || "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function getItemFilterValues(item) {
+  return [
+    item.category,
+    ...(Array.isArray(item.tags) ? item.tags : []),
+  ].filter(Boolean);
+}
+
+function buildFilters(defaultFilters, items) {
+  const normalizedDefaults = defaultFilters
+    .map((filter) => {
+      const label = filter.label || filter.name || filter.title || "All";
+      const rawId = filter.id || filter.value || filter.slug || label;
+      const id = /^all\b/i.test(String(label)) ? "all" : toFilterId(rawId);
+
+      return { id, label };
+    })
+    .filter((filter) => filter.id && filter.label);
+  const nextFilters = [];
+  const seen = new Set();
+
+  normalizedDefaults.forEach((filter) => {
+    if (seen.has(filter.id)) return;
+
+    seen.add(filter.id);
+    nextFilters.push(filter);
+  });
+
+  if (!seen.has("all")) {
+    seen.add("all");
+    nextFilters.unshift({ id: "all", label: "All" });
+  }
+
+  items.forEach((item) => {
+    getItemFilterValues(item).forEach((value) => {
+      const id = toFilterId(value);
+
+      if (!id || seen.has(id)) return;
+
+      seen.add(id);
+      nextFilters.push({
+        id,
+        label: toTitleCase(value),
+      });
+    });
+  });
+
+  return nextFilters;
+}
+
+function itemMatchesFilter(item, activeFilter) {
+  if (activeFilter === "all") return true;
+
+  return getItemFilterValues(item).some(
+    (value) => toFilterId(value) === activeFilter,
+  );
 }
 
 function BackButton({ onClick }) {
@@ -248,11 +259,20 @@ function GuestCounter({ value, onChange }) {
 }
 
 function FoodCard({ item, onSelect, actionLabel, unitLabel }) {
+  const isAvailable = item.isAvailable !== false;
+  const itemImage = item.image || "";
+
   return (
-    <article className="shop-food-card">
+    <article
+      className={`shop-food-card ${
+        isAvailable ? "" : "shop-food-card--unavailable"
+      }`}
+    >
       <div className="shop-food-card__image-wrap">
-        <AppImage src={item.image} fallbackSrc={foodImage} alt={item.title} />
-        <span className="shop-food-card__badge">Available</span>
+        <ShopItemImage src={itemImage} alt={item.title} />
+        <span className="shop-food-card__badge">
+          {isAvailable ? "Available" : "Unavailable"}
+        </span>
       </div>
 
       <div className="shop-food-card__body">
@@ -269,9 +289,13 @@ function FoodCard({ item, onSelect, actionLabel, unitLabel }) {
         <small>{item.preparationTime}</small>
 
         <div className="shop-food-card__bottom">
-          <button type="button" onClick={() => onSelect(item)}>
+          <button
+            type="button"
+            onClick={() => onSelect(item)}
+            disabled={!isAvailable}
+          >
             <FiPlus />
-            <span>{actionLabel}</span>
+            <span>{isAvailable ? actionLabel : "Unavailable"}</span>
           </button>
 
           <strong>
@@ -281,6 +305,31 @@ function FoodCard({ item, onSelect, actionLabel, unitLabel }) {
         </div>
       </div>
     </article>
+  );
+}
+
+function ShopItemImage({ src, alt, className = "" }) {
+  const [failedSrc, setFailedSrc] = useState("");
+
+  if (src && failedSrc !== src) {
+    return (
+      <AppImage
+        className={className}
+        src={src}
+        fallbackSrc=""
+        alt={alt}
+        onError={() => setFailedSrc(src)}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`${className} shop-food-image-placeholder`.trim()}
+      role={alt ? "img" : undefined}
+      aria-label={alt || undefined}
+      aria-hidden={alt ? undefined : "true"}
+    />
   );
 }
 
@@ -330,7 +379,7 @@ function SummaryBreakdown({
   );
 }
 
-function PaymentOption({ active, icon, label, onClick }) {
+function PaymentOption({ active, disabled = false, icon, label, helper, onClick }) {
   const Icon = icon;
 
   return (
@@ -338,12 +387,17 @@ function PaymentOption({ active, icon, label, onClick }) {
       type="button"
       className={`shop-food-payment-option ${
         active ? "shop-food-payment-option--active" : ""
-      }`}
+      } ${disabled ? "shop-food-payment-option--disabled" : ""}`}
       onClick={onClick}
+      disabled={disabled}
+      aria-disabled={disabled}
     >
       <span>
         <Icon />
-        <strong>{label}</strong>
+        <strong>
+          {label}
+          {helper && <em>{helper}</em>}
+        </strong>
       </span>
       <i />
     </button>
@@ -456,9 +510,13 @@ export default function ShopFoodPage({
   variant = "food",
   mode = "list",
   foodItem,
+  items,
+  filters,
   orderDetails,
   onFoodSelect,
   onOrderChange,
+  isLoading = false,
+  loadError = "",
   onBackToFood,
   onProceedToReview,
   onProceedToPayment,
@@ -472,20 +530,36 @@ export default function ShopFoodPage({
   });
   const [pendingAction, setPendingAction] = useState("");
   const deliveryInputRef = useRef(null);
-  const pageContent = getPageContent(variant);
+  const hasBackendItems = Array.isArray(items);
+  const pageContent = {
+    ...getPageContent(variant),
+    ...(hasBackendItems ? { items, featuredItems: items } : {}),
+  };
+  const filterOptions =
+    Array.isArray(filters) && filters.length ? filters : pageContent.filters;
   const usesCartCheckout = pageContent.checkoutStyle === "cart";
+  const categoryFilters = buildFilters(filterOptions, pageContent.items);
   const activeFilter =
     filterState.variant === variant ? filterState.activeFilter : "all";
   const visibleItems =
     activeFilter === "all"
       ? pageContent.featuredItems || pageContent.items
-      : pageContent.items.filter((item) =>
-          item.tags.some((tag) => toFilterId(tag) === activeFilter),
-        );
-  const heroImages =
-    pageContent.heroImagesByFilter?.[activeFilter] || pageContent.heroImages;
-  const selectedFood = foodItem || pageContent.items[0] || foodItems[0];
-  const selectedFoodDetailImage = selectedFood.detailImage || selectedFood.image;
+      : pageContent.items.filter((item) => itemMatchesFilter(item, activeFilter));
+  const backendHeroImages = pageContent.items
+    .filter((item) => item.image)
+    .slice(0, 2)
+    .map((item) => ({
+      src: item.image,
+      alt: item.title,
+    }));
+  const heroImages = hasBackendItems
+    ? backendHeroImages
+    : pageContent.heroImages;
+  const selectedFood = foodItem || pageContent.items[0] || null;
+  const selectedFoodDetailImage =
+    selectedFood?.detailImage ||
+    selectedFood?.image ||
+    "";
   const safeOrderDetails = {
     apartmentNumber: "",
     deliveryTime: getDefaultFoodDeliveryValue(),
@@ -497,7 +571,7 @@ export default function ShopFoodPage({
     ...orderDetails,
   };
   const totals = calculateFoodOrderTotals(
-    selectedFood.price,
+    selectedFood?.price || 0,
     safeOrderDetails.guests,
     safeOrderDetails.useRockPoints,
   );
@@ -529,11 +603,33 @@ export default function ShopFoodPage({
     deliveryInputRef.current.focus();
   }
 
-  function runPendingAction(actionId, action) {
+  async function runPendingAction(actionId, action) {
     if (pendingAction) return;
 
     setPendingAction(actionId);
-    action?.();
+
+    try {
+      await action?.();
+    } finally {
+      setPendingAction("");
+    }
+  }
+
+  if (mode !== "list" && !selectedFood) {
+    return (
+      <section className="shop-food-flow">
+        <div className="shop-food-panel">
+          <div className="shop-food-empty">
+            <strong>{isLoading ? "Loading item" : "Item unavailable"}</strong>
+            <p>
+              {isLoading
+                ? "Getting the latest item details from Bedrock."
+                : loadError || "Please go back and choose an available item."}
+            </p>
+          </div>
+        </div>
+      </section>
+    );
   }
 
   if (mode === "detail") {
@@ -561,10 +657,9 @@ export default function ShopFoodPage({
           </div>
 
           <div className="shop-food-detail__layout">
-            <AppImage
+            <ShopItemImage
               className="shop-food-detail__image"
               src={selectedFoodDetailImage}
-              fallbackSrc={selectedFood.image || foodImage}
               alt={selectedFood.title}
             />
 
@@ -719,9 +814,9 @@ export default function ShopFoodPage({
           </div>
 
           <div className="shop-food-review__layout">
-            <AppImage
+            <ShopItemImage
+              className="shop-food-review__image"
               src={selectedFoodDetailImage}
-              fallbackSrc={selectedFood.image || foodImage}
               alt={selectedFood.title}
             />
 
@@ -801,8 +896,10 @@ export default function ShopFoodPage({
                 <PaymentOption
                   icon={FaUniversity}
                   label="Bank Transfer"
-                  active={safeOrderDetails.paymentMethod === "bank"}
-                  onClick={() => updateOrder("paymentMethod", "bank")}
+                  helper="Coming soon"
+                  disabled
+                  active={false}
+                  onClick={() => {}}
                 />
               </div>
             </div>
@@ -829,9 +926,9 @@ export default function ShopFoodPage({
             ) : (
               <aside className="shop-food-payment-card">
                 <div className="shop-food-payment-card__preview">
-                  <AppImage
+                  <ShopItemImage
+                    className="shop-food-payment-card__image"
                     src={selectedFoodDetailImage}
-                    fallbackSrc={selectedFood.image || foodImage}
                     alt={selectedFood.title}
                   />
                   <div>
@@ -924,9 +1021,9 @@ export default function ShopFoodPage({
       <section className="shop-food-flow shop-food-flow--status">
         <div className="shop-food-panel shop-food-panel--status">
           <article className="shop-food-status-card">
-            <AppImage
+            <ShopItemImage
+              className="shop-food-status-card__image"
               src={selectedFoodDetailImage}
-              fallbackSrc={selectedFood.image || foodImage}
               alt={selectedFood.title}
             />
 
@@ -978,39 +1075,49 @@ export default function ShopFoodPage({
       <div className="shop-food-panel">
         <h1 className="shop-food-title">{pageContent.title}</h1>
 
-        <div className="shop-food-filters">
-          {pageContent.filters.map((filter) => (
-            <button
-              type="button"
-              className={`shop-food-filter ${
-                activeFilter === filter.id ? "shop-food-filter--active" : ""
-              }`}
-              onClick={() =>
-                setFilterState({
-                  variant,
-                  activeFilter: filter.id,
-                })
-              }
-              key={filter.id}
-            >
-              <AppImage src={filter.image} fallbackSrc={foodImage} alt="" />
-              <span>{filter.label}</span>
-            </button>
-          ))}
-        </div>
+        {!isLoading && pageContent.items.length > 0 && (
+          <>
+            <div className="shop-food-filters">
+              {categoryFilters.map((filter) => (
+                <button
+                  type="button"
+                  className={`shop-food-filter ${
+                    activeFilter === filter.id ? "shop-food-filter--active" : ""
+                  }`}
+                  onClick={() =>
+                    setFilterState({
+                      variant,
+                      activeFilter: filter.id,
+                    })
+                  }
+                  key={filter.id}
+                >
+                  <span>{filter.label}</span>
+                </button>
+              ))}
+            </div>
 
-        <div className="shop-food-hero-grid">
-          {heroImages.map((image) => (
-            <AppImage
-              src={image.src}
-              fallbackSrc={foodImage}
-              alt={image.alt}
-              key={image.alt}
-            />
-          ))}
-        </div>
+            {heroImages.length > 0 && (
+              <div className="shop-food-hero-grid">
+                {heroImages.map((image) => (
+                  <ShopItemImage
+                    className="shop-food-hero-image"
+                    src={image.src}
+                    alt={image.alt}
+                    key={image.alt}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
-        {visibleItems.length > 0 ? (
+        {isLoading ? (
+          <div className="shop-food-empty">
+            <strong>Loading {pageContent.title.toLowerCase()}</strong>
+            <p>Getting the latest items from Bedrock.</p>
+          </div>
+        ) : visibleItems.length > 0 ? (
           <div className="shop-food-grid">
             {visibleItems.map((item) => (
               <FoodCard
@@ -1025,7 +1132,9 @@ export default function ShopFoodPage({
         ) : (
           <div className="shop-food-empty">
             <strong>No items found</strong>
-            <p>This category does not have available items yet.</p>
+            <p>
+              {loadError || "This category does not have available items yet."}
+            </p>
           </div>
         )}
       </div>

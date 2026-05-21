@@ -1,4 +1,4 @@
-import { FiMapPin, FiStar, FiUsers, FiWifi, FiTruck } from "react-icons/fi";
+import { FiMapPin, FiStar, FiUsers, FiWifi } from "react-icons/fi";
 import { LuBedSingle } from "react-icons/lu";
 import AppImage from "./AppImage";
 import "../styles/listing-card.css";
@@ -8,6 +8,9 @@ function ListingCard({
   showAvailableBadge = false,
   onApartmentSelect,
 }) {
+  const guestCount = Number(item.guests || 1);
+  const roomCount = Number(item.rooms || item.bedrooms || 1);
+
   function handleSelect() {
     onApartmentSelect?.(item);
   }
@@ -33,6 +36,7 @@ function ListingCard({
       <div className="listing-card__image-wrapper">
         <AppImage
           src={item.image}
+          fallbackSrc=""
           alt={item.title}
           className="listing-card__image"
         />
@@ -62,17 +66,16 @@ function ListingCard({
         <div className="listing-card__meta">
           <span className="listing-card__meta-item">
             <FiUsers className="listing-card__meta-icon" />
-            <span>{item.guests} Guest</span>
+            <span>
+              {guestCount} {guestCount === 1 ? "Guest" : "Guests"}
+            </span>
           </span>
 
           <span className="listing-card__meta-item">
             <LuBedSingle className="listing-card__meta-icon" />
-            <span>{item.rooms} Room</span>
-          </span>
-
-          <span className="listing-card__meta-item">
-            <FiTruck className="listing-card__meta-icon" />
-            <span>{item.cars} cars</span>
+            <span>
+              {roomCount} {roomCount === 1 ? "Room" : "Rooms"}
+            </span>
           </span>
 
           <span className="listing-card__meta-item">

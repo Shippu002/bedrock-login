@@ -1,8 +1,3 @@
-import toiletriesOneImage from "../assets/toiletries-1.jpg";
-import toiletriesTwoImage from "../assets/toiletries-2.jpg";
-
-const toiletriesImages = [toiletriesOneImage, toiletriesTwoImage];
-
 export const shopItems = [
   "Hand soap",
   "Body wash",
@@ -18,6 +13,6 @@ export const shopItems = [
   tags: ["Personal Care", "Toiletries", "Essentials"],
   rating: "4.8",
   price: 200000,
-  image: toiletriesImages[index % toiletriesImages.length],
-  detailImage: toiletriesImages[index % toiletriesImages.length],
+  image: "",
+  detailImage: "",
 }));

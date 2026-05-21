@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import {
   FiArrowLeft,
   FiCalendar,
+  FiCheckCircle,
   FiChevronDown,
   FiCreditCard,
   FiHeart,
@@ -10,17 +11,11 @@ import {
   FiPlus,
   FiShare2,
   FiStar,
-  FiTruck,
   FiUsers,
   FiWifi,
 } from "react-icons/fi";
 import { FaUniversity } from "react-icons/fa";
 import { LuBedSingle } from "react-icons/lu";
-import apartOne from "../../assets/apart-1.jpg";
-import apartTwo from "../../assets/apart-2.jpg";
-import apartThree from "../../assets/apart-3.jpg";
-import apartFour from "../../assets/apart-4.jpg";
-import apartFive from "../../assets/apart-5.jpg";
 import AppImage from "../../components/AppImage";
 import {
   addDays,
@@ -31,38 +26,6 @@ import {
   getTodayDateValue,
 } from "../../utils/bookings";
 import "./ApartmentPage.css";
-
-const fallbackGalleryImages = [
-  apartOne,
-  apartTwo,
-  apartThree,
-  apartFour,
-  apartFive,
-];
-
-const reviewItems = [
-  {
-    id: "review-1",
-    date: "March 2025",
-    text: "Find your perfect getaway home at bedrock, premium apartments, premium stay.",
-    author: "Tola Anidugbe",
-    location: "Ikeja, Lagos",
-  },
-  {
-    id: "review-2",
-    date: "March 2025",
-    text: "Find your perfect getaway home at bedrock, premium apartments, premium stay.",
-    author: "Fiyin Joseph",
-    location: "Ikeja, Lagos",
-  },
-  {
-    id: "review-3",
-    date: "March 2025",
-    text: "Find your perfect getaway home at bedrock, premium apartments, premium stay.",
-    author: "Amina Yusuf",
-    location: "Ikeja, Lagos",
-  },
-];
 
 function ApartmentMetaPill({ icon, children }) {
   const Icon = icon;
@@ -75,11 +38,71 @@ function ApartmentMetaPill({ icon, children }) {
   );
 }
 
-function BackButton({ onClick }) {
+function formatBackendTime(value) {
+  if (!value) return "";
+
+  const [hour = "", minute = ""] = String(value).split(":");
+  const hourNumber = Number(hour);
+
+  if (Number.isNaN(hourNumber)) return value;
+
+  const period = hourNumber >= 12 ? "PM" : "AM";
+  const displayHour = hourNumber % 12 || 12;
+
+  return `${displayHour}:${minute || "00"}${period}`;
+}
+
+function getAmenityItems(apartment) {
+  const backendAmenities = Array.isArray(apartment?.amenities)
+    ? apartment.amenities.filter(Boolean)
+    : [];
+  const roomCount = Number(apartment.rooms || apartment.bedrooms || 1);
+  const defaultAmenities = [
+    getGuestLabel(apartment.guests),
+    `${roomCount} ${roomCount === 1 ? "Room" : "Rooms"}`,
+  ].filter(Boolean);
+
+  if (apartment.wifi && !backendAmenities.some((item) => /wi-?fi|internet/i.test(item))) {
+    defaultAmenities.push("Wi-Fi");
+  }
+
+  return [...new Set([...defaultAmenities, ...backendAmenities])];
+}
+
+function getHouseRuleItems(apartment) {
+  const rules = Array.isArray(apartment?.houseRules)
+    ? apartment.houseRules.filter(Boolean)
+    : [];
+  const timedRules = [
+    apartment?.checkInTime
+      ? `Check-in after ${formatBackendTime(apartment.checkInTime)}`
+      : "",
+    apartment?.checkOutTime
+      ? `Checkout before ${formatBackendTime(apartment.checkOutTime)}`
+      : "",
+    apartment?.guests ? `${getGuestLabel(apartment.guests)} maximum` : "",
+    apartment?.minNights ? `${apartment.minNights} night minimum stay` : "",
+    apartment?.maxNights ? `${apartment.maxNights} night maximum stay` : "",
+  ].filter(Boolean);
+
+  return [...new Set([...timedRules, ...rules])];
+}
+
+function getReviewStars(rating) {
+  const ratingNumber = Math.round(Number(rating || 0));
+
+  return Array.from({ length: Math.max(0, Math.min(5, ratingNumber)) });
+}
+
+function getPolicyText(value, emptyText) {
+  return String(value || "").trim() || emptyText;
+}
+
+function BackButton({ label = "Back", onClick }) {
   return (
     <button type="button" className="apartment-back-button" onClick={onClick}>
       <FiArrowLeft />
-      <span>Back</span>
+      <span>{label}</span>
     </button>
   );
 }
@@ -109,12 +132,16 @@ function ApartmentPage({
   onBackToPayment,
   onMoveToConfirmed,
   onFinishBooking,
+  quote,
+  isInitiallySaved = false,
+  onToggleFavorite,
+  backLabel,
 }) {
   const [selectedGalleryImage, setSelectedGalleryImage] = useState({
     apartmentId: null,
     index: 0,
   });
-  const [isSaved, setIsSaved] = useState(false);
+  const [savedOverride, setSavedOverride] = useState(null);
   const [actionFeedback, setActionFeedback] = useState("");
   const [pendingAction, setPendingAction] = useState("");
   const checkInInputRef = useRef(null);
@@ -123,12 +150,14 @@ function ApartmentPage({
   const galleryImages =
     apartment?.galleryImages?.length > 0
       ? apartment.galleryImages
-      : fallbackGalleryImages;
+      : apartment?.image
+        ? [apartment.image]
+        : [];
   const activeImage =
     selectedGalleryImage.apartmentId === apartment?.id
       ? Math.min(selectedGalleryImage.index, galleryImages.length - 1)
       : 0;
-  const previewImage = apartment?.paymentImage || galleryImages[0];
+  const previewImage = apartment?.paymentImage || galleryImages[0] || "";
   const statusImage = apartment?.statusImage || previewImage;
   const bookingDateRange = formatDateRange(
     bookingDetails.checkIn,
@@ -136,22 +165,16 @@ function ApartmentPage({
   );
   const checkInMin = getTodayDateValue();
   const checkOutMin = addDays(bookingDetails.checkIn || checkInMin, 1);
+  const isApartmentAvailable = quote?.available !== false;
   const canContinueBooking = Boolean(
     bookingDetails.checkIn &&
       bookingDetails.checkOut &&
       bookingDetails.guests > 0 &&
-      bookingDetails.agreedToPolicy,
+      bookingDetails.agreedToPolicy &&
+      isApartmentAvailable,
   );
 
-  const {
-    nights,
-    subtotal,
-    taxesAndFees,
-    cautionFee,
-    rockPointValue,
-    total,
-    payable,
-  } = useMemo(
+  const localTotals = useMemo(
     () =>
       calculateBookingTotals(
         apartment?.price || 0,
@@ -167,7 +190,26 @@ function ApartmentPage({
     ],
   );
 
+  const {
+    nights,
+    subtotal,
+    taxesAndFees,
+    cautionFee,
+    rockPointValue,
+    total,
+    payable,
+  } = quote?.pricing || localTotals;
+  const isSaved = savedOverride ?? isInitiallySaved;
+
   if (!apartment) return null;
+
+  const amenityItems = getAmenityItems(apartment);
+  const houseRuleItems = getHouseRuleItems(apartment);
+  const reviews = Array.isArray(apartment.reviews) ? apartment.reviews : [];
+  const reviewSummary =
+    apartment.reviewsCount > 0
+      ? `${apartment.reviewsCount} ${apartment.reviewsCount === 1 ? "review" : "reviews"}`
+      : "No reviews yet";
 
   function updateGuests(direction) {
     onBookingChange("guests", Math.max(1, bookingDetails.guests + direction));
@@ -184,11 +226,15 @@ function ApartmentPage({
     inputRef.current.focus();
   }
 
-  function runPendingAction(actionId, action) {
+  async function runPendingAction(actionId, action) {
     if (pendingAction) return;
 
     setPendingAction(actionId);
-    action?.();
+    try {
+      await action?.();
+    } finally {
+      setPendingAction("");
+    }
   }
 
   async function handleShareApartment() {
@@ -220,11 +266,14 @@ function ApartmentPage({
     }
   }
 
-  function handleSaveApartment() {
-    const nextSavedState = !isSaved;
-    setIsSaved(nextSavedState);
+  async function handleSaveApartment() {
+    const result = await onToggleFavorite?.(apartment);
+    const nextSavedState = result?.ok ? result.isSaved : !isSaved;
+
+    setSavedOverride(nextSavedState);
     setActionFeedback(
-      nextSavedState ? "Apartment saved." : "Apartment removed from saved.",
+      result?.message ||
+        (nextSavedState ? "Apartment saved." : "Apartment removed from saved."),
     );
   }
 
@@ -232,7 +281,7 @@ function ApartmentPage({
     return (
       <section className="apartment-flow apartment-flow--payment">
         <div className="apartment-flow__panel">
-          <BackButton onClick={onBackToApartment} />
+          <BackButton label={backLabel || "Back to apartment"} onClick={onBackToApartment} />
 
           <div className="apartment-payment-layout">
             <div className="apartment-payment-methods">
@@ -259,16 +308,13 @@ function ApartmentPage({
 
                 <button
                   type="button"
-                  className={`apartment-payment-option ${
-                    bookingDetails.paymentMethod === "bank"
-                      ? "apartment-payment-option--active"
-                      : ""
-                  }`}
-                  onClick={() => onBookingChange("paymentMethod", "bank")}
+                  className="apartment-payment-option apartment-payment-option--disabled"
+                  disabled
+                  aria-disabled="true"
                 >
                   <span className="apartment-payment-option__left">
                     <FaUniversity />
-                    <span>Bank Transfer</span>
+                    <span>Bank Transfer <em>Coming soon</em></span>
                   </span>
                   <span className="apartment-payment-option__radio" />
                 </button>
@@ -279,7 +325,7 @@ function ApartmentPage({
               <div className="apartment-payment-card__preview">
                 <AppImage
                   src={previewImage}
-                  fallbackSrc={fallbackGalleryImages[0]}
+                  fallbackSrc=""
                   alt={apartment.title}
                 />
 
@@ -444,7 +490,7 @@ function ApartmentPage({
     return (
       <section className="apartment-flow apartment-flow--status">
         <div className="apartment-flow__panel">
-          <BackButton onClick={onBackToPayment} />
+          <BackButton label={backLabel || "Back to payment"} onClick={onBackToPayment} />
 
           <div className="apartment-status">
             <h1>
@@ -457,7 +503,7 @@ function ApartmentPage({
             <article className="apartment-status-card">
               <AppImage
                 src={statusImage}
-                fallbackSrc={fallbackGalleryImages[0]}
+                fallbackSrc=""
                 alt={apartment.title}
               />
 
@@ -514,7 +560,7 @@ function ApartmentPage({
     <section className="apartment-flow apartment-flow--details">
       <div className="apartment-flow__panel">
         {onBackToListings && (
-          <BackButton onClick={onBackToListings} />
+          <BackButton label={backLabel || "Back to listings"} onClick={onBackToListings} />
         )}
 
         <div className="apartment-flow__heading">
@@ -548,13 +594,23 @@ function ApartmentPage({
           <p className="apartment-action-feedback">{actionFeedback}</p>
         )}
 
+        {quote?.error && (
+          <p className="apartment-action-feedback">{quote.error}</p>
+        )}
+
+        {!isApartmentAvailable && (
+          <p className="apartment-action-feedback">
+            This apartment is not available for the selected dates.
+          </p>
+        )}
+
         <div className="apartment-detail-layout">
           <div className="apartment-detail-main">
             <div className="apartment-gallery">
               <div className="apartment-gallery__hero">
                 <AppImage
                   src={galleryImages[activeImage]}
-                  fallbackSrc={fallbackGalleryImages[0]}
+                  fallbackSrc=""
                   alt={apartment.title}
                   loading="eager"
                 />
@@ -579,7 +635,7 @@ function ApartmentPage({
                   >
                     <AppImage
                       src={image}
-                      fallbackSrc={fallbackGalleryImages[0]}
+                      fallbackSrc=""
                       alt={`${apartment.title} ${index + 2}`}
                     />
                   </button>
@@ -591,68 +647,87 @@ function ApartmentPage({
               <section className="apartment-copy__section">
                 <h2>About the apartment</h2>
                 <p className="apartment-copy__lead">
-                  Find your perfect getaway home at bedrock, premium
-                  apartments, premium stay
+                  {getPolicyText(
+                    apartment.description,
+                    "No apartment description was provided.",
+                  )}
                 </p>
               </section>
 
               <section className="apartment-copy__section">
                 <h3>What this place offers</h3>
                 <div className="apartment-meta-list">
-                  <ApartmentMetaPill icon={FiUsers}>
-                    {getGuestLabel(apartment.guests)}
-                  </ApartmentMetaPill>
-                  <ApartmentMetaPill icon={LuBedSingle}>
-                    {apartment.rooms} Room
-                  </ApartmentMetaPill>
-                  <ApartmentMetaPill icon={FiTruck}>
-                    {apartment.cars} cars
-                  </ApartmentMetaPill>
-                  {apartment.wifi && (
-                    <ApartmentMetaPill icon={FiWifi}>Wi-Fi</ApartmentMetaPill>
-                  )}
+                  {amenityItems.map((amenity) => (
+                    <ApartmentMetaPill
+                      icon={
+                        /guest/i.test(amenity)
+                          ? FiUsers
+                          : /room|bed/i.test(amenity)
+                            ? LuBedSingle
+                            : /wi-?fi|internet/i.test(amenity)
+                                ? FiWifi
+                                : FiCheckCircle
+                      }
+                      key={amenity}
+                    >
+                      {amenity}
+                    </ApartmentMetaPill>
+                  ))}
                 </div>
               </section>
 
               <section className="apartment-copy__section">
                 <h3>Cancellation policy</h3>
-                <p>
-                  Find your perfect getaway home at bedrock, premium
-                  apartments, premium stay....
-                  <button type="button">Read More</button>
+                <p className="apartment-copy__preline">
+                  {getPolicyText(
+                    apartment.cancellationPolicy,
+                    "No cancellation policy was provided.",
+                  )}
                 </p>
               </section>
 
               <section className="apartment-copy__section">
                 <h3>House rules</h3>
                 <ul className="apartment-copy__rules">
-                  <li>Check-in after 2PM</li>
-                  <li>Checkout before 1:00PM</li>
-                  <li>2 guests maximum</li>
+                  {houseRuleItems.length > 0 ? (
+                    houseRuleItems.map((rule) => <li key={rule}>{rule}</li>)
+                  ) : (
+                    <li>No house rules were provided.</li>
+                  )}
                 </ul>
               </section>
 
               <section className="apartment-copy__section">
                 <h3>Safety &amp; Property</h3>
-                <p>
-                  Find your perfect getaway home at bedrock, premium
-                  apartments, premium stay....
-                  <button type="button">Read More</button>
+                <p className="apartment-copy__preline">
+                  {getPolicyText(
+                    apartment.safetyNotes,
+                    "No safety notes were provided for this apartment.",
+                  )}
                 </p>
               </section>
 
               <section className="apartment-copy__section">
                 <h3>Reviews &amp; Rating</h3>
-                <div className="apartment-reviews">
-                  {reviewItems.map((review) => (
+                <div className="apartment-rating-summary">
+                  <span className="apartment-review__stars">
+                    {getReviewStars(apartment.rating).map((_, index) => (
+                      <FiStar key={`summary-star-${index}`} />
+                    ))}
+                  </span>
+                  <strong>{Number(apartment.rating || 0).toFixed(1)}</strong>
+                  <em>{reviewSummary}</em>
+                </div>
+
+                {reviews.length > 0 ? (
+                  <div className="apartment-reviews">
+                    {reviews.map((review) => (
                     <article className="apartment-review" key={review.id}>
                       <div className="apartment-review__meta">
                         <span className="apartment-review__stars">
-                          <FiStar />
-                          <FiStar />
-                          <FiStar />
-                          <FiStar />
-                          <FiStar />
+                          {getReviewStars(review.rating).map((_, index) => (
+                            <FiStar key={`${review.id}-star-${index}`} />
+                          ))}
                         </span>
                         <span>{review.date}</span>
                       </div>
@@ -669,8 +744,13 @@ function ApartmentPage({
                         </span>
                       </div>
                     </article>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="apartment-review-empty">
+                    Reviews from completed stays will appear here.
+                  </div>
+                )}
               </section>
             </div>
           </div>
@@ -739,7 +819,9 @@ function ApartmentPage({
               onClick={() => runPendingAction("book", onOpenPayment)}
               disabled={!canContinueBooking || pendingAction === "book"}
             >
-              {pendingAction === "book" ? "Opening..." : "Book Apartment"}
+              {quote?.loading || pendingAction === "book"
+                ? "Checking..."
+                : "Book Apartment"}
             </button>
 
             <div className="apartment-policy-row">
@@ -777,7 +859,9 @@ function ApartmentPage({
             onClick={() => runPendingAction("book", onOpenPayment)}
             disabled={!canContinueBooking || pendingAction === "book"}
           >
-            {pendingAction === "book" ? "Opening..." : "Book Apartments"}
+            {quote?.loading || pendingAction === "book"
+              ? "Checking..."
+              : "Book Apartments"}
           </button>
         </div>
       </div>

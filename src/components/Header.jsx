@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { FiChevronDown, FiMenu } from "react-icons/fi";
+import { FiBell, FiChevronDown, FiMenu } from "react-icons/fi";
 import bedrockLogo from "../assets/bedrock-logo.svg";
 import AppImage from "./AppImage";
-import { residenceOptions } from "../data/residences";
 import ProfileMenu from "./ProfileMenu";
-import { shopCategories } from "../data/shopCategories";
+import { shopCategories as defaultShopCategories } from "../data/shopCategories";
 import "../styles/header.css";
 
 function Dropdown({
@@ -16,12 +15,23 @@ function Dropdown({
   onResidenceSelect,
   onShopSelect,
   onShopDirectory,
+  residences = [],
+  apartmentCategories = [],
+  isResidencesLoading = false,
+  shopCategories = defaultShopCategories,
 }) {
   const [selectedResidenceId, setSelectedResidenceId] = useState("opebi");
   const [selectedApartment, setSelectedApartment] = useState(null);
+  const residenceOptions = residences;
   const selectedResidence = residenceOptions.find(
     (item) => item.id === selectedResidenceId,
-  );
+  ) || residenceOptions[0];
+  const selectedApartmentOptions =
+    selectedResidence?.apartments?.length > 0
+      ? selectedResidence.apartments
+      : apartmentCategories
+          .filter((category) => category.bedrooms)
+          .map((category) => `${category.bedrooms} Bedroom Apartment`);
 
   function shouldOpenResidencePage() {
     return (
@@ -102,7 +112,12 @@ function Dropdown({
                   onClick={() => handleResidenceClick(item.id)}
                   key={item.title}
                 >
-                  <AppImage src={item.image} alt="" />
+                  <AppImage
+                    className="nav-mega__item-image"
+                    src={item.image}
+                    fallbackSrc=""
+                    alt=""
+                  />
                   <span>
                     <strong>{item.title}</strong>
                     <em>{item.location}</em>
@@ -124,7 +139,9 @@ function Dropdown({
             </p>
 
             <div className="nav-mega__types">
-              {(selectedResidence?.apartments || []).map((item) => (
+              {isResidencesLoading && residenceOptions.length === 0 ? (
+                <span className="nav-mega__empty">Loading residences...</span>
+              ) : selectedApartmentOptions.map((item) => (
                 <button
                   type="button"
                   className={`nav-mega__type ${
@@ -154,7 +171,12 @@ function Dropdown({
                 onClick={() => handleShopClick(item.id)}
                 key={item.title}
               >
-                <AppImage src={item.image} alt="" />
+                <AppImage
+                  className="nav-mega__item-image"
+                  src={item.image}
+                  fallbackSrc=""
+                  alt=""
+                />
                 <span>
                   <strong>{item.title}</strong>
                   <em>{item.location}</em>
@@ -181,6 +203,11 @@ export default function Header({
   onShopDirectory,
   onBecomeAgent,
   onLogout,
+  unreadCount = 0,
+  residences = [],
+  apartmentCategories = [],
+  isResidencesLoading = false,
+  shopCategories = defaultShopCategories,
 }) {
   const [openMenu, setOpenMenu] = useState(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -191,6 +218,22 @@ export default function Header({
 
   function toggleProfileMenu() {
     setIsProfileMenuOpen((current) => !current);
+  }
+
+  function shouldOpenProfileDirectly() {
+    return (
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 910px)").matches
+    );
+  }
+
+  function handleUserPillClick() {
+    if (shouldOpenProfileDirectly()) {
+      handleProfile();
+      return;
+    }
+
+    toggleProfileMenu();
   }
 
   function handleHome() {
@@ -230,6 +273,12 @@ export default function Header({
     onProfileView?.("orders");
   }
 
+  function handleNotifications() {
+    setIsProfileMenuOpen(false);
+    setOpenMenu(null);
+    onProfileView?.("notifications");
+  }
+
   return (
     <header className="site-header">
       <div className="site-inner">
@@ -253,6 +302,9 @@ export default function Header({
             label="Residences"
             type="residences"
             isOpen={openMenu === "residences"}
+            residences={residences}
+            apartmentCategories={apartmentCategories}
+            isResidencesLoading={isResidencesLoading}
             onToggle={() => toggleMenu("residences")}
             onClose={() => setOpenMenu(null)}
             onResidenceSelect={handleResidenceSelect}
@@ -266,6 +318,7 @@ export default function Header({
             onClose={() => setOpenMenu(null)}
             onShopSelect={handleShopSelect}
             onShopDirectory={handleShopDirectory}
+            shopCategories={shopCategories}
           />
 
           <button
@@ -284,9 +337,20 @@ export default function Header({
           <div className="header-user-area">
             <div className="header-user-menu">
               <button
+                type="button"
+                className="icon-bell"
+                onClick={handleNotifications}
+                aria-label="Open notifications"
+                title="Notifications"
+              >
+                {unreadCount > 0 && <span className="bell-dot" />}
+                <FiBell className="bell-icon" />
+              </button>
+
+              <button
                 className="user-pill"
                 type="button"
-                onClick={toggleProfileMenu}
+                onClick={handleUserPillClick}
                 aria-haspopup="menu"
                 aria-expanded={isProfileMenuOpen}
               >

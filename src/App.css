@@ -72,6 +72,10 @@
   cursor: pointer;
 }
 
+.home-page__empty--loading h2::after {
+  content: "...";
+}
+
 .shop-directory-page {
   width: min(920px, calc(100% - 48px));
   min-height: 620px;
@@ -181,11 +185,16 @@
   transform: translateY(-1px);
 }
 
-.shop-directory-card img {
+.shop-directory-card img,
+.shop-directory-card__image {
   width: 58px;
   height: 58px;
   border-radius: 12px;
   object-fit: cover;
+  display: block;
+  background:
+    linear-gradient(135deg, rgba(197, 138, 104, 0.12), rgba(32, 42, 69, 0.08)),
+    #f7f7f7;
 }
 
 .shop-directory-card span {
@@ -393,7 +402,8 @@
     box-shadow: 0 12px 26px rgba(16, 25, 40, 0.07);
   }
 
-  .shop-directory-card img {
+  .shop-directory-card img,
+  .shop-directory-card__image {
     width: 56px;
     height: 56px;
     border-radius: 14px;
@@ -513,7 +523,8 @@
     box-shadow: 0 12px 26px rgba(16, 25, 40, 0.07);
   }
 
-  .shop-directory-card img {
+  .shop-directory-card img,
+  .shop-directory-card__image {
     width: 52px;
     height: 52px;
     border-radius: 12px;
@@ -546,8 +557,36 @@
     grid-template-columns: 50px minmax(0, 1fr);
   }
 
-  .shop-directory-card img {
+  .shop-directory-card img,
+  .shop-directory-card__image {
     width: 48px;
     height: 48px;
+  }
+}
+
+@media (max-width: 910px) {
+  html,
+  body {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  button,
+  a,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea,
+  [contenteditable="true"] {
+    font-size: 16px !important;
+    line-height: 1.35;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    font-size: 16px;
   }
 }

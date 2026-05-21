@@ -6,6 +6,28 @@
   background: #f7f7f7;
 }
 
+.residence-page__back {
+  min-height: 40px;
+  margin-bottom: 18px;
+  padding: 0 16px 0 12px;
+  border: 1px solid #ece8e2;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #101928;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.residence-page__back svg {
+  width: 18px;
+  height: 18px;
+}
+
 .residence-page__title {
   margin: 0 0 26px;
   color: #1a1a1a;
@@ -133,7 +155,8 @@
   }
 
   .residence-page__title,
-  .residence-page__sections {
+  .residence-page__sections,
+  .residence-page__back {
     display: none;
   }
 

@@ -29,7 +29,7 @@
 
 .shop-food-filter {
   min-height: 36px;
-  padding: 4px 14px 4px 4px;
+  padding: 0 14px;
   border: 1px solid #e4e4e4;
   border-radius: 999px;
   background: #ffffff;
@@ -64,7 +64,8 @@
   max-width: 940px;
 }
 
-.shop-food-hero-grid img {
+.shop-food-hero-grid img,
+.shop-food-hero-image {
   width: 100%;
   height: 320px;
   border-radius: 22px;
@@ -72,11 +73,13 @@
   display: block;
 }
 
-.shop-food-hero-grid img:first-child {
+.shop-food-hero-grid img:first-child,
+.shop-food-hero-image:first-child {
   object-position: center 48%;
 }
 
-.shop-food-hero-grid img:last-child {
+.shop-food-hero-grid img:last-child,
+.shop-food-hero-image:last-child {
   object-position: center 42%;
 }
 
@@ -128,6 +131,10 @@
   box-shadow: 0 8px 24px rgba(16, 25, 40, 0.04);
 }
 
+.shop-food-card--unavailable {
+  opacity: 0.68;
+}
+
 .shop-food-card__image-wrap {
   position: relative;
   height: 154px;
@@ -140,6 +147,16 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.shop-food-image-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: inherit;
+  border-radius: inherit;
+  background:
+    linear-gradient(135deg, rgba(197, 138, 104, 0.12), rgba(32, 42, 69, 0.08)),
+    #f7f7f7;
 }
 
 .shop-food-card__badge {
@@ -266,6 +283,11 @@
   cursor: pointer;
 }
 
+.shop-food-card__bottom button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .shop-food-card__bottom strong,
 .shop-food-order-card__price,
 .shop-food-order-card__total-line strong {
@@ -347,6 +369,7 @@
 }
 
 .shop-food-detail__image,
+.shop-food-review__image,
 .shop-food-review__layout > img {
   width: 100%;
   height: 520px;
@@ -804,6 +827,25 @@
   background: #c58a68;
 }
 
+.shop-food-payment-option--disabled {
+  color: #98a2b3;
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.shop-food-payment-option--disabled span {
+  color: #98a2b3;
+}
+
+.shop-food-payment-option strong em {
+  display: block;
+  margin-top: 2px;
+  color: #98a2b3;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+}
+
 .shop-food-payment-card__preview {
   display: grid;
   grid-template-columns: 110px 1fr;
@@ -813,7 +855,8 @@
   border-bottom: 1px solid #eee8e2;
 }
 
-.shop-food-payment-card__preview img {
+.shop-food-payment-card__preview img,
+.shop-food-payment-card__image {
   width: 110px;
   height: 74px;
   border-radius: 12px;
@@ -850,7 +893,8 @@
   background: #ffffff;
 }
 
-.shop-food-status-card > img {
+.shop-food-status-card > img,
+.shop-food-status-card__image {
   width: 100%;
   height: 240px;
   object-fit: cover;
@@ -997,7 +1041,8 @@
     margin-bottom: 44px;
   }
 
-  .shop-food-hero-grid img {
+  .shop-food-hero-grid img,
+  .shop-food-hero-image {
     height: 270px;
   }
 
@@ -1007,6 +1052,7 @@
   }
 
   .shop-food-detail__image,
+  .shop-food-review__image,
   .shop-food-review__layout > img {
     height: 380px;
   }
@@ -1066,7 +1112,8 @@
     margin-bottom: 32px;
   }
 
-  .shop-food-hero-grid img {
+  .shop-food-hero-grid img,
+  .shop-food-hero-image {
     height: 220px;
   }
 
@@ -1094,11 +1141,13 @@
   }
 
   .shop-food-card__image-wrap,
+  .shop-food-status-card__image,
   .shop-food-status-card > img {
     height: 210px;
   }
 
   .shop-food-detail__image,
+  .shop-food-review__image,
   .shop-food-review__layout > img {
     height: 320px;
   }
@@ -1140,7 +1189,8 @@
     grid-template-columns: 96px 1fr;
   }
 
-  .shop-food-payment-card__preview img {
+  .shop-food-payment-card__preview img,
+  .shop-food-payment-card__image {
     width: 96px;
     height: 70px;
   }
@@ -1159,7 +1209,8 @@
     justify-content: flex-start;
   }
 
-  .shop-food-hero-grid img {
+  .shop-food-hero-grid img,
+  .shop-food-hero-image {
     height: 188px;
     border-radius: 18px;
   }
@@ -1195,6 +1246,7 @@
   }
 
   .shop-food-detail__image,
+  .shop-food-review__image,
   .shop-food-review__layout > img {
     height: 260px;
     border-radius: 12px;
@@ -1221,7 +1273,8 @@
     grid-template-columns: 1fr;
   }
 
-  .shop-food-payment-card__preview img {
+  .shop-food-payment-card__preview img,
+  .shop-food-payment-card__image {
     width: 100%;
     height: 150px;
   }
@@ -1345,7 +1398,8 @@
     max-width: none;
   }
 
-  .shop-food-hero-grid img {
+  .shop-food-hero-grid img,
+  .shop-food-hero-image {
     height: 124px;
     border-radius: 18px;
     box-shadow: 0 12px 26px rgba(16, 25, 40, 0.07);
@@ -1482,7 +1536,8 @@
     box-shadow: 0 12px 26px rgba(16, 25, 40, 0.07);
   }
 
-  .shop-food-status-card > img {
+  .shop-food-status-card > img,
+  .shop-food-status-card__image {
     height: 168px;
   }
 }
@@ -1507,11 +1562,13 @@
     grid-template-columns: 1fr;
   }
 
-  .shop-food-hero-grid img {
+  .shop-food-hero-grid img,
+  .shop-food-hero-image {
     height: 112px;
   }
 
-  .shop-food-hero-grid img:last-child {
+  .shop-food-hero-grid img:last-child,
+  .shop-food-hero-image:last-child {
     display: none;
   }
 

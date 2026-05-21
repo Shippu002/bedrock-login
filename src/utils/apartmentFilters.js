@@ -14,15 +14,34 @@ function normalize(value) {
 }
 
 function getBedroomCount(value) {
-  const match = normalize(value).match(/(\d+)\s*bedroom/);
-  return match ? Number(match[1]) : null;
+  const normalizedValue = normalize(value);
+  const numericMatch = normalizedValue.match(/(\d+)\s*(bed|bedroom)/);
+
+  if (numericMatch) return Number(numericMatch[1]);
+
+  const wordToNumber = {
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+  };
+  const wordMatch = normalizedValue.match(
+    /\b(one|two|three|four|five|six)\s*(bed|bedroom)\b/,
+  );
+
+  return wordMatch ? wordToNumber[wordMatch[1]] : null;
 }
 
 function matchesApartmentTitle(item, apartmentTitle) {
   if (!apartmentTitle) return true;
 
   const selectedBedrooms = getBedroomCount(apartmentTitle);
-  const itemBedrooms = getBedroomCount(item.title);
+  const itemBedrooms =
+    Number(item.bedrooms || item.bedroomCount || 0) ||
+    getBedroomCount(item.title) ||
+    getBedroomCount(item.type);
 
   if (selectedBedrooms) {
     return itemBedrooms === selectedBedrooms;
