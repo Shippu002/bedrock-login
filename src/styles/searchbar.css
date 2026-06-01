@@ -118,9 +118,9 @@
   position: absolute;
   top: calc(100% + 18px);
   z-index: 40;
-  border: 1px solid #ece8e2;
-  background: #ffffff;
-  box-shadow: 0 22px 54px rgba(16, 25, 40, 0.12);
+  border: 1px solid #efe5dc;
+  background: #fffdfa;
+  box-shadow: 0 22px 54px rgba(32, 42, 69, 0.12);
   overflow: hidden;
 }
 
@@ -230,7 +230,7 @@
   width: 100%;
   min-height: 82px;
   padding: 14px 16px;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
   color: #101928;
@@ -240,23 +240,67 @@
   gap: 20px;
   text-align: left;
   cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.18s ease;
 }
 
 .search-popover__item--active {
-  background: #202a45;
-  color: #ffffff;
+  border-color: #e4c7b6;
+  background: #f6eee8;
+  color: #101928;
+  box-shadow: inset 4px 0 0 #c58a68;
 }
 
-.search-popover__item--active strong,
+.search-popover__item:hover,
+.search-popover__item:focus-visible {
+  border-color: #efc6af;
+  background: #fff4ee;
+  color: #101928;
+}
+
+.search-popover__item--active strong {
+  color: #101928;
+}
+
 .search-popover__item--active em {
-  color: #ffffff;
+  color: #5d6678;
 }
 
-.search-popover__item img {
+.search-popover__item img,
+.residence-thumb-placeholder {
   width: 68px;
   height: 68px;
   border-radius: 8px;
   object-fit: cover;
+  flex-shrink: 0;
+}
+
+.residence-thumb-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #eadbd0;
+  background:
+    linear-gradient(135deg, rgba(197, 138, 104, 0.18), rgba(32, 42, 69, 0.08)),
+    #f6f1eb;
+  color: #c58a68;
+}
+
+.residence-thumb-placeholder svg {
+  width: 28px;
+  height: 28px;
+  stroke-width: 1.8;
+}
+
+.search-popover__item--active .residence-thumb-placeholder,
+.search-bar-mobile__chips button.is-active .residence-thumb-placeholder,
+.mobile-filter__locations button.is-active .residence-thumb-placeholder {
+  border-color: #dfc4b4;
+  background: #fffaf5;
+  color: #202a45;
 }
 
 .search-popover__item span,
@@ -612,12 +656,18 @@
     color: #101928;
   }
 
-  .search-bar-mobile__chips img {
+  .search-bar-mobile__chips img,
+  .search-bar-mobile__chips .residence-thumb-placeholder {
     width: 34px;
     height: 34px;
     border-radius: 999px;
     object-fit: cover;
     flex-shrink: 0;
+  }
+
+  .search-bar-mobile__chips .residence-thumb-placeholder svg {
+    width: 17px;
+    height: 17px;
   }
 
   .search-bar-mobile__chips span {
@@ -676,7 +726,8 @@
     gap: 10px;
   }
 
-  .search-popover__item img {
+  .search-popover__item img,
+  .search-popover__item .residence-thumb-placeholder {
     width: 52px;
     height: 52px;
   }
@@ -819,12 +870,18 @@
     box-shadow: 0 4px 12px rgba(16, 25, 40, 0.08);
   }
 
-  .mobile-filter__locations img {
+  .mobile-filter__locations img,
+  .mobile-filter__locations .residence-thumb-placeholder {
     width: 40px;
     height: 40px;
     border-radius: 999px;
     object-fit: cover;
     flex-shrink: 0;
+  }
+
+  .mobile-filter__locations .residence-thumb-placeholder svg {
+    width: 19px;
+    height: 19px;
   }
 
   .mobile-filter__locations span {
@@ -1021,5 +1078,178 @@
     min-height: 58px;
     border-radius: 16px;
     font-size: 16px;
+  }
+}
+
+@media (max-width: 560px) {
+  .search-bar-section {
+    margin-top: 10px;
+    padding: 0 14px;
+  }
+
+  .search-bar-mobile {
+    grid-template-columns: minmax(0, 1fr) 52px;
+    gap: 10px;
+  }
+
+  .search-bar-mobile__search,
+  .search-bar-mobile__filter {
+    min-height: 52px;
+  }
+
+  .search-bar-mobile__search {
+    padding: 0 17px;
+  }
+
+  .search-bar-mobile__search span {
+    font-size: 15px;
+  }
+
+  .search-bar-mobile__filter {
+    width: 52px;
+    height: 52px;
+  }
+
+  .search-bar-mobile__chips {
+    margin-top: 12px;
+    gap: 9px;
+    padding-inline: 1px;
+  }
+
+  .search-bar-mobile__chips button {
+    min-height: 42px;
+    padding-right: 12px;
+    font-size: 12px;
+  }
+
+  .search-bar-mobile__chips img,
+  .search-bar-mobile__chips .residence-thumb-placeholder {
+    width: 32px;
+    height: 32px;
+  }
+
+  .mobile-filter__sheet {
+    max-height: calc(100dvh - 50px);
+    padding: 12px 16px 22px;
+    border-radius: 24px 24px 0 0;
+  }
+
+  .mobile-filter__handle {
+    width: 64px;
+    height: 5px;
+    margin-bottom: 16px;
+  }
+
+  .mobile-filter h2 {
+    margin-bottom: 18px;
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .mobile-filter__group,
+  .mobile-filter__field {
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .mobile-filter__label,
+  .mobile-filter__field > span {
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  .mobile-filter__locations {
+    gap: 8px;
+  }
+
+  .mobile-filter__locations button {
+    min-height: 42px;
+    padding: 4px 12px 4px 4px;
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  .mobile-filter__locations img,
+  .mobile-filter__locations .residence-thumb-placeholder {
+    width: 34px;
+    height: 34px;
+  }
+
+  .mobile-filter__date-input,
+  .mobile-filter__guest-row {
+    min-height: 58px;
+    border-radius: 16px;
+  }
+
+  .mobile-filter__date-input {
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 10px;
+    padding: 0 14px;
+  }
+
+  .mobile-filter__date-input input {
+    font-size: 16px !important;
+  }
+
+  .mobile-filter__guest-row {
+    padding: 0 12px;
+  }
+
+  .mobile-filter__guest-row > span {
+    font-size: 13px;
+  }
+
+  .mobile-filter__guest-row > div {
+    gap: 10px;
+  }
+
+  .mobile-filter__guest-row button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .mobile-filter__guest-row strong {
+    font-size: 17px;
+  }
+
+  .mobile-filter__primary,
+  .mobile-filter__clear {
+    min-height: 52px;
+    border-radius: 15px;
+    font-size: 15px;
+  }
+
+  .mobile-filter__clear {
+    margin-top: 10px;
+  }
+}
+
+@media (max-width: 360px) {
+  .search-bar-section {
+    padding: 0 10px;
+  }
+
+  .search-bar-mobile {
+    grid-template-columns: minmax(0, 1fr) 48px;
+    gap: 8px;
+  }
+
+  .search-bar-mobile__search,
+  .search-bar-mobile__filter {
+    min-height: 48px;
+  }
+
+  .search-bar-mobile__filter {
+    width: 48px;
+    height: 48px;
+  }
+
+  .search-bar-mobile__search {
+    padding: 0 14px;
+  }
+
+  .mobile-filter__sheet {
+    padding-left: 12px;
+    padding-right: 12px;
   }
 }

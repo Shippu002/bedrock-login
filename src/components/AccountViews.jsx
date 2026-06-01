@@ -202,7 +202,7 @@ export function ProfileView({
     findCountryByName(selectedCountryName) ||
     initialCountry;
   const selectedPhoneCode = getDialCodeDigits(selectedCountry);
-  const isVerified = isImportantProfileComplete(user);
+  const isProfileComplete = isImportantProfileComplete(user);
 
   function handleProfilePhotoChange(event) {
     const file = event.target.files?.[0];
@@ -287,10 +287,13 @@ export function ProfileView({
                   ? `${profileState}${profileCurrency ? ` ${profileCurrency}` : ""}`
                   : "State"}
               </span>
-              <em className={isVerified ? "" : "is-unverified"}>
-                {isVerified ? "Verified" : "Not verified"}
-                {isVerified && <FiCheckCircle />}
+              <em className={isProfileComplete ? "" : "is-unverified"}>
+                {isProfileComplete ? "Profile complete" : "Complete your profile"}
+                {isProfileComplete && <FiCheckCircle />}
               </em>
+              {!isProfileComplete && (
+                <small>Add your name, email, phone number, country, and state.</small>
+              )}
             </div>
 
             <label className="profile-edit" aria-label="Edit photo">

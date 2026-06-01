@@ -48,6 +48,7 @@ import {
   foodApi,
   getAuthToken,
   ordersApi,
+  paymentsApi,
   profileApi,
   requestsApi,
   servicesApi,
@@ -76,12 +77,42 @@ import {
 import { normalizeBackendUser } from "../../utils/backendUser";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
+const CANCELLED_ORDERS_STORAGE_KEY = "bedrockCancelledOrders";
 const PAYMENT_CONTEXT_STORAGE_KEY = "bedrockPendingPaymentContext";
 const PAYMENT_REFERENCE_QUERY_KEYS = [
   "reference",
   "trxref",
   "payment_reference",
   "paymentReference",
+];
+const fallbackRequestItems = [
+  {
+    id: "quick-request",
+    title: "Quick Request",
+    description: "Send a quick service request to Bedrock support.",
+    category: "request",
+    tags: ["Request"],
+    price: 0,
+    isAvailable: true,
+  },
+  {
+    id: "chauffeur-service",
+    title: "Chauffeur Service",
+    description: "Request a chauffeur for pickup, drop-off, or movement.",
+    category: "chauffeur",
+    tags: ["Chauffeur"],
+    price: 0,
+    isAvailable: true,
+  },
+  {
+    id: "bureau-de-change",
+    title: "Bureau De Change",
+    description: "Request exchange support and view current rates.",
+    category: "exchange",
+    tags: ["Exchange"],
+    price: 0,
+    isAvailable: true,
+  },
 ];
 
 function sanitizeStoredAccount(account) {
@@ -95,9 +126,21 @@ function sanitizeStoredAccount(account) {
 
 function readStoredAccount() {
   try {
-    return sanitizeStoredAccount(
+    const storedAccount = sanitizeStoredAccount(
       JSON.parse(localStorage.getItem(ACCOUNT_STORAGE_KEY) || "null"),
     );
+
+    if (!storedAccount || !Array.isArray(storedAccount.orders)) {
+      return storedAccount;
+    }
+
+    return {
+      ...storedAccount,
+      orders: applyCancelledOrderOverrides(
+        storedAccount.orders,
+        storedAccount,
+      ),
+    };
   } catch {
     return null;
   }
@@ -109,6 +152,101 @@ function saveStoredAccount(nextUser) {
   if (!safeUser) return;
 
   localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(safeUser));
+}
+
+function getUserOrderScope(user = {}) {
+  return String(
+    user.backendId || user.id || user.email || user.firebaseUid || "anonymous",
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function readCancelledOrderStore() {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const parsedStore = JSON.parse(
+      window.localStorage.getItem(CANCELLED_ORDERS_STORAGE_KEY) || "{}",
+    );
+
+    return parsedStore && typeof parsedStore === "object" ? parsedStore : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeCancelledOrderStore(store) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(
+    CANCELLED_ORDERS_STORAGE_KEY,
+    JSON.stringify(store),
+  );
+}
+
+function getOrderCancellationKeys(order = {}) {
+  const raw = order.raw || {};
+
+  return [
+    order.backendId,
+    order.id,
+    order.paymentReference,
+    raw.id,
+    raw.uuid,
+    raw.reference,
+    raw.order_reference,
+    raw.order_no,
+  ]
+    .filter(Boolean)
+    .map((value) => String(value));
+}
+
+function saveCancelledOrderOverride(user, order) {
+  const keys = getOrderCancellationKeys(order);
+
+  if (!keys.length) return;
+
+  const store = readCancelledOrderStore();
+  const scope = getUserOrderScope(user);
+  const scopedStore = store[scope] || {};
+  const override = {
+    id: order.id,
+    backendId: order.backendId,
+    orderType: order.orderType,
+    paymentReference: order.paymentReference,
+    raw: order.raw,
+    status: "cancelled",
+    cancelledAt: order.cancelledAt || new Date().toISOString(),
+  };
+
+  keys.forEach((key) => {
+    scopedStore[key] = override;
+  });
+
+  store[scope] = scopedStore;
+  writeCancelledOrderStore(store);
+}
+
+function applyCancelledOrderOverrides(orders = [], user = {}) {
+  if (!Array.isArray(orders) || orders.length === 0) return orders;
+
+  const store = readCancelledOrderStore();
+  const scopedStore = store[getUserOrderScope(user)] || {};
+
+  return orders.map((order) => {
+    const override = getOrderCancellationKeys(order)
+      .map((key) => scopedStore[key])
+      .find(Boolean);
+
+    return override
+      ? {
+          ...order,
+          ...override,
+          status: "cancelled",
+        }
+      : order;
+  });
 }
 
 function readPendingPaymentContext() {
@@ -169,14 +307,36 @@ function clearPaymentReturnParams() {
 }
 
 async function verifyPaymentReference(context, reference) {
-  if (context?.type === "services" && context.recordId) {
+  const orderType = getPaymentOrderType(context?.type);
+
+  if (context?.recordId && orderType !== "booking") {
+    let lastError;
+
     try {
-      return await servicesApi.verifyServicePayment(
-        context.recordId,
-        reference,
-      );
+      if (orderType === "food") {
+        return await foodApi.verifyFoodPayment(context.recordId, reference);
+      }
+
+      if (orderType === "shop") {
+        return await shopApi.verifyShopPayment(context.recordId, reference);
+      }
+
+      if (orderType === "service") {
+        return await servicesApi.verifyServicePayment(
+          context.recordId,
+          reference,
+        );
+      }
     } catch (error) {
-      console.error("Service-specific payment verification failed", error);
+      lastError = error;
+      console.error("Order-specific payment verification failed", error);
+    }
+
+    try {
+      return await paymentsApi.verifyPayment(reference);
+    } catch (error) {
+      console.error("Shared payment verification failed", error);
+      throw lastError || error;
     }
   }
 
@@ -189,6 +349,31 @@ function getShopVariant(shopId) {
   if (shopId === "services") return "services";
   if (shopId === "request" || shopId === "requests") return "requests";
   return null;
+}
+
+function getPaymentOrderType(variant) {
+  if (variant === "food") return "food";
+  if (variant === "toiletries" || variant === "shop") return "shop";
+  if (variant === "services" || variant === "service") return "service";
+  if (variant === "booking") return "booking";
+  return variant || "order";
+}
+
+function getPaymentPrefixForOrderType(orderType) {
+  const prefixes = {
+    food: "TXN_FOOD",
+    shop: "TXN_SHOP",
+    service: "TXN_SVC",
+    booking: "TXN_BOOKING",
+  };
+
+  return prefixes[orderType] || "TXN_ORDER";
+}
+
+function isMissingRouteError(error) {
+  const message = String(error?.message || "").toLowerCase();
+
+  return message.includes("route") || message.includes("could not be found");
 }
 
 function toBackendFilterId(value) {
@@ -274,8 +459,48 @@ function makePaymentReference(prefix = "TXN") {
   return `${prefix}_${Date.now()}_${suffix}`;
 }
 
+async function initializeOrderPayment({
+  payOrder,
+  orderId,
+  orderType,
+  paymentMethod,
+  reference,
+}) {
+  try {
+    return await payOrder(orderId, { paymentMethod, reference });
+  } catch (error) {
+    if (!isMissingRouteError(error)) {
+      throw error;
+    }
+
+    return paymentsApi.initializePayment({
+      orderType,
+      orderId,
+      paymentMethod,
+    });
+  }
+}
+
 function getBackendRecordId(record) {
   return record?.backendId || record?.id || "";
+}
+
+function getOrderTypeForBackend(order = {}) {
+  const value = String(
+    order.orderType || order.type || order.category || order.variant || "",
+  ).toLowerCase();
+
+  if (value.includes("food")) return "food";
+  if (
+    value.includes("shop") ||
+    value.includes("toiletr") ||
+    value.includes("product")
+  ) {
+    return "shop";
+  }
+  if (value.includes("service")) return "service";
+
+  return getPaymentOrderType(value);
 }
 
 function getActiveBackendBookingId(user) {
@@ -362,15 +587,32 @@ async function fetchBackendUserCollections(baseUser) {
   }
 
   if (ordersResult.status === "fulfilled") {
-    nextUser.orders = extractCollection(ordersResult.value).map((order) =>
+    const backendOrders = extractCollection(ordersResult.value).map((order) =>
       normalizeBackendOrder(order),
     );
+
+    nextUser.orders = applyCancelledOrderOverrides(backendOrders, nextUser);
   }
 
   if (favoritesResult.status === "fulfilled") {
-    nextUser.wishlists = extractCollection(favoritesResult.value).map(
-      normalizeBackendFavorite,
-    );
+    nextUser.wishlists = extractCollection(favoritesResult.value)
+      .filter((favorite) => {
+        const item = extractObject(favorite);
+
+        return Boolean(
+          item.apartment ||
+            item.apartment_details ||
+            item.apartment_id ||
+            item.apartmentId ||
+            item.property ||
+            item.residence ||
+            item.residence_name ||
+            item.price_per_night ||
+            item.nightly_rate ||
+            item.bedrooms,
+        );
+      })
+      .map((favorite, index) => normalizeBackendFavorite(favorite, index));
   }
 
   return nextUser;
@@ -756,11 +998,23 @@ function HomePage() {
               normalizeBackendCatalogItem(item, "requests", index),
           );
 
-          if (items.length) nextShopItems.requests = items;
-          else nextShopErrors.requests = "No request types were returned.";
+          nextShopItems.requests = items.length
+            ? items
+            : fallbackRequestItems.map((item, index) =>
+                normalizeBackendCatalogItem(item, "requests", index),
+              );
+
+          if (!items.length) {
+            nextShopErrors.requests =
+              "Request types were not returned, so the available request actions are shown from the documented API flows.";
+          }
         } else {
+          nextShopItems.requests = fallbackRequestItems.map((item, index) =>
+            normalizeBackendCatalogItem(item, "requests", index),
+          );
           nextShopErrors.requests =
-            requestsResult.reason?.message || "Unable to load request types.";
+            requestsResult.reason?.message ||
+            "Unable to load request types, so the available request actions are shown from the documented API flows.";
         }
 
         if (Object.keys(nextShopItems).length) {
@@ -1055,11 +1309,19 @@ function HomePage() {
 
       if (nextUser) {
         const savedAccount = readStoredAccount();
+        const nextUserWithOverrides = Array.isArray(nextUser.orders)
+          ? {
+              ...nextUser,
+              orders: applyCancelledOrderOverrides(nextUser.orders, nextUser),
+            }
+          : nextUser;
 
         saveStoredAccount({
           ...(savedAccount || {}),
-          ...nextUser,
+          ...nextUserWithOverrides,
         });
+
+        return nextUserWithOverrides;
       }
 
       return nextUser;
@@ -1298,17 +1560,27 @@ function HomePage() {
     return shopLoadErrors[variant] || shopLoadError;
   }
 
-  function showHome() {
+  async function showHome() {
     setActivePage("home");
     setProfileInitialView("profile");
+    setSelectedApartment(null);
+    setApartmentReturnPage("home");
+    setApartmentQuote(null);
+    setPendingBooking(null);
+    setPendingOrder(null);
+    setFoodOrderDetails(createDefaultFoodOrderDetails());
+    setApartmentFilters(defaultApartmentFilters);
+    setSearchResetKey((currentKey) => currentKey + 1);
+
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    await refreshApartmentListings(defaultApartmentFilters);
   }
 
   async function showAllApartments() {
-    setActivePage("home");
-    setProfileInitialView("profile");
-    setApartmentFilters(defaultApartmentFilters);
-    setSearchResetKey((currentKey) => currentKey + 1);
-    await refreshApartmentListings(defaultApartmentFilters);
+    await showHome();
   }
 
   async function showResidence(residenceId, apartmentTitle = "") {
@@ -1517,14 +1789,36 @@ function HomePage() {
           responsePayload.isFavorite ??
           responsePayload.favorited ??
           nextIsSaved;
+        const favoriteSource =
+          responsePayload.apartment ||
+          responsePayload.favorite?.apartment ||
+          responsePayload.favorite?.apartment_details ||
+          responsePayload.favorite ||
+          apartment;
         favoriteApartment = normalizeBackendFavorite(
-          responsePayload.favorite || responsePayload.apartment || apartment,
+          favoriteSource,
+          0,
+          apartment,
         );
+        favoriteApartment = {
+          ...apartment,
+          ...favoriteApartment,
+          id: String(apartment.id),
+          backendId: apartment.backendId || favoriteApartment.backendId,
+          title: favoriteApartment.title || apartment.title,
+          image: favoriteApartment.image || apartment.image,
+          sourceType: "apartment",
+        };
       } catch (error) {
         const message = error.message || "Could not update wishlist.";
         showToast(message, "error");
         return { ok: false, isSaved: isAlreadySaved, message };
       }
+    } else {
+      favoriteApartment = {
+        ...apartment,
+        sourceType: "apartment",
+      };
     }
 
     updateCurrentUser((current) => {
@@ -2110,11 +2404,62 @@ function HomePage() {
       return { ok: false, message };
     }
 
-    const cancelledOrder = {
+    const backendOrderType = getOrderTypeForBackend(existingOrder);
+    const backendOrderId = getBackendRecordId(existingOrder);
+    let cancelledOrder = {
       ...existingOrder,
       status: "cancelled",
       cancelledAt: new Date().toISOString(),
     };
+    let resultMessage = "Order cancelled successfully.";
+
+    if (
+      getAuthToken() &&
+      backendOrderId &&
+      (backendOrderType === "food" || backendOrderType === "shop")
+    ) {
+      try {
+        const response =
+          backendOrderType === "food"
+            ? await foodApi.cancelFoodOrder(backendOrderId)
+            : await shopApi.cancelShopOrder(backendOrderId);
+
+        cancelledOrder = {
+          ...normalizeBackendOrder(response, cancelledOrder),
+          status: "cancelled",
+          cancelledAt: cancelledOrder.cancelledAt,
+        };
+      } catch (error) {
+        const message = error.message || "Could not cancel this order.";
+
+        showToast(message, "error");
+        return { ok: false, message };
+      }
+    } else if (getAuthToken() && backendOrderId && backendOrderType === "service") {
+      resultMessage =
+        "Service cancellation is saved locally for now because the backend cancel endpoint is not documented yet.";
+    } else if (getAuthToken() && backendOrderId) {
+      resultMessage =
+        "Order cancellation is saved locally for now because this order type does not expose a cancel endpoint yet.";
+    }
+
+    const persistedCancelledOrder = {
+      ...existingOrder,
+      ...cancelledOrder,
+      id: existingOrder.id,
+      backendId: cancelledOrder.backendId || existingOrder.backendId,
+      paymentReference:
+        cancelledOrder.paymentReference || existingOrder.paymentReference,
+      orderType: cancelledOrder.orderType || existingOrder.orderType,
+      raw: {
+        ...(existingOrder.raw || {}),
+        ...(cancelledOrder.raw || {}),
+      },
+      status: "cancelled",
+      cancelledAt: cancelledOrder.cancelledAt || new Date().toISOString(),
+    };
+
+    saveCancelledOrderOverride(currentUser, persistedCancelledOrder);
 
     updateCurrentUser((current) => {
       if (!current) return current;
@@ -2122,7 +2467,7 @@ function HomePage() {
       return {
         ...current,
         orders: (current.orders || []).map((currentOrder) =>
-          currentOrder.id === orderId ? cancelledOrder : currentOrder,
+          currentOrder.id === orderId ? persistedCancelledOrder : currentOrder,
         ),
       };
     });
@@ -2135,8 +2480,7 @@ function HomePage() {
 
     return {
       ok: true,
-      message:
-        "Order cancelled. Backend does not expose a shop order cancel endpoint yet, so this is saved in the frontend profile for now.",
+      message: resultMessage,
     };
   }
 
@@ -2312,16 +2656,9 @@ function HomePage() {
       try {
         let createResponse;
         let payOrder;
-        let paymentPrefix = "TXN_ORDER";
-        const bookingId = getActiveBackendBookingId(currentUser);
-
-        if (!bookingId) {
-          showToast(
-            "Please complete an apartment booking before placing food, shop, service, or request orders.",
-            "error",
-          );
-          return;
-        }
+        const orderType = getPaymentOrderType(shopVariant);
+        const paymentPrefix = getPaymentPrefixForOrderType(orderType);
+        const bookingId = getActiveBackendBookingId(currentUser) || null;
 
         const basePayload = {
           bookingId,
@@ -2343,7 +2680,6 @@ function HomePage() {
             ],
           });
           payOrder = foodApi.payFoodOrder;
-          paymentPrefix = "TXN_FOOD";
         } else if (shopVariant === "toiletries") {
           createResponse = await shopApi.createShopOrder({
             ...basePayload,
@@ -2355,7 +2691,6 @@ function HomePage() {
             ],
           });
           payOrder = shopApi.payShopOrder;
-          paymentPrefix = "TXN_SHOP";
         } else if (shopVariant === "services") {
           createResponse = await servicesApi.createServiceOrder({
             ...basePayload,
@@ -2364,7 +2699,6 @@ function HomePage() {
             duration: 60,
           });
           payOrder = servicesApi.payServiceOrder;
-          paymentPrefix = "TXN_SVC";
         } else {
           const requestLabel =
             `${selectedFoodItem.title} ${selectedFoodItem.category}`.toLowerCase();
@@ -2400,6 +2734,7 @@ function HomePage() {
         let order = normalizeBackendOrder(createResponse, {
           title: selectedFoodItem.title,
           category: shopVariant,
+          orderType,
           image: selectedFoodItem.image,
           totalAmount: selectedFoodItem.price,
         });
@@ -2416,8 +2751,14 @@ function HomePage() {
           }
 
           const requestedReference = makePaymentReference(paymentPrefix);
-          const paymentResponse = await payOrder(orderId, {
-            paymentMethod: getPaymentMethodForBackend(foodOrderDetails.paymentMethod),
+          const paymentMethod = getPaymentMethodForBackend(
+            foodOrderDetails.paymentMethod,
+          );
+          const paymentResponse = await initializeOrderPayment({
+            payOrder,
+            orderId,
+            orderType,
+            paymentMethod,
             reference: requestedReference,
           });
           const payment = normalizeBackendPayment(paymentResponse);
@@ -2434,7 +2775,7 @@ function HomePage() {
             `${order.title || selectedFoodItem.title} is waiting for payment confirmation.`,
           );
           savePendingPaymentContext({
-            type: shopVariant,
+            type: orderType,
             recordId: orderId,
             reference: paymentReference,
           });
@@ -2633,6 +2974,7 @@ function HomePage() {
           onDeleteAccount={handleDeleteAccount}
           orders={currentUser?.orders || []}
           onLogout={handleLogout}
+          onToast={showToast}
         />
       ) : (
         <>

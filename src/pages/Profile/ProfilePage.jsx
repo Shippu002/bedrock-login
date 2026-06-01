@@ -21,7 +21,6 @@ import {
   FiMapPin,
   FiMenu,
   FiPhone,
-  FiPlus,
   FiSearch,
   FiShield,
   FiSliders,
@@ -29,6 +28,7 @@ import {
   FiStar,
   FiUser,
   FiUsers,
+  FiWifi,
   FiX,
 } from "react-icons/fi";
 import {
@@ -80,6 +80,19 @@ const legalItems = [
   { id: "cancellation", title: "Cancellation policy" },
   { id: "refund", title: "Refund policy" },
   { id: "privacy", title: "Privacy Policy" },
+];
+
+const fallbackEarnRules = [
+  {
+    id: "rock-coin-apartment-price",
+    title: "Guests earn 1 Rock Coin per ₦1,000 of the apartment price",
+    reward: "RK1 off",
+  },
+  {
+    id: "three-day-stay-bonus",
+    title: "Guests earn ₦3,000 for 3 days stay in the apartment",
+    reward: "RK3 off",
+  },
 ];
 
 const socials = [
@@ -485,6 +498,34 @@ function getHelpSocials(helpInfo = {}) {
 function formatRockValue(value, fallback = "0.00") {
   if (value === undefined || value === null || value === "") return fallback;
 
+  const normalizedValue = String(value).replace(/[^\d.-]/g, "");
+  const numericValue = Number(normalizedValue);
+
+  if (Number.isFinite(numericValue)) {
+    return numericValue.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  return String(value);
+}
+
+function formatDiscountValue(value) {
+  if (value === undefined || value === null || value === "") {
+    return "₦0.0";
+  }
+
+  const normalizedValue = String(value).replace(/[^\d.-]/g, "");
+  const numericValue = Number(normalizedValue);
+
+  if (Number.isFinite(numericValue)) {
+    return `₦${numericValue.toLocaleString(undefined, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    })}`;
+  }
+
   return String(value);
 }
 
@@ -709,6 +750,7 @@ function ViewHeading({ title, onBack }) {
     <div className="profile-view-heading">
       <button type="button" onClick={onBack} aria-label="Go back">
         <FiChevronLeft />
+        <span>Back</span>
       </button>
       <h1>{title}</h1>
     </div>
@@ -725,6 +767,18 @@ function EmptyState({ title, message, actionLabel, onAction }) {
           {actionLabel}
         </button>
       )}
+    </div>
+  );
+}
+
+function ReferEmptyState({ title, message }) {
+  return (
+    <div className="refer-empty-state">
+      <span>
+        <FiGift />
+      </span>
+      <strong>{title}</strong>
+      <p>{message}</p>
     </div>
   );
 }
@@ -758,7 +812,7 @@ function EditProfileView({
     findCountryByName(selectedCountryName) ||
     initialCountry;
   const selectedPhoneCode = getDialCodeDigits(selectedCountry);
-  const isVerified = isImportantProfileComplete(user);
+  const isProfileComplete = isImportantProfileComplete(user);
   const showProfilePhoto = profilePhoto && failedProfilePhoto !== profilePhoto;
 
   function handleProfilePhotoChange(event) {
@@ -847,9 +901,14 @@ function EditProfileView({
               ? `${profileState}${profileCurrency ? ` ${profileCurrency}` : ""}`
               : "State"}
           </span>
-          <em className={isVerified ? "" : "is-unverified"}>
-            {isVerified ? "Verified" : "Not verified"}
+          <em className={isProfileComplete ? "" : "is-unverified"}>
+            {isProfileComplete ? "Profile complete" : "Complete your profile"}
           </em>
+          {!isProfileComplete && (
+            <small>
+              Add your name, email, phone number, country, and state.
+            </small>
+          )}
         </div>
 
         <label className="edit-profile-photo-button">
@@ -972,12 +1031,36 @@ function EditProfileView({
   );
 }
 
-function FoodCard({ item }) {
+function WishlistCard({ item }) {
+  const isApartment =
+    item.sourceType === "apartment" ||
+    item.residenceName ||
+    item.location ||
+    item.nightlyRate ||
+    item.rooms ||
+    item.bedrooms;
+  const location =
+    item.location || item.residenceName || item.type || "Bedrock Residences";
+  const guestLabel =
+    item.guests || item.guestCount
+      ? `${Number(item.guests || item.guestCount)} Guest${
+          Number(item.guests || item.guestCount) === 1 ? "" : "s"
+        }`
+      : "Guests";
+  const roomCount = item.rooms || item.roomCount || item.bedrooms;
+  const roomLabel = roomCount
+    ? `${Number(roomCount)} Room${Number(roomCount) === 1 ? "" : "s"}`
+    : "Room";
+  const price =
+    typeof item.price === "number"
+      ? `NGN${item.price.toLocaleString()}`
+      : item.price || item.priceLabel || "Saved";
+
   return (
-    <article className="profile-food-card">
-      <div className="profile-food-card__image">
+    <article className="profile-wishlist-card">
+      <div className="profile-wishlist-card__image">
         <AppImage
-          className="profile-food-card__photo"
+          className="profile-wishlist-card__photo"
           src={item.image}
           fallbackSrc=""
           alt={item.title}
@@ -985,30 +1068,49 @@ function FoodCard({ item }) {
         <span>Available</span>
       </div>
 
-      <div className="profile-food-card__body">
-        <div className="profile-food-card__top">
+      <div className="profile-wishlist-card__body">
+        <div className="profile-wishlist-card__top">
           <div>
             <strong>{item.title}</strong>
-            <span>{item.type}</span>
+            <span>
+              <FiMapPin />
+              {location}
+            </span>
           </div>
 
           <em>
             <FiStar />
-            4.8
+            {Number(item.rating || item.averageRating || 0).toFixed(1)}
           </em>
         </div>
 
-        <p>(Eggs, toast, bacon sausage, fresh fruit) Preparation takes: 39 - 40 min</p>
+        {isApartment ? (
+          <div className="profile-wishlist-card__meta">
+            <span>
+              <FiUsers />
+              {guestLabel}
+            </span>
+            <span>
+              <FiHome />
+              {roomLabel}
+            </span>
+            <span>
+              <FiWifi />
+              Wi-Fi
+            </span>
+          </div>
+        ) : (
+          <p>{item.description || "Saved item from Bedrock."}</p>
+        )}
 
-        <div className="profile-food-card__bottom">
+        <div className="profile-wishlist-card__bottom">
           <button type="button">
-            <FiPlus />
-            Add meal
+            {isApartment ? "Saved apartment" : "Saved item"}
           </button>
 
           <strong>
-            {item.price}
-            <span>/per plate</span>
+            {price}
+            {isApartment && <span>/per night</span>}
           </strong>
         </div>
       </div>
@@ -1028,7 +1130,7 @@ function WishlistView({ user, onBack }) {
       {visibleWishlistItems.length > 0 ? (
         <div className="profile-card-grid">
           {visibleWishlistItems.map((item) => (
-            <FoodCard
+            <WishlistCard
               item={{
                 ...item,
                 type: item.type || item.residenceName || "Saved item",
@@ -2000,7 +2102,7 @@ function LegalView({ onBack, legalDocuments = [] }) {
   );
 }
 
-function ReferEarnView({ user, onBack, referralInfo, rockPoints }) {
+function ReferEarnView({ user, onBack, onToast, referralInfo, rockPoints }) {
   const [tab, setTab] = useState("history");
   const [copyStatus, setCopyStatus] = useState("");
   const referralCode =
@@ -2010,7 +2112,14 @@ function ReferEarnView({ user, onBack, referralInfo, rockPoints }) {
       "referralCode",
       "invite_code",
       "inviteCode",
+      "data.code",
+      "data.referral_code",
+      "data.referralCode",
+      "profile.referral_code",
+      "referral.code",
+      "referral.referral_code",
       "user.referral_code",
+      "user.referralCode",
     ]) ||
     user?.referralCode ||
     user?.referral_code ||
@@ -2023,6 +2132,12 @@ function ReferEarnView({ user, onBack, referralInfo, rockPoints }) {
       "referral_link",
       "invite_link",
       "share_link",
+      "data.url",
+      "data.link",
+      "data.referral_url",
+      "data.referral_link",
+      "referral.url",
+      "referral.link",
     ]),
   );
   const availableRocks = formatRockValue(
@@ -2031,27 +2146,68 @@ function ReferEarnView({ user, onBack, referralInfo, rockPoints }) {
       "balance",
       "available",
       "available_points",
+      "availablePoints",
       "total_points",
+      "totalPoints",
       "rock_points",
+      "rockPoints",
+      "rocks",
+      "available_rocks",
+      "availableRocks",
+      "data.points",
+      "data.balance",
+      "data.rock_points",
+      "data.available_rocks",
       "summary.points",
       "summary.balance",
-    ]),
+    ]) ||
+      getBackendValue(referralInfo, [
+        "points",
+        "balance",
+        "available_rocks",
+        "availableRocks",
+        "rock_points",
+        "rockPoints",
+        "data.available_rocks",
+        "data.rock_points",
+        "summary.points",
+        "summary.balance",
+      ]),
   );
-  const discountValue =
+  const discountValue = formatDiscountValue(
     getBackendValue(rockPoints, [
       "discount_value",
+      "discountValue",
       "naira_value",
+      "nairaValue",
       "cash_value",
+      "cashValue",
+      "data.discount_value",
+      "data.naira_value",
+      "data.cash_value",
       "summary.discount_value",
     ]) ||
-    getBackendValue(referralInfo, ["discount_value", "reward_value", "bonus"]);
+      getBackendValue(referralInfo, [
+        "discount_value",
+        "discountValue",
+        "reward_value",
+        "rewardValue",
+        "bonus",
+        "data.discount_value",
+      ]),
+  );
   const referralStats = [
     {
       label: "Total referrals",
       value: getBackendValue(referralInfo, [
         "total_referrals",
+        "totalReferrals",
         "referrals_count",
+        "referralsCount",
         "referral_count",
+        "referralCount",
+        "data.total_referrals",
+        "data.referrals_count",
         "stats.total_referrals",
       ]),
     },
@@ -2060,6 +2216,8 @@ function ReferEarnView({ user, onBack, referralInfo, rockPoints }) {
       value: getBackendValue(referralInfo, [
         "successful_referrals",
         "completed_referrals",
+        "data.successful_referrals",
+        "data.completed_referrals",
         "stats.successful_referrals",
       ]),
     },
@@ -2068,10 +2226,12 @@ function ReferEarnView({ user, onBack, referralInfo, rockPoints }) {
       value: getBackendValue(referralInfo, [
         "pending_rewards",
         "pending_points",
+        "data.pending_rewards",
+        "data.pending_points",
         "stats.pending_rewards",
       ]),
     },
-  ].filter((item) => item.value !== "");
+  ].filter((item) => item.value !== "" && Number(item.value) !== 0);
   const historyItems = [
     ...getBackendArray(referralInfo, [
       "history",
@@ -2084,6 +2244,11 @@ function ReferEarnView({ user, onBack, referralInfo, rockPoints }) {
       "referredUsers",
       "referral_history",
       "referral_transactions",
+      "data.history",
+      "data.transactions",
+      "data.transactions.data",
+      "data.transaction_history",
+      "data.referral_history",
     ]),
     ...getBackendArray(rockPoints, [
       "history",
@@ -2092,6 +2257,11 @@ function ReferEarnView({ user, onBack, referralInfo, rockPoints }) {
       "activities",
       "points_history",
       "rock_points_history",
+      "data.history",
+      "data.transactions",
+      "data.transactions.data",
+      "data.points_history",
+      "data.rock_points_history",
     ]),
   ];
   const earnItemKeys = [
@@ -2159,16 +2329,38 @@ function ReferEarnView({ user, onBack, referralInfo, rockPoints }) {
         ) === index
       );
     });
+  const displayedEarnItems = earnItems.length > 0 ? earnItems : fallbackEarnRules;
   const copyValue = referralLink || referralCode;
 
   async function handleCopyReferral() {
-    if (!copyValue) return;
+    if (!copyValue) {
+      setCopyStatus("No code available yet");
+      onToast?.("No referral code available yet.", "error");
+      return;
+    }
 
     try {
-      await navigator.clipboard.writeText(copyValue);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(copyValue);
+      } else {
+        const textarea = document.createElement("textarea");
+
+        textarea.value = copyValue;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+
       setCopyStatus("Copied");
+      onToast?.("Referral code copied.", "success");
+      window.setTimeout(() => setCopyStatus(""), 1800);
     } catch {
       setCopyStatus("Copy failed");
+      onToast?.("Unable to copy referral code.", "error");
     }
   }
 
@@ -2176,69 +2368,81 @@ function ReferEarnView({ user, onBack, referralInfo, rockPoints }) {
     <section className="profile-panel refer-panel">
       <ViewHeading title="Refer and Earn" onBack={onBack} />
 
-      <div className="rocks-banner">
-        <span>Available Rocks</span>
-        <strong>
-          RK <b>{availableRocks}</b>
-        </strong>
-        {discountValue && <em>= {discountValue} discount value</em>}
-      </div>
+      <div className="refer-dashboard">
+        <div className="rocks-banner">
+          <span>Available Rocks</span>
+          <strong>
+            RK <b>{availableRocks}</b>
+          </strong>
+          <em>= {discountValue} discount value</em>
+        </div>
 
-      <div className="referral-card">
-        <span>Your referral code:</span>
-        <strong>
-          {referralCode || "Not available yet"}
+        <div className="referral-card">
+          <span>Your referral code:</span>
+          <strong>
+            {referralCode || "Not available yet"}
+            <button
+              type="button"
+              aria-label="Copy referral code"
+              onClick={handleCopyReferral}
+              disabled={!copyValue}
+            >
+              <FiCopy />
+            </button>
+          </strong>
+          {referralLink && (
+            <a
+              className="referral-card__link"
+              href={referralLink}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {referralLink}
+            </a>
+          )}
+          <em
+            className={
+              copyStatus === "Copied" ? "is-success" : copyStatus ? "is-error" : ""
+            }
+          >
+            {copyStatus || "Share this with friends to earn rewards!"}
+          </em>
+        </div>
+
+        {referralStats.length > 0 && (
+          <div className="referral-stats">
+            {referralStats.map((item) => (
+              <article key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </article>
+            ))}
+          </div>
+        )}
+
+        <div className="profile-tabs profile-tabs--wide refer-tabs">
           <button
             type="button"
-            aria-label="Copy referral code"
-            onClick={handleCopyReferral}
-            disabled={!copyValue}
+            className={tab === "history" ? "is-active" : ""}
+            onClick={() => setTab("history")}
           >
-            <FiCopy />
+            Transaction History
           </button>
-        </strong>
-        {referralLink && (
-          <a
-            className="referral-card__link"
-            href={referralLink}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
+            className={tab === "earn" ? "is-active" : ""}
+            onClick={() => setTab("earn")}
           >
-            {referralLink}
-          </a>
-        )}
-        <em>{copyStatus || "Share this with friends to earn rewards!"}</em>
-      </div>
-
-      {referralStats.length > 0 && (
-        <div className="referral-stats">
-          {referralStats.map((item) => (
-            <article key={item.label}>
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-            </article>
-          ))}
+            How to Earn
+          </button>
         </div>
-      )}
-
-      <div className="profile-tabs profile-tabs--wide">
-        <button
-          type="button"
-          className={tab === "history" ? "is-active" : ""}
-          onClick={() => setTab("history")}
-        >
-          Transaction History
-        </button>
-        <button
-          type="button"
-          className={tab === "earn" ? "is-active" : ""}
-          onClick={() => setTab("earn")}
-        >
-          How to Earn
-        </button>
       </div>
 
-      <div className="earn-card">
+      <div
+        className={`earn-card ${
+          tab === "history" ? "earn-card--history" : "earn-card--rules"
+        }`}
+      >
         {tab === "history" ? (
           historyItems.length > 0 ? (
             historyItems.map((item, index) => {
@@ -2275,29 +2479,32 @@ function ReferEarnView({ user, onBack, referralInfo, rockPoints }) {
               );
             })
           ) : (
-            <EmptyState
-              title="No referral history yet"
-              message="Referral activity from the backend will appear here."
+            <ReferEmptyState
+              title="No transactions yet"
+              message="Your activity will appear here"
             />
           )
-        ) : earnItems.length > 0 ? (
-          earnItems.map((rule) => (
-            <article className="earn-rule" key={rule.id}>
+        ) : (
+          displayedEarnItems.map((rule) => (
+            <article
+              className={`earn-rule ${earnItems.length === 0 ? "is-fallback" : ""}`}
+              key={rule.id}
+            >
               <span>
-                <FiGift />
+                <FiCheck />
               </span>
               <div>
                 <strong>{rule.title}</strong>
                 {rule.description && <small>{rule.description}</small>}
               </div>
-              {rule.reward && <em>{rule.reward}</em>}
+              {rule.reward && (
+                <p>
+                  <small>Reward:</small>
+                  <em>{rule.reward}</em>
+                </p>
+              )}
             </article>
           ))
-        ) : (
-          <EmptyState
-            title="No earning rules yet"
-            message="Referral reward rules from the backend will appear here."
-          />
         )}
       </div>
     </section>
@@ -2509,6 +2716,7 @@ export default function ProfilePage({
   onSubmitKyc,
   onDeleteAccount,
   onLogout,
+  onToast,
 }) {
   const [activeView, setActiveView] = useState(() => initialView);
   const [viewHistory, setViewHistory] = useState([]);
@@ -2609,6 +2817,7 @@ export default function ProfilePage({
           <ReferEarnView
             user={user}
             onBack={goBack}
+            onToast={onToast}
             referralInfo={profileResources.referralInfo}
             rockPoints={profileResources.rockPoints}
           />
@@ -2642,7 +2851,7 @@ export default function ProfilePage({
   }
 
   return (
-    <div className="profile-page">
+    <div className={`profile-page profile-page--${activeView}`}>
       <ProfileSidebar
         activeView={activeView}
         user={user}
@@ -2661,7 +2870,7 @@ export default function ProfilePage({
           onNotifications={() => navigateToView("notifications")}
         />
 
-        {activeView !== "profile" && <ProfileSearch />}
+        {activeView !== "profile" && activeView !== "refer" && <ProfileSearch />}
 
         {renderView()}
       </main>

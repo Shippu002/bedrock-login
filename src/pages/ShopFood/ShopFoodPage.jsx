@@ -6,6 +6,7 @@ import {
   FiCreditCard,
   FiHeart,
   FiMinus,
+  FiPackage,
   FiPlus,
   FiShare2,
   FiStar,
@@ -329,7 +330,10 @@ function ShopItemImage({ src, alt, className = "" }) {
       role={alt ? "img" : undefined}
       aria-label={alt || undefined}
       aria-hidden={alt ? undefined : "true"}
-    />
+    >
+      <FiPackage aria-hidden="true" />
+      {alt ? <span>{alt}</span> : null}
+    </div>
   );
 }
 

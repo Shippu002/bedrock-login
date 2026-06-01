@@ -1,10 +1,36 @@
 import { useState } from "react";
-import { FiBell, FiChevronDown, FiMenu } from "react-icons/fi";
+import { FiBell, FiChevronDown, FiHome, FiMenu } from "react-icons/fi";
 import bedrockLogo from "../assets/bedrock-logo.svg";
 import AppImage from "./AppImage";
 import ProfileMenu from "./ProfileMenu";
 import { shopCategories as defaultShopCategories } from "../data/shopCategories";
 import "../styles/header.css";
+
+function ResidenceThumbnail({ src, alt }) {
+  const [hasImage, setHasImage] = useState(Boolean(src));
+
+  if (!hasImage) {
+    return (
+      <span
+        className="nav-mega__item-image nav-mega__item-image--placeholder"
+        role="img"
+        aria-label={alt}
+      >
+        <FiHome aria-hidden="true" />
+      </span>
+    );
+  }
+
+  return (
+    <AppImage
+      className="nav-mega__item-image"
+      src={src}
+      fallbackSrc=""
+      alt={alt}
+      onError={() => setHasImage(false)}
+    />
+  );
+}
 
 function Dropdown({
   label,
@@ -112,11 +138,9 @@ function Dropdown({
                   onClick={() => handleResidenceClick(item.id)}
                   key={item.title}
                 >
-                  <AppImage
-                    className="nav-mega__item-image"
+                  <ResidenceThumbnail
                     src={item.image}
-                    fallbackSrc=""
-                    alt=""
+                    alt={`${item.title} residence`}
                   />
                   <span>
                     <strong>{item.title}</strong>
@@ -238,6 +262,7 @@ export default function Header({
 
   function handleHome() {
     setIsProfileMenuOpen(false);
+    setOpenMenu(null);
     onHome?.();
   }
 

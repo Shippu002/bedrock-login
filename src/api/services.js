@@ -42,7 +42,7 @@ export function createServiceOrder(data = {}) {
 
 export function getServiceOrders(params = {}) {
   return apiClient.get(
-    withQuery("/orders/services", {
+    withQuery("/services/orders", {
       page: params.page,
       per_page: params.perPage || params.per_page,
       status: params.status,

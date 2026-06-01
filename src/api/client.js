@@ -2,6 +2,8 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
   (import.meta.env.DEV ? "http://localhost:8000/api/v1" : "");
 const AUTH_TOKEN_STORAGE_KEY = "bedrockAuthToken";
+const AUTH_DEBUG_ENABLED =
+  import.meta.env.VITE_DEBUG_AUTH === "true";
 
 export class ApiError extends Error {
   constructor(message, options = {}) {
@@ -54,6 +56,54 @@ function buildApiUrl(path) {
   return `${baseUrl}/${apiPath}`;
 }
 
+function shouldDebugAuthRequest(path, enabled = false) {
+  return AUTH_DEBUG_ENABLED && (enabled || String(path).startsWith("/auth/"));
+}
+
+function redactDebugValue(key, value) {
+  const normalizedKey = String(key).toLowerCase();
+
+  if (
+    normalizedKey.includes("password") ||
+    normalizedKey.includes("token") ||
+    normalizedKey.includes("authorization")
+  ) {
+    return "[redacted]";
+  }
+
+  return value;
+}
+
+function redactDebugPayload(payload) {
+  if (!payload || typeof payload !== "object") return payload;
+
+  if (typeof FormData !== "undefined" && payload instanceof FormData) {
+    return "[FormData]";
+  }
+
+  if (Array.isArray(payload)) {
+    return payload.map((item) => redactDebugPayload(item));
+  }
+
+  return Object.fromEntries(
+    Object.entries(payload).map(([key, value]) => [
+      key,
+      typeof value === "object" && value !== null
+        ? redactDebugPayload(value)
+        : redactDebugValue(key, value),
+    ]),
+  );
+}
+
+function redactDebugHeaders(headers) {
+  return Object.fromEntries(
+    [...headers.entries()].map(([key, value]) => [
+      key,
+      redactDebugValue(key, value),
+    ]),
+  );
+}
+
 export function withQuery(path, params = {}) {
   const searchParams = new URLSearchParams();
 
@@ -87,6 +137,7 @@ export async function apiRequest(path, options = {}) {
     headers,
     method = body ? "POST" : "GET",
     skipAuth = false,
+    debugAuth = false,
     ...fetchOptions
   } = options;
   const token = getAuthToken();
@@ -107,7 +158,18 @@ export async function apiRequest(path, options = {}) {
   }
 
   const requestUrl = buildApiUrl(path);
+  const shouldDebugAuth = shouldDebugAuthRequest(path, debugAuth);
   let response;
+
+  if (shouldDebugAuth) {
+    console.debug("[Bedrock auth API]", {
+      phase: "request",
+      method,
+      url: requestUrl,
+      headers: redactDebugHeaders(requestHeaders),
+      payload: redactDebugPayload(body),
+    });
+  }
 
   try {
     response = await fetch(requestUrl, {
@@ -117,6 +179,15 @@ export async function apiRequest(path, options = {}) {
       body: isFormData || typeof body === "string" ? body : JSON.stringify(body),
     });
   } catch (error) {
+    if (shouldDebugAuth) {
+      console.debug("[Bedrock auth API]", {
+        phase: "network-error",
+        method,
+        url: requestUrl,
+        message: error?.message || "Network request failed",
+      });
+    }
+
     throw new ApiError(
       `Backend is not reachable at ${API_BASE_URL}. Start the backend server, check VITE_API_BASE_URL, and confirm CORS allows this frontend.`,
       {
@@ -126,6 +197,17 @@ export async function apiRequest(path, options = {}) {
     );
   }
   const data = await parseResponse(response);
+
+  if (shouldDebugAuth) {
+    console.debug("[Bedrock auth API]", {
+      phase: "response",
+      method,
+      url: requestUrl,
+      status: response.status,
+      ok: response.ok,
+      message: data?.message || data?.error || response.statusText,
+    });
+  }
 
   if (!response.ok) {
     const message =

@@ -6,6 +6,10 @@ function unwrapData(response) {
 
 export function extractCollection(response) {
   const payload = unwrapData(response);
+  const nestedData =
+    payload?.data && typeof payload.data === "object" && !Array.isArray(payload.data)
+      ? payload.data
+      : null;
 
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
@@ -23,10 +27,25 @@ export function extractCollection(response) {
   if (Array.isArray(payload?.reviews)) return payload.reviews;
   if (Array.isArray(payload?.products)) return payload.products;
   if (Array.isArray(payload?.services)) return payload.services;
+  if (Array.isArray(payload?.requests)) return payload.requests;
+  if (Array.isArray(payload?.request_types)) return payload.request_types;
+  if (Array.isArray(payload?.quick_request_types)) {
+    return payload.quick_request_types;
+  }
+  if (Array.isArray(payload?.types)) return payload.types;
   if (Array.isArray(payload?.menu)) return payload.menu;
   if (Array.isArray(payload?.categories)) return payload.categories;
   if (Array.isArray(payload?.meal_types)) return payload.meal_types;
   if (Array.isArray(payload?.dietary_tags)) return payload.dietary_tags;
+  if (Array.isArray(nestedData?.requests)) return nestedData.requests;
+  if (Array.isArray(nestedData?.request_types)) return nestedData.request_types;
+  if (Array.isArray(nestedData?.quick_request_types)) {
+    return nestedData.quick_request_types;
+  }
+  if (Array.isArray(nestedData?.types)) return nestedData.types;
+  if (Array.isArray(nestedData?.items)) return nestedData.items;
+  if (Array.isArray(nestedData?.products)) return nestedData.products;
+  if (Array.isArray(nestedData?.services)) return nestedData.services;
 
   return [];
 }
@@ -488,13 +507,20 @@ export function normalizeBackendOrder(item = {}, fallback = {}) {
         "",
     ),
     title,
+    orderType:
+      order.order_type ||
+      order.orderType ||
+      order.type ||
+      fallback.orderType ||
+      fallback.category ||
+      "",
     category:
       order.type ||
       order.category ||
       order.order_type ||
       fallback.category ||
       "Order",
-    image: getImageUrl(product) || getImageUrl(order),
+    image: getImageUrl(product) || getImageUrl(order) || fallback.image || "",
     apartmentNumber:
       order.apartment_number ||
       order.apartmentNumber ||
@@ -513,6 +539,14 @@ export function normalizeBackendOrder(item = {}, fallback = {}) {
     ),
     createdAt: order.created_at || order.createdAt || fallback.createdAt || "",
     status: order.status || fallback.status || "",
+    paymentReference:
+      order.payment_reference ||
+      order.paymentReference ||
+      order.reference ||
+      fallback.paymentReference ||
+      "",
+    timeline: Array.isArray(order.timeline) ? order.timeline : fallback.timeline,
+    raw: order,
   };
 }
 
@@ -736,10 +770,43 @@ export function normalizeBackendPayment(response) {
   };
 }
 
-export function normalizeBackendFavorite(item = {}, index = 0) {
-  const apartment = item.apartment || item.apartment_details || item;
+export function normalizeBackendFavorite(item = {}, index = 0, fallback = {}) {
+  const safeFallback =
+    fallback && typeof fallback === "object" && !Array.isArray(fallback)
+      ? fallback
+      : {};
+  const favorite = extractObject(item);
+  const apartment =
+    favorite.apartment ||
+    favorite.apartment_details ||
+    favorite.unit ||
+    favorite.room ||
+    favorite.property ||
+    favorite;
+  const normalizedApartment = normalizeBackendApartment(apartment, index);
 
-  return normalizeBackendApartment(apartment, index);
+  return {
+    ...safeFallback,
+    ...normalizedApartment,
+    backendId:
+      normalizedApartment.backendId ||
+      favorite.apartment_id ||
+      favorite.apartmentId ||
+      safeFallback.backendId,
+    id: String(
+      normalizedApartment.backendId ||
+        normalizedApartment.id ||
+        favorite.apartment_id ||
+        favorite.apartmentId ||
+        safeFallback.id ||
+        `favorite-${index + 1}`,
+    ),
+    title:
+      normalizedApartment.title === "Apartment" && safeFallback.title
+        ? safeFallback.title
+        : normalizedApartment.title,
+    image: normalizedApartment.image || safeFallback.image || "",
+  };
 }
 
 export function normalizeBackendNotification(item = {}, index = 0) {

@@ -233,11 +233,32 @@
     cursor: pointer;
   }
 
-  .residence-mobile-row img {
+  .residence-mobile-row img,
+  .residence-mobile-row__image {
     width: 94px;
     height: 98px;
     border-radius: 14px;
+    background:
+      linear-gradient(135deg, rgba(197, 138, 104, 0.14), rgba(32, 42, 69, 0.08)),
+      #f7f4f1;
     object-fit: cover;
+    display: block;
+  }
+
+  .residence-mobile-row__image:not(img)::before {
+    content: "";
+    width: 28px;
+    height: 28px;
+    border-radius: 10px 10px 7px 7px;
+    background: #202a45;
+    box-shadow: 0 -10px 0 -4px #c58a68;
+    display: block;
+  }
+
+  .residence-mobile-row__image:not(img) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .residence-mobile-row__body {
@@ -359,7 +380,8 @@
     gap: 10px;
   }
 
-  .residence-mobile-row img {
+  .residence-mobile-row img,
+  .residence-mobile-row__image {
     width: 84px;
     height: 92px;
   }

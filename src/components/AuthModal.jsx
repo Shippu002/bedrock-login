@@ -42,6 +42,9 @@ import { normalizeBackendUser } from "../utils/backendUser";
 import "../styles/auth-modal.css";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
+const AUTH_DEBUG_ENABLED =
+  import.meta.env.VITE_DEBUG_AUTH === "true";
+const EMAIL_VERIFICATION_OTP_TYPE = "email_verification";
 
 const initialFormData = {
   fullName: "",
@@ -99,6 +102,15 @@ const agentDocumentTypes = [
 
 const unavailableUsernames = ["admin", "support", "bedrock", "takenname"];
 
+function debugAuthFlow(event, details = {}) {
+  if (!AUTH_DEBUG_ENABLED) return;
+
+  console.debug("[Bedrock auth flow]", {
+    event,
+    ...details,
+  });
+}
+
 function buildUsernameSuggestions(fullName) {
   const cleanedName = fullName
     .toLowerCase()
@@ -133,7 +145,7 @@ export default function AuthModal({
   const isAgentSignup = entryPoint === "agentSignup";
   const isSignupEntry = entryPoint === "signup" || isAgentSignup;
   const initialSignupStep = isAgentSignup ? "agentType" : "signup";
-  const [selectedCountryId, setSelectedCountryId] = useState("US");
+  const [selectedCountryId, setSelectedCountryId] = useState("NG");
   const [signupMode, setSignupMode] = useState(
     isAgentSignup ? "agent" : "guest",
   );
@@ -441,15 +453,25 @@ export default function AuthModal({
       const fallbackUser = buildRegisteredUser();
       const register =
         signupMode === "agent" ? authApi.registerAgent : authApi.registerGuest;
+      const endpoint =
+        signupMode === "agent"
+          ? authApi.authEndpoints.agentRegister
+          : authApi.authEndpoints.guestRegister;
+
+      debugAuthFlow("register-submit", {
+        mode: signupMode,
+        endpoint,
+        email: formData.email.trim(),
+        phoneCountry: selectedCountry.id,
+        hasReferral: Boolean(formData.referral.trim()),
+      });
+
       const response = await register({
         fullName: formData.fullName,
         email: formData.email,
         phone: `${selectedCountry.dialCode} ${formData.phone}`,
         country: selectedCountry.name,
         countryCode: selectedCountry.id,
-        username: chosenUsername,
-        referral: formData.referral.trim(),
-        agentType: signupMode === "agent" ? agentAccountType : undefined,
         password,
         passwordConfirmation: confirmPassword,
       });
@@ -581,6 +603,12 @@ export default function AuthModal({
     setAuthAction("login");
 
     try {
+      debugAuthFlow("login-submit", {
+        mode: "shared",
+        endpoint: authApi.authEndpoints.login,
+        email: loginData.email.trim(),
+      });
+
       const response = await authApi.login({
         email: loginData.email.trim(),
         password: loginData.password,
@@ -619,6 +647,12 @@ export default function AuthModal({
     setAuthAction("forgotPassword");
 
     try {
+      debugAuthFlow("forgot-password-submit", {
+        mode: "shared",
+        endpoint: authApi.authEndpoints.forgotPassword,
+        email,
+      });
+
       await authApi.forgotPassword(email);
       setResetData({
         ...initialResetData,
@@ -664,6 +698,13 @@ export default function AuthModal({
     setAuthAction("resetPassword");
 
     try {
+      debugAuthFlow("reset-password-submit", {
+        mode: "shared",
+        endpoint: authApi.authEndpoints.resetPassword,
+        email,
+        hasOtp: Boolean(resetData.otp),
+      });
+
       await authApi.resetPassword({
         email,
         otp: resetData.otp,
@@ -830,7 +871,14 @@ export default function AuthModal({
     setAuthAction("sendOtp");
 
     try {
-      await authApi.resendOtp(getSignupEmail());
+      debugAuthFlow("resend-otp-before-verification", {
+        mode: signupMode,
+        endpoint: authApi.authEndpoints.resendOtp,
+        email: getSignupEmail(),
+        type: EMAIL_VERIFICATION_OTP_TYPE,
+      });
+
+      await authApi.resendOtp(getSignupEmail(), EMAIL_VERIFICATION_OTP_TYPE);
     } catch (error) {
       setOtpErrorMessage(
         error.message ||
@@ -855,7 +903,19 @@ export default function AuthModal({
     setOtpErrorMessage("");
 
     try {
-      const response = await authApi.verifyOtp(getSignupEmail(), otpCode);
+      debugAuthFlow("verify-otp-submit", {
+        mode: signupMode,
+        endpoint: authApi.authEndpoints.verifyOtp,
+        email: getSignupEmail(),
+        type: EMAIL_VERIFICATION_OTP_TYPE,
+        otpLength: otpCode.length,
+      });
+
+      const response = await authApi.verifyOtp(
+        getSignupEmail(),
+        otpCode,
+        EMAIL_VERIFICATION_OTP_TYPE,
+      );
       setPendingSessionUser((currentUser) =>
         normalizeBackendUser(response, currentUser || buildRegisteredUser()),
       );
@@ -873,7 +933,14 @@ export default function AuthModal({
     setOtpErrorMessage("");
 
     try {
-      await authApi.resendOtp(getSignupEmail());
+      debugAuthFlow("resend-otp-submit", {
+        mode: signupMode,
+        endpoint: authApi.authEndpoints.resendOtp,
+        email: getSignupEmail(),
+        type: EMAIL_VERIFICATION_OTP_TYPE,
+      });
+
+      await authApi.resendOtp(getSignupEmail(), EMAIL_VERIFICATION_OTP_TYPE);
     } catch (error) {
       setOtpErrorMessage(error.message || "Unable to resend OTP.");
     } finally {
@@ -894,6 +961,14 @@ export default function AuthModal({
   }
 
   function getModalClassName() {
+    if (currentStep === "login") {
+      return "auth-modal auth-modal--login";
+    }
+
+    if (currentStep === "signup") {
+      return "auth-modal auth-modal--signup";
+    }
+
     if (currentStep === "otpVerification") {
       return "auth-modal auth-modal--wide";
     }
@@ -985,115 +1060,121 @@ export default function AuthModal({
                 Enter your details to login to your account
               </p>
 
-              <label className="auth-field">
-                <span className="auth-label">Email</span>
-                <div className="auth-input-wrap auth-input-wrap--plain">
-                  <input
-                    type="email"
-                    placeholder="Enter email address"
-                    value={loginData.email}
-                    onChange={(event) =>
-                      handleLoginFieldChange("email", event.target.value)
-                    }
-                    className={
-                      showLoginErrors && loginErrors.email
-                        ? "auth-input-error"
-                        : ""
-                    }
-                    aria-invalid={showLoginErrors && loginErrors.email}
-                  />
-                </div>
-              </label>
+              <div className="auth-login__card">
+                <label className="auth-field">
+                  <span className="auth-label">Email</span>
+                  <div className="auth-input-wrap auth-input-wrap--plain">
+                    <input
+                      type="email"
+                      placeholder="Enter email address"
+                      value={loginData.email}
+                      onChange={(event) =>
+                        handleLoginFieldChange("email", event.target.value)
+                      }
+                      className={
+                        showLoginErrors && loginErrors.email
+                          ? "auth-input-error"
+                          : ""
+                      }
+                      aria-invalid={showLoginErrors && loginErrors.email}
+                    />
+                  </div>
+                </label>
 
-              <label className="auth-field">
-                <span className="auth-label">Password</span>
-                <div className="auth-password__input-wrap">
-                  <input
-                    type={showLoginPassword ? "text" : "password"}
-                    placeholder="Enter password"
-                    value={loginData.password}
-                    onChange={(event) =>
-                      handleLoginFieldChange("password", event.target.value)
-                    }
-                    className={
-                      showLoginErrors && loginErrors.password
-                        ? "auth-input-error"
-                        : ""
-                    }
-                    aria-invalid={showLoginErrors && loginErrors.password}
-                  />
-                  <button
-                    type="button"
-                    className="auth-password__eye"
-                    onClick={() => setShowLoginPassword((current) => !current)}
-                  >
-                    {showLoginPassword ? <FiEyeOff /> : <FiEye />}
-                  </button>
-                </div>
-              </label>
+                <label className="auth-field">
+                  <span className="auth-label">Password</span>
+                  <div className="auth-password__input-wrap">
+                    <input
+                      type={showLoginPassword ? "text" : "password"}
+                      placeholder="Enter password"
+                      value={loginData.password}
+                      onChange={(event) =>
+                        handleLoginFieldChange("password", event.target.value)
+                      }
+                      className={
+                        showLoginErrors && loginErrors.password
+                          ? "auth-input-error"
+                          : ""
+                      }
+                      aria-invalid={showLoginErrors && loginErrors.password}
+                    />
+                    <button
+                      type="button"
+                      className="auth-password__eye"
+                      onClick={() =>
+                        setShowLoginPassword((current) => !current)
+                      }
+                    >
+                      {showLoginPassword ? <FiEyeOff /> : <FiEye />}
+                    </button>
+                  </div>
+                </label>
 
-              <button
-                type="button"
-                className="auth-login__forgot"
-                onClick={openForgotPassword}
-              >
-                Forgot password?
-              </button>
-
-              {loginErrorMessage && (
-                <p className="auth-field-error">{loginErrorMessage}</p>
-              )}
-
-              <div className="auth-divider auth-divider--login">
-                <span>OR</span>
-              </div>
-
-              <button
-                type="button"
-                className="auth-social-button"
-                onClick={onGoogleSignIn}
-                disabled={isSocialAuthLoading}
-              >
-                <FcGoogle className="auth-social-icon" />
-                <span>
-                  {isGoogleAuthLoading ? "Signing in..." : "Login with Google"}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                className="auth-social-button"
-                onClick={onAppleSignIn}
-                disabled={isSocialAuthLoading}
-              >
-                <FaApple className="auth-social-icon auth-social-icon--apple" />
-                <span>
-                  {isAppleAuthLoading ? "Signing in..." : "Login with Apple"}
-                </span>
-              </button>
-
-              {socialAuthError && (
-                <p className="auth-field-error">{socialAuthError}</p>
-              )}
-
-              <button
-                type="submit"
-                className="auth-primary-button"
-                disabled={authAction === "login"}
-              >
-                {authAction === "login" ? "Signing in..." : "Continue"}
-              </button>
-
-              <p className="auth-login__footer">
-                Don&apos;t have an account?{" "}
                 <button
                   type="button"
-                  className="auth-text-button"
-                  onClick={onSwitchToSignup}
+                  className="auth-login__forgot"
+                  onClick={openForgotPassword}
                 >
-                  Signup
+                  Forgot password?
                 </button>
-              </p>
+
+                {loginErrorMessage && (
+                  <p className="auth-field-error">{loginErrorMessage}</p>
+                )}
+
+                <div className="auth-divider auth-divider--login">
+                  <span>OR</span>
+                </div>
+
+                <button
+                  type="button"
+                  className="auth-social-button"
+                  onClick={onGoogleSignIn}
+                  disabled={isSocialAuthLoading}
+                >
+                  <FcGoogle className="auth-social-icon" />
+                  <span>
+                    {isGoogleAuthLoading
+                      ? "Signing in..."
+                      : "Login with Google"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  className="auth-social-button"
+                  onClick={onAppleSignIn}
+                  disabled={isSocialAuthLoading}
+                >
+                  <FaApple className="auth-social-icon auth-social-icon--apple" />
+                  <span>
+                    {isAppleAuthLoading ? "Signing in..." : "Login with Apple"}
+                  </span>
+                </button>
+
+                {socialAuthError && (
+                  <p className="auth-field-error">{socialAuthError}</p>
+                )}
+
+                <button
+                  type="submit"
+                  className="auth-primary-button"
+                  disabled={authAction === "login"}
+                >
+                  {authAction === "login" ? "Signing in..." : "Continue"}
+                </button>
+
+                <p className="auth-login__footer">
+                  Don&apos;t have an account?{" "}
+                  <button
+                    type="button"
+                    className="auth-text-button"
+                    onClick={onSwitchToSignup}
+                  >
+                    Signup
+                  </button>
+                </p>
+              </div>
             </form>
           </>
         )}
@@ -1350,11 +1431,13 @@ export default function AuthModal({
           <>
             <button
               type="button"
-              className="auth-close"
+              className="auth-close auth-close--mobile-back"
               onClick={handleCloseModal}
               aria-label="Close modal"
             >
-              <FiX />
+              <FiX className="auth-close__desktop-icon" />
+              <FiChevronLeft className="auth-close__mobile-icon" />
+              <span>Back</span>
             </button>
 
             <form className="auth-form" onSubmit={handleSignupSubmit}>
@@ -1531,11 +1614,13 @@ export default function AuthModal({
           <>
             <button
               type="button"
-              className="auth-close"
+              className="auth-close auth-close--mobile-back"
               onClick={handleCloseModal}
               aria-label="Close modal"
             >
-              <FiX />
+              <FiX className="auth-close__desktop-icon" />
+              <FiChevronLeft className="auth-close__mobile-icon" />
+              <span>Back</span>
             </button>
 
             <div className="auth-agent">

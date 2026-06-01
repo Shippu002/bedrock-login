@@ -67,9 +67,29 @@
 
 @media (max-width: 560px) {
   .toast-host {
-    right: 14px;
-    left: 14px;
-    bottom: calc(14px + env(safe-area-inset-bottom));
+    top: calc(10px + env(safe-area-inset-top));
+    right: 10px;
+    bottom: auto;
+    left: 10px;
     width: auto;
+    gap: 8px;
+  }
+
+  .toast {
+    min-height: 48px;
+    grid-template-columns: 20px minmax(0, 1fr) 30px;
+    gap: 8px;
+    padding: 10px 10px 10px 12px;
+    border-radius: 12px;
+  }
+
+  .toast span {
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  .toast button {
+    width: 30px;
+    height: 30px;
   }
 }

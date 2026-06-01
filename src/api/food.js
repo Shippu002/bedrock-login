@@ -55,3 +55,17 @@ export function payFoodOrder(foodOrderId, data = {}) {
     reference: data.reference,
   });
 }
+
+export function verifyFoodPayment(foodOrderId, reference) {
+  return apiClient.post(`/food/orders/${foodOrderId}/verify-payment`, {
+    reference,
+  });
+}
+
+export function getFoodOrderTimeline(foodOrderId) {
+  return apiClient.get(`/food/orders/${foodOrderId}/timeline`);
+}
+
+export function cancelFoodOrder(foodOrderId) {
+  return apiClient.post(`/food/orders/${foodOrderId}/cancel`);
+}

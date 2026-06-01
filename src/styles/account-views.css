@@ -273,13 +273,20 @@
 }
 
 .profile-summary__text em.is-unverified {
-  background: #fee4e2;
-  color: #d92d20;
+  background: #fff4e5;
+  color: #b54708;
 }
 
 .profile-summary__text em svg {
   width: 12px;
   height: 12px;
+}
+
+.profile-summary__text small {
+  max-width: 320px;
+  color: #667085;
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .profile-edit {

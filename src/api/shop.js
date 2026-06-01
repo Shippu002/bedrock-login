@@ -47,3 +47,17 @@ export function payShopOrder(shopOrderId, data = {}) {
     reference: data.reference,
   });
 }
+
+export function verifyShopPayment(shopOrderId, reference) {
+  return apiClient.post(`/shop/orders/${shopOrderId}/verify-payment`, {
+    reference,
+  });
+}
+
+export function getShopOrderTimeline(shopOrderId) {
+  return apiClient.get(`/shop/orders/${shopOrderId}/timeline`);
+}
+
+export function cancelShopOrder(shopOrderId) {
+  return apiClient.post(`/shop/orders/${shopOrderId}/cancel`);
+}

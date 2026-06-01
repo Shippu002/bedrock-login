@@ -32,6 +32,23 @@
   cursor: pointer;
   font-size: 22px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
+}
+
+.listing-section__controls button:not(:disabled):hover {
+  background: #e7edf7;
+  color: #202a45;
+}
+
+.listing-section__controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
 }
 
 .listing-section__grid {
@@ -83,21 +100,11 @@
   }
 
   .listing-section__controls button {
-    width: auto;
-    height: auto;
-    background: transparent;
+    width: 28px;
+    height: 28px;
+    background: #f0f0f0;
     color: #98a2b3;
-    font-size: 0;
-  }
-
-  .listing-section__controls button:first-child {
-    display: none;
-  }
-
-  .listing-section__controls button:last-child::before {
-    content: "See All";
-    font-size: 11px;
-    line-height: 18px;
+    font-size: 20px;
   }
 
   .listing-section__grid {
@@ -158,5 +165,50 @@
     flex-basis: clamp(238px, calc(100vw - 90px), 276px);
     width: clamp(238px, calc(100vw - 90px), 276px);
     min-width: clamp(238px, calc(100vw - 90px), 276px);
+  }
+}
+
+@media (max-width: 560px) {
+  .listing-section {
+    gap: 11px;
+  }
+
+  .listing-section__header {
+    align-items: center;
+  }
+
+  .listing-section__controls button {
+    width: 32px;
+    height: 32px;
+    background: #eef0f3;
+    color: #667085;
+  }
+
+  .listing-section__grid {
+    gap: 13px;
+    padding: 0 1px 10px;
+    scroll-padding-inline: 1px;
+  }
+
+  .listing-section__grid .listing-card {
+    flex-basis: clamp(236px, calc(100vw - 96px), 292px);
+    width: clamp(236px, calc(100vw - 96px), 292px);
+    min-width: clamp(236px, calc(100vw - 96px), 292px);
+  }
+}
+
+@media (max-width: 390px) {
+  .listing-section__grid .listing-card {
+    flex-basis: clamp(226px, calc(100vw - 82px), 268px);
+    width: clamp(226px, calc(100vw - 82px), 268px);
+    min-width: clamp(226px, calc(100vw - 82px), 268px);
+  }
+}
+
+@media (max-width: 340px) {
+  .listing-section__grid .listing-card {
+    flex-basis: 218px;
+    width: 218px;
+    min-width: 218px;
   }
 }

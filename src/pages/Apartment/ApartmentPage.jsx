@@ -435,7 +435,7 @@ function ApartmentPage({
                   <span>Refundable caution Fee</span>
                   <strong>{cautionFee.toLocaleString()}</strong>
                 </div>
-                <div>
+                <div className="apartment-payment-breakdown__row--toggle">
                   <span>Rock-point</span>
                   <strong>{rockPointValue.toLocaleString()}</strong>
                   <Toggle

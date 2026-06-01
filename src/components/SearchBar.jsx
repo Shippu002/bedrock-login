@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   FiCalendar,
   FiChevronDown,
+  FiHome,
   FiMinus,
   FiPlus,
   FiSearch,
@@ -15,8 +16,15 @@ const guestTypes = [
   { id: "adults", label: "Adults", hint: "Ages 13 or above" },
   { id: "children", label: "Children", hint: "Ages 2 -12" },
   { id: "infants", label: "Infants", hint: "Under 2 years old" },
-  { id: "pets", label: "Pets", hint: "Under 2 years old" },
 ];
+
+const initialGuestCounts = guestTypes.reduce(
+  (counts, guestType) => ({
+    ...counts,
+    [guestType.id]: 0,
+  }),
+  {},
+);
 
 function formatShortDate(value) {
   if (!value) return "";
@@ -38,6 +46,32 @@ function getResidenceFilterLabel(item) {
   return [item.title, item.location].filter(Boolean).join(" ");
 }
 
+function ResidenceThumbnail({ src, alt, className = "" }) {
+  const [hasImage, setHasImage] = useState(Boolean(src));
+
+  if (!hasImage) {
+    return (
+      <span
+        className={`residence-thumb-placeholder ${className}`.trim()}
+        role="img"
+        aria-label={alt}
+      >
+        <FiHome aria-hidden="true" />
+      </span>
+    );
+  }
+
+  return (
+    <AppImage
+      className={className}
+      src={src}
+      fallbackSrc=""
+      alt={alt}
+      onError={() => setHasImage(false)}
+    />
+  );
+}
+
 function SearchBar({
   onSearch,
   onResidenceSelect,
@@ -54,14 +88,12 @@ function SearchBar({
     checkIn: "",
     checkOut: "",
   });
-  const [guestCounts, setGuestCounts] = useState({
-    adults: 0,
-    children: 0,
-    infants: 0,
-    pets: 0,
-  });
+  const [guestCounts, setGuestCounts] = useState(initialGuestCounts);
 
-  const totalGuests = guestCounts.adults + guestCounts.children;
+  const totalGuests = guestTypes.reduce(
+    (total, guestType) => total + (Number(guestCounts[guestType.id]) || 0),
+    0,
+  );
   const selectedResidence =
     residenceOptions.find((item) => item.id === selectedResidenceId) || null;
   const selectedApartmentOptions =
@@ -112,7 +144,7 @@ function SearchBar({
   function updateGuestCount(id, direction) {
     setGuestCounts((currentCounts) => ({
       ...currentCounts,
-      [id]: Math.max(0, currentCounts[id] + direction),
+      [id]: Math.max(0, (Number(currentCounts[id]) || 0) + direction),
     }));
   }
 
@@ -177,12 +209,7 @@ function SearchBar({
     setSelectedResidenceId("");
     setSelectedApartment(null);
     setDateRange({ checkIn: "", checkOut: "" });
-    setGuestCounts({
-      adults: 0,
-      children: 0,
-      infants: 0,
-      pets: 0,
-    });
+    setGuestCounts(initialGuestCounts);
     onSearch?.({
       residenceId: "",
       apartmentTitle: "",
@@ -240,7 +267,10 @@ function SearchBar({
             className={!selectedResidenceId ? "is-active" : ""}
             onClick={handleAllResidencesClick}
           >
-            <AppImage src={residenceOptions[0]?.image} fallbackSrc="" alt="" />
+            <ResidenceThumbnail
+              src={residenceOptions[0]?.image}
+              alt="All residences"
+            />
             <span>All</span>
           </button>
 
@@ -251,7 +281,10 @@ function SearchBar({
               onClick={() => handleResidenceClick(item.id)}
               key={item.id}
             >
-              <AppImage src={item.image} fallbackSrc="" alt="" />
+              <ResidenceThumbnail
+                src={item.image}
+                alt={`${item.title} residence`}
+              />
               <span>{getShortResidenceLabel(item.title)}</span>
             </button>
             ))}
@@ -295,7 +328,10 @@ function SearchBar({
                       onClick={() => handleMobileResidenceSelect(item.id)}
                       key={item.id}
                     >
-                      <AppImage src={item.image} fallbackSrc="" alt="" />
+                      <ResidenceThumbnail
+                        src={item.image}
+                        alt={`${item.title} residence`}
+                      />
                       <span>{getResidenceFilterLabel(item)}</span>
                     </button>
                   ))}
@@ -448,7 +484,10 @@ function SearchBar({
                     onClick={() => handleResidenceClick(item.id)}
                     key={item.title}
                   >
-                    <AppImage src={item.image} fallbackSrc="" alt="" />
+                    <ResidenceThumbnail
+                      src={item.image}
+                      alt={`${item.title} residence`}
+                    />
                     <span>
                       <strong>{item.title}</strong>
                       <em>{item.location}</em>

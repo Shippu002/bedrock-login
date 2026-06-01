@@ -22,7 +22,11 @@ function ResidenceMobileRow({ item, sectionTitle, onApartmentSelect }) {
       className="residence-mobile-row"
       onClick={() => onApartmentSelect?.(item)}
     >
-      <AppImage src={item.image} alt="" />
+      <AppImage
+        src={item.image}
+        alt={item.title}
+        className="residence-mobile-row__image"
+      />
 
       <span className="residence-mobile-row__body">
         <span className="residence-mobile-row__eyebrow">{sectionTitle}</span>
