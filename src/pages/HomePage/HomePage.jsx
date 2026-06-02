@@ -85,6 +85,14 @@ const PAYMENT_REFERENCE_QUERY_KEYS = [
   "payment_reference",
   "paymentReference",
 ];
+const DEBUG_FRONTEND_ERRORS = import.meta.env.VITE_DEBUG_AUTH === "true";
+
+function logFrontendError(...args) {
+  if (DEBUG_FRONTEND_ERRORS) {
+    console.error(...args);
+  }
+}
+
 const fallbackRequestItems = [
   {
     id: "quick-request",
@@ -329,13 +337,13 @@ async function verifyPaymentReference(context, reference) {
       }
     } catch (error) {
       lastError = error;
-      console.error("Order-specific payment verification failed", error);
+      logFrontendError("Order-specific payment verification failed", error);
     }
 
     try {
       return await paymentsApi.verifyPayment(reference);
     } catch (error) {
-      console.error("Shared payment verification failed", error);
+      logFrontendError("Shared payment verification failed", error);
       throw lastError || error;
     }
   }
@@ -842,7 +850,7 @@ function HomePage() {
         saveStoredAccount(hydratedUser);
       })
       .catch((error) => {
-        console.error("Unable to load current user profile", error);
+        logFrontendError("Unable to load current user profile", error);
       });
 
     return () => {
@@ -885,7 +893,7 @@ function HomePage() {
       } catch (error) {
         if (ignoreApartmentResponse) return;
 
-        console.error("Unable to load backend apartments", error);
+        logFrontendError("Unable to load backend apartments", error);
         setBackendListingSections([]);
         setBackendResidenceOptions([]);
         setBackendApartmentCategories([]);
@@ -1034,7 +1042,7 @@ function HomePage() {
       .catch((error) => {
         if (ignoreShopResponse) return;
 
-        console.error("Unable to load backend shop items", error);
+        logFrontendError("Unable to load backend shop items", error);
         setBackendShopItems({});
         setBackendShopFilters({});
         setShopLoadError(
@@ -1394,7 +1402,7 @@ function HomePage() {
       } catch (error) {
         if (ignorePaymentResponse) return;
 
-        console.error("Payment verification failed", error);
+        logFrontendError("Payment verification failed", error);
         clearPaymentReturnParams();
         showToast(
           error.message ||
@@ -1530,7 +1538,7 @@ function HomePage() {
       localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(nextUser));
       handleAuthComplete(nextUser);
     } catch (error) {
-      console.error(`${providerName} sign-in failed`, error);
+      logFrontendError(`${providerName} sign-in failed`, error);
       setSocialAuthError(getSocialAuthErrorMessage(error, providerName));
     } finally {
       setSocialAuthProvider("");
@@ -1664,7 +1672,7 @@ function HomePage() {
 
       setSelectedApartment(nextApartment);
     } catch (error) {
-      console.error("Unable to load apartment details", error);
+      logFrontendError("Unable to load apartment details", error);
     }
   }
 
@@ -1702,7 +1710,7 @@ function HomePage() {
         buildListingSectionsFromApartments(extractCollection(response)),
       );
     } catch (error) {
-      console.error("Unable to filter backend apartments", error);
+      logFrontendError("Unable to filter backend apartments", error);
       setBackendListingSections([]);
       setApartmentLoadError(
         error.message || "Unable to filter apartments from the backend.",
@@ -2520,7 +2528,7 @@ function HomePage() {
     try {
       await authApi.logout();
     } catch (error) {
-      console.error("Logout failed", error);
+      logFrontendError("Logout failed", error);
     }
 
     clearAuthToken();
@@ -2907,7 +2915,7 @@ function HomePage() {
 
         bookingToStore = normalizeBackendBooking(response, nextBooking);
       } catch (error) {
-        console.error("Backend booking creation failed", error);
+        logFrontendError("Backend booking creation failed", error);
         showToast(
           error.message || "Could not create your booking. Please try again.",
           "error",
