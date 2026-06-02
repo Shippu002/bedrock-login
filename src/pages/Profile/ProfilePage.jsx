@@ -39,6 +39,7 @@ import {
 } from "react-icons/fa6";
 import bedrockLogo from "../../assets/bedrock-logo.svg";
 import AppImage from "../../components/AppImage";
+import { mergeLegalDocuments } from "../../data/legalDocuments";
 import { shopCategories } from "../../data/shopCategories";
 import { useDialogFocus } from "../../hooks/useDialogFocus";
 import {
@@ -75,13 +76,6 @@ const sidebarItems = [
   { id: "help", label: "Help Center", icon: FiHelpCircle },
 ];
 
-const legalItems = [
-  { id: "terms", title: "Terms of service" },
-  { id: "cancellation", title: "Cancellation policy" },
-  { id: "refund", title: "Refund policy" },
-  { id: "privacy", title: "Privacy Policy" },
-];
-
 const fallbackEarnRules = [
   {
     id: "rock-coin-apartment-price",
@@ -101,6 +95,10 @@ const socials = [
   { label: "Instagram", icon: FaInstagram },
   { label: "Linkedin", icon: FaLinkedinIn },
 ];
+
+// Production currently returns 404 for the documented order-cancel route.
+// Restore this action only after the backend confirms a deployed contract.
+const ORDER_CANCELLATION_AVAILABLE = false;
 
 function getPathValue(source, path) {
   return String(path || "")
@@ -435,6 +433,7 @@ function normalizeLink(url) {
   if (!value) return "";
   if (/^https?:\/\//i.test(value)) return value;
   if (/^mailto:|^tel:/i.test(value)) return value;
+  if (value.startsWith("/")) return `https://www.bedrockresidences.com${value}`;
 
   return `https://${value}`;
 }
@@ -1754,28 +1753,30 @@ function OrderCard({ order, onCancelOrder }) {
           <b>{order.id}</b>
         </div>
 
-        <div className="order-card__actions">
-          {canCancel ? (
-            <button
-              type="button"
-              className="profile-outline-button order-card__cancel"
-              onClick={handleCancelOrder}
-              disabled={isCancelling}
-            >
-              {isCancelling ? "Cancelling..." : "Cancel order"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="profile-outline-button order-card__cancel"
-              disabled
-            >
-              {status === "cancelled" || status === "canceled"
-                ? "Order cancelled"
-                : "Cannot cancel"}
-            </button>
-          )}
-        </div>
+        {ORDER_CANCELLATION_AVAILABLE && (
+          <div className="order-card__actions">
+            {canCancel ? (
+              <button
+                type="button"
+                className="profile-outline-button order-card__cancel"
+                onClick={handleCancelOrder}
+                disabled={isCancelling}
+              >
+                {isCancelling ? "Cancelling..." : "Cancel order"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="profile-outline-button order-card__cancel"
+                disabled
+              >
+                {status === "cancelled" || status === "canceled"
+                  ? "Order cancelled"
+                  : "Cannot cancel"}
+              </button>
+            )}
+          </div>
+        )}
 
         {actionMessage && (
           <p
@@ -2011,9 +2012,13 @@ function ChangePasswordView({ onBack, onPasswordChange }) {
   );
 }
 
-function PolicyDetail({ title, body, url, onBack }) {
-  const documentUrl = normalizeLink(url);
-  const paragraphs = body ? String(body).split(/\n{2,}/) : [];
+function PolicyDetail({ title, body, description, sections = [], onBack }) {
+  const paragraphs = body
+    ? String(body)
+        .split(/\n{2,}/)
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean)
+    : [];
 
   return (
     <section className="profile-panel profile-panel--plain policy-detail">
@@ -2026,33 +2031,31 @@ function PolicyDetail({ title, body, url, onBack }) {
 
       <h1>{title}</h1>
 
-      {documentUrl ? (
-        <div className="policy-document-shell">
-          <iframe
-            src={documentUrl}
-            title={title || "Legal document"}
-            className="policy-document-frame"
-          />
-        </div>
-      ) : paragraphs.length > 0 ? (
-        paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)
-      ) : (
-        <EmptyState
-          title="Document unavailable"
-          message="The backend has not returned content for this document yet."
-        />
-      )}
+      {description && <p className="policy-detail__intro">{description}</p>}
 
-      {documentUrl && (
-        <a
-          className="policy-link"
-          href={documentUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Open in browser
-          <FiExternalLink />
-        </a>
+      {paragraphs.map((paragraph, index) => (
+        <p key={`${title}-${index}`}>{paragraph}</p>
+      ))}
+
+      {sections.map((section) => (
+        <section className="policy-detail__section" key={section.title}>
+          <h2>{section.title}</h2>
+          {section.body && <p>{section.body}</p>}
+          {Array.isArray(section.items) && section.items.length > 0 && (
+            <ul>
+              {section.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ))}
+
+      {!description && paragraphs.length === 0 && sections.length === 0 && (
+        <p>
+          This legal information is being prepared. Please contact Bedrock
+          support if you need assistance.
+        </p>
       )}
     </section>
   );
@@ -2060,9 +2063,7 @@ function PolicyDetail({ title, body, url, onBack }) {
 
 function LegalView({ onBack, legalDocuments = [] }) {
   const [selectedPolicy, setSelectedPolicy] = useState(null);
-  const visibleLegalItems = legalDocuments.length
-    ? legalDocuments
-    : legalItems.map((item) => ({ ...item, body: "", url: "" }));
+  const visibleLegalItems = mergeLegalDocuments(legalDocuments);
 
   if (selectedPolicy) {
     const activePolicy = visibleLegalItems.find(
@@ -2073,7 +2074,8 @@ function LegalView({ onBack, legalDocuments = [] }) {
       <PolicyDetail
         title={activePolicy?.title}
         body={activePolicy?.body}
-        url={activePolicy?.url}
+        description={activePolicy?.description}
+        sections={activePolicy?.sections}
         onBack={() => setSelectedPolicy(null)}
       />
     );
@@ -2092,9 +2094,9 @@ function LegalView({ onBack, legalDocuments = [] }) {
           >
             <span>
               <strong>{item.title}</strong>
-              {item.url && <em>{item.url}</em>}
+              <em>Read policy</em>
             </span>
-            {item.url ? <FiExternalLink /> : <FiChevronRight />}
+            <FiChevronRight />
           </button>
         ))}
       </div>
@@ -2788,7 +2790,7 @@ export default function ProfilePage({
         );
       case "privacy": {
         const privacyDocument = getLegalDocumentByType(
-          profileResources.legalDocuments,
+          mergeLegalDocuments(profileResources.legalDocuments),
           ["privacy"],
         );
 
@@ -2796,7 +2798,8 @@ export default function ProfilePage({
           <PolicyDetail
             title={privacyDocument?.title || "Privacy Policy"}
             body={privacyDocument?.body}
-            url={privacyDocument?.url}
+            description={privacyDocument?.description}
+            sections={privacyDocument?.sections}
             onBack={goBack}
           />
         );

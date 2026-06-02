@@ -451,12 +451,22 @@
   margin-top: 14px;
 }
 
-.apartment-policy-row p {
+.apartment-policy-row p,
+.apartment-policy-link {
   margin: 0;
   color: #667085;
   font-family: "Urbanist", Arial, sans-serif;
   font-size: 12px;
   line-height: 18px;
+}
+
+.apartment-policy-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .apartment-mobile-cta {
@@ -1269,7 +1279,8 @@
     margin-top: 12px;
   }
 
-  .apartment-policy-row p {
+  .apartment-policy-row p,
+  .apartment-policy-link {
     color: #475467;
     font-size: 12px;
     font-weight: 600;

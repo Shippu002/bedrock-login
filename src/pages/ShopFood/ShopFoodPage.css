@@ -277,13 +277,23 @@
 .shop-food-review__heading p,
 .shop-food-status-card p,
 .shop-food-status-card small,
-.shop-food-policy p {
+.shop-food-policy p,
+.shop-food-policy-link {
   margin: 0;
   color: #475467;
   font-family: "Urbanist", Arial, sans-serif;
   font-size: 12px;
   font-weight: 500;
   line-height: 17px;
+}
+
+.shop-food-policy-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .shop-food-card small,
@@ -1841,7 +1851,8 @@
     margin-top: 12px;
   }
 
-  .shop-food-policy p {
+  .shop-food-policy p,
+  .shop-food-policy-link {
     color: #475467;
     font-size: 12px;
     font-weight: 600;

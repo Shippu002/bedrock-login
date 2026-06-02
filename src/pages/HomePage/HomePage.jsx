@@ -11,6 +11,7 @@ import AuthModal from "../../components/AuthModal";
 import ProfilePage from "../Profile/ProfilePage";
 import ResidencePage from "../Residence/ResidencePage";
 import ApartmentPage from "../Apartment/ApartmentPage";
+import LegalPage from "../Legal/LegalPage";
 import ShopFoodPage from "../ShopFood/ShopFoodPage";
 import { decorateApartmentWithMedia } from "../../utils/apartmentMedia";
 import {
@@ -24,7 +25,6 @@ import {
 import {
   calculateFoodOrderTotals,
   createDefaultFoodOrderDetails,
-  createFoodOrderId,
 } from "../../utils/foodOrders";
 import {
   defaultApartmentFilters,
@@ -627,7 +627,7 @@ function createDefaultBookingDetails() {
     guests: 1,
     promo: "",
     paymentMethod: "card",
-    agreedToPolicy: true,
+    agreedToPolicy: false,
     useRockPoints: true,
   };
 }
@@ -748,6 +748,7 @@ function HomePage() {
   const [socialAuthProvider, setSocialAuthProvider] = useState("");
   const [socialAuthError, setSocialAuthError] = useState("");
   const [activePage, setActivePage] = useState("home");
+  const [selectedLegalDocumentId, setSelectedLegalDocumentId] = useState("");
   const [profileInitialView, setProfileInitialView] = useState("profile");
   const [selectedResidenceId, setSelectedResidenceId] = useState("opebi");
   const [apartmentFilters, setApartmentFilters] = useState(
@@ -1739,6 +1740,11 @@ function HomePage() {
     setActivePage("profile");
   }
 
+  function showLegal(documentId = "") {
+    setSelectedLegalDocumentId(documentId);
+    setActivePage("legal");
+  }
+
   function showFoodDetail(foodItem) {
     setSelectedFoodItem(foodItem);
     setFoodOrderDetails(createDefaultFoodOrderDetails());
@@ -2570,7 +2576,18 @@ function HomePage() {
       return;
     }
 
-    if (getAuthToken() && selectedApartment.backendId) {
+    if (!bookingDetails.agreedToPolicy) {
+      showToast("Agree to the residence and cancellation policy to continue.", "error");
+      return;
+    }
+
+    if (!getAuthToken()) {
+      showToast("Your secure session has expired. Please log in again before paying.", "error");
+      openLogin();
+      return;
+    }
+
+    if (selectedApartment.backendId) {
       try {
         const createResponse = await bookingsApi.createBooking({
           apartmentId: selectedApartment.backendId,
@@ -2652,7 +2669,18 @@ function HomePage() {
       return;
     }
 
-    if (getAuthToken() && selectedFoodItem?.backendId) {
+    if (!foodOrderDetails.agreedToPolicy) {
+      showToast("Agree to the residence and cancellation policy to continue.", "error");
+      return;
+    }
+
+    if (!getAuthToken()) {
+      showToast("Your secure session has expired. Please log in again before ordering.", "error");
+      openLogin();
+      return;
+    }
+
+    if (selectedFoodItem?.backendId || shopVariant === "requests") {
       try {
         let createResponse;
         let payOrder;
@@ -2709,6 +2737,7 @@ function HomePage() {
               destination: foodOrderDetails.note || "Destination pending",
               pickupTime: foodOrderDetails.deliveryTime,
               notes: selectedFoodItem.description,
+              agreeTerms: foodOrderDetails.agreedToPolicy,
             });
           } else if (
             requestLabel.includes("bureau") ||
@@ -2720,6 +2749,7 @@ function HomePage() {
               currencyTo: "NGN",
               amount: selectedFoodItem.price || 1,
               notes: foodOrderDetails.note || selectedFoodItem.description,
+              agreeTerms: foodOrderDetails.agreedToPolicy,
             });
           } else {
             createResponse = await requestsApi.createQuickRequest({
@@ -2727,6 +2757,7 @@ function HomePage() {
               requestType: selectedFoodItem.title,
               description:
                 foodOrderDetails.note || selectedFoodItem.description,
+              agreeTerms: foodOrderDetails.agreedToPolicy,
             });
           }
         }
@@ -2805,6 +2836,12 @@ function HomePage() {
         showToast(message, "error");
         return;
       }
+    } else {
+      showToast(
+        "This item is not available from the backend yet. Please choose another item.",
+        "error",
+      );
+      return;
     }
 
     setActivePage("foodStatus");
@@ -2850,6 +2887,12 @@ function HomePage() {
     };
     let bookingToStore = pendingBooking || nextBooking;
 
+    if (selectedApartment.backendId && !pendingBooking && !getAuthToken()) {
+      showToast("Your secure session has expired. Please log in again before confirming.", "error");
+      openLogin();
+      return;
+    }
+
     if (!pendingBooking && getAuthToken() && selectedApartment.backendId) {
       try {
         const response = await bookingsApi.createBooking({
@@ -2866,9 +2909,10 @@ function HomePage() {
       } catch (error) {
         console.error("Backend booking creation failed", error);
         showToast(
-          "Booking saved locally, but backend booking sync failed.",
+          error.message || "Could not create your booking. Please try again.",
           "error",
         );
+        return;
       }
     }
 
@@ -2898,6 +2942,14 @@ function HomePage() {
       return;
     }
 
+    if (!pendingOrder) {
+      showToast(
+        "Your order has not been confirmed by the backend yet. Please try again.",
+        "error",
+      );
+      return;
+    }
+
     if (selectedFoodItem) {
       const totals = calculateFoodOrderTotals(
         selectedFoodItem.price,
@@ -2905,22 +2957,13 @@ function HomePage() {
         foodOrderDetails.useRockPoints,
       );
 
-      const nextOrder = pendingOrder || {
-        id: createFoodOrderId(),
-        title: selectedFoodItem.title,
-        category: shopVariant,
-        image: selectedFoodItem.detailImage || selectedFoodItem.image,
-        apartmentNumber: foodOrderDetails.apartmentNumber,
-        deliveryTime: foodOrderDetails.deliveryTime,
-        guests: foodOrderDetails.guests,
-        note: foodOrderDetails.note,
-        unitPrice: selectedFoodItem.price,
-        subtotal: totals.subtotal,
-        taxesAndFees: totals.taxesAndFees,
-        cautionFee: totals.cautionFee,
-        rockPointValue: totals.rockPointValue,
-        totalAmount: totals.payable,
-        createdAt: new Date().toISOString(),
+      const nextOrder = {
+        ...pendingOrder,
+        subtotal: pendingOrder.subtotal ?? totals.subtotal,
+        taxesAndFees: pendingOrder.taxesAndFees ?? totals.taxesAndFees,
+        cautionFee: pendingOrder.cautionFee ?? totals.cautionFee,
+        rockPointValue: pendingOrder.rockPointValue ?? totals.rockPointValue,
+        totalAmount: pendingOrder.totalAmount ?? totals.payable,
       };
 
       updateCurrentUser((current) => {
@@ -3016,7 +3059,14 @@ function HomePage() {
               />
             )}
 
-            {activePage === "residence" ? (
+            {activePage === "legal" ? (
+              <LegalPage
+                key={selectedLegalDocumentId || "legal-index"}
+                legalDocuments={profileResources.legalDocuments}
+                initialDocumentId={selectedLegalDocumentId}
+                onBack={showHome}
+              />
+            ) : activePage === "residence" ? (
               <ResidencePage
                 residenceId={selectedResidenceId}
                 filters={apartmentFilters}
@@ -3037,6 +3087,7 @@ function HomePage() {
                 onBookingChange={handleBookingChange}
                 onOpenPayment={openPaymentStep}
                 onBackToListings={showApartmentReturnPage}
+                onOpenPolicy={() => showLegal("cancellation")}
                 backLabel={
                   apartmentReturnPage === "residence"
                     ? "Back to residence"
@@ -3054,6 +3105,7 @@ function HomePage() {
                 onBookingChange={handleBookingChange}
                 onPaymentContinue={openPendingStep}
                 onBackToApartment={() => setActivePage("apartment")}
+                onOpenPolicy={() => showLegal("cancellation")}
                 backLabel="Back to apartment"
               />
             ) : activePage === "pending" ? (
@@ -3108,6 +3160,7 @@ function HomePage() {
                     shopVariant === "food" ? "foodReview" : "foodPayment",
                   )
                 }
+                onOpenPolicy={() => showLegal("cancellation")}
               />
             ) : activePage === "foodReview" ? (
               <ShopFoodPage
@@ -3122,6 +3175,7 @@ function HomePage() {
                 onOrderChange={handleFoodOrderChange}
                 onBackToFood={() => setActivePage("foodDetail")}
                 onProceedToPayment={() => setActivePage("foodPayment")}
+                onOpenPolicy={() => showLegal("cancellation")}
               />
             ) : activePage === "foodPayment" ? (
               <ShopFoodPage
@@ -3140,6 +3194,7 @@ function HomePage() {
                   )
                 }
                 onPaymentContinue={openFoodStatusStep}
+                onOpenPolicy={() => showLegal("cancellation")}
               />
             ) : activePage === "foodStatus" ? (
               <ShopFoodPage
@@ -3191,6 +3246,7 @@ function HomePage() {
             legalDocuments={profileResources.legalDocuments}
             onResidenceSelect={showResidence}
             onProfileView={showProfile}
+            onLegalSelect={showLegal}
           />
         </>
       )}

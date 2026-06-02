@@ -61,6 +61,9 @@ export function normalizeBackendUser(response, fallback = {}) {
       user.is_verified ??
       user.email_verified ??
       user.isVerified ??
+      user.emailVerified ??
+      (user.email_verified_at ? true : undefined) ??
+      (user.verified_at ? true : undefined) ??
       fallback.isVerified ??
       false,
     messages: Array.isArray(user.messages)

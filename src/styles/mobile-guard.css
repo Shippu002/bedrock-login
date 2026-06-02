@@ -182,6 +182,9 @@ html {
   .auth-modal--welcome {
     width: calc(100vw - 20px) !important;
     max-width: calc(100vw - 20px) !important;
+    max-height: calc(var(--auth-viewport-height, 100dvh) - 36px) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
   }
 
   .auth-modal--login,
@@ -189,7 +192,7 @@ html {
   .auth-modal--agent,
   .auth-modal--compact,
   .auth-modal--wide {
-    padding: 0 clamp(14px, 4.5vw, 22px) 20px !important;
+    padding: 0 clamp(12px, 4vw, 18px) 14px !important;
     border-radius: 0 !important;
     background: #f2f3f5 !important;
     box-shadow: none !important;
@@ -199,7 +202,7 @@ html {
   .auth-modal--signup .auth-close--mobile-back,
   .auth-modal--agent .auth-close--mobile-back {
     min-height: 44px !important;
-    margin: 0 0 18px !important;
+    margin: 0 0 12px !important;
     padding: 0 16px 0 12px !important;
     border-radius: 999px !important;
     font-size: 16px !important;
@@ -207,29 +210,29 @@ html {
 
   .auth-modal--login .auth-login__title {
     margin-bottom: 8px !important;
-    font-size: clamp(28px, 8vw, 34px) !important;
+    font-size: clamp(24px, 7vw, 30px) !important;
     line-height: 1.08 !important;
   }
 
   .auth-modal--login .auth-login__subtitle {
-    margin-bottom: 22px !important;
-    font-size: 15px !important;
+    margin-bottom: 12px !important;
+    font-size: 13px !important;
     line-height: 1.45 !important;
   }
 
   .auth-login__card,
   .auth-modal--signup .auth-form,
   .auth-modal--agent .auth-agent {
-    gap: 14px !important;
-    padding: 20px 16px !important;
-    border-radius: 20px !important;
+    gap: 9px !important;
+    padding: 14px 12px !important;
+    border-radius: 18px !important;
     background: #ffffff !important;
     box-shadow: 0 12px 30px rgba(16, 25, 40, 0.04) !important;
   }
 
   .auth-modal--login .auth-label,
   .auth-modal--signup .auth-label {
-    font-size: 15px !important;
+    font-size: 13px !important;
     line-height: 1.25 !important;
   }
 
@@ -243,9 +246,9 @@ html {
   .auth-modal--login .auth-password__input-wrap input,
   .auth-modal--signup .auth-input-wrap input,
   .auth-modal--signup .auth-select-wrap select {
-    min-height: 52px !important;
-    padding-inline: 16px !important;
-    border-radius: 15px !important;
+    min-height: 46px !important;
+    padding-inline: 14px !important;
+    border-radius: 13px !important;
     font-size: 16px !important;
   }
 
@@ -265,27 +268,27 @@ html {
   }
 
   .auth-modal--login .auth-login__forgot {
-    margin: 0 0 6px 8px !important;
-    font-size: 15px !important;
+    margin: 0 0 2px 6px !important;
+    font-size: 13px !important;
   }
 
   .auth-modal--login .auth-primary-button,
   .auth-modal--signup .auth-primary-button {
-    min-height: 54px !important;
+    min-height: 46px !important;
     border-radius: 14px !important;
-    font-size: 17px !important;
+    font-size: 15px !important;
   }
 
   .auth-modal--login .auth-social-button,
   .auth-modal--signup .auth-social-button {
-    min-height: 48px !important;
-    border-radius: 13px !important;
-    font-size: 14px !important;
+    min-height: 44px !important;
+    border-radius: 12px !important;
+    font-size: 13px !important;
   }
 
   .auth-modal--login .auth-login__footer,
   .auth-modal--signup .auth-footer {
-    font-size: 14px !important;
+    font-size: 13px !important;
     line-height: 1.4 !important;
   }
 
@@ -337,6 +340,11 @@ html {
   }
 
   .auth-modal--login .auth-login__title {
-    font-size: 27px !important;
+    font-size: 25px !important;
+  }
+
+  .auth-phone-row {
+    grid-template-columns: minmax(78px, 90px) minmax(0, 1fr) !important;
+    gap: 6px !important;
   }
 }

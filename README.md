@@ -1,16 +1,40 @@
-# React + Vite
+# Bedrock Residences Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React and Vite frontend for browsing Bedrock residences, booking apartments,
+ordering guest services and managing a guest profile.
 
-Currently, two official plugins are available:
+## Local setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+cp .env.example .env
+npm run dev
+```
 
-## React Compiler
+The API base URL is configured with:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+VITE_API_BASE_URL=https://api.bedrockresidences.com/api/v1
+```
 
-## Expanding the ESLint configuration
+Keep `.env.example` in version control as deployment documentation. Real
+credentials belong only in `.env`, which is ignored by git.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Firebase social sign-in is optional until the Firebase web app values and
+Google/Apple providers are configured. The required variables are documented
+in `.env.example`.
+
+## Verification
+
+```bash
+npm run lint
+npm run build
+```
+
+`public/_redirects` provides the Netlify SPA fallback. For Vercel or another
+host, configure the equivalent fallback to `/index.html`.
+
+## API audit
+
+See [API_AUDIT.md](./API_AUDIT.md) for the frontend endpoint inventory and the
+remaining backend confirmations.

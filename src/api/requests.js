@@ -1,7 +1,7 @@
 import { apiClient, withQuery } from "./client";
 
 export function getQuickRequestTypes() {
-  return apiClient.get("/requests/quick-request-types", { skipAuth: true });
+  return apiClient.get("/requests/quick-request-types");
 }
 
 export function createQuickRequest(data = {}) {
@@ -9,7 +9,7 @@ export function createQuickRequest(data = {}) {
     booking_id: data.bookingId || data.booking_id,
     request_type: data.requestType || data.request_type,
     description: data.description,
-    agree_terms: data.agreeTerms ?? data.agree_terms ?? true,
+    agree_terms: data.agreeTerms ?? data.agree_terms ?? false,
   });
 }
 
@@ -19,7 +19,7 @@ export function createChauffeurRequest(data = {}) {
     destination: data.destination,
     pickup_time: data.pickupTime || data.pickup_time,
     notes: data.notes || data.note || "",
-    agree_terms: data.agreeTerms ?? data.agree_terms ?? true,
+    agree_terms: data.agreeTerms ?? data.agree_terms ?? false,
   });
 }
 
@@ -34,7 +34,7 @@ export function createBureauDeChangeRequest(data = {}) {
     currency_to: data.currencyTo || data.currency_to,
     amount: data.amount,
     notes: data.notes || data.note || "",
-    agree_terms: data.agreeTerms ?? data.agree_terms ?? true,
+    agree_terms: data.agreeTerms ?? data.agree_terms ?? false,
   });
 }
 

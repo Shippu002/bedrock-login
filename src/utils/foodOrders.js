@@ -20,7 +20,7 @@ export function createDefaultFoodOrderDetails() {
     guests: 1,
     note: "",
     paymentMethod: "card",
-    agreedToPolicy: true,
+    agreedToPolicy: false,
     useRockPoints: true,
   };
 }
@@ -66,8 +66,4 @@ export function formatFoodDeliveryTime(value) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
-}
-
-export function createFoodOrderId() {
-  return `FD${Math.floor(100000 + Math.random() * 900000)}`;
 }

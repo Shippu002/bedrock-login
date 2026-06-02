@@ -120,6 +120,22 @@ function Toggle({ checked, onClick }) {
   );
 }
 
+function PolicyAgreementText({ onOpenPolicy }) {
+  if (!onOpenPolicy) {
+    return <p>I agree to residence &amp; cancellation policy</p>;
+  }
+
+  return (
+    <button
+      type="button"
+      className="apartment-policy-link"
+      onClick={onOpenPolicy}
+    >
+      I agree to residence &amp; cancellation policy
+    </button>
+  );
+}
+
 function ApartmentPage({
   mode,
   apartment,
@@ -135,6 +151,7 @@ function ApartmentPage({
   quote,
   isInitiallySaved = false,
   onToggleFavorite,
+  onOpenPolicy,
   backLabel,
 }) {
   const [selectedGalleryImage, setSelectedGalleryImage] = useState({
@@ -466,7 +483,7 @@ function ApartmentPage({
               </button>
 
               <div className="apartment-policy-row apartment-policy-row--compact">
-                <p>I agree to residence &amp; cancellation policy</p>
+                <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
                 <Toggle
                   checked={bookingDetails.agreedToPolicy}
                   onClick={() =>
@@ -825,7 +842,7 @@ function ApartmentPage({
             </button>
 
             <div className="apartment-policy-row">
-              <p>I agree to residence &amp; cancellation policy</p>
+              <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
               <Toggle
                 checked={bookingDetails.agreedToPolicy}
                 onClick={() =>

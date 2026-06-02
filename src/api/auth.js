@@ -102,20 +102,20 @@ export async function registerAgent(data) {
   return postRegister(authEndpoints.agentRegister, data, "agent");
 }
 
-export async function verifyOtp(email, otp, type = "email_verification") {
+export async function verifyOtp(email, otp) {
   const response = await apiClient.post(
     authEndpoints.verifyOtp,
-    { email, otp, type },
+    { email, otp },
     { skipAuth: true },
   );
 
   return persistTokenFromResponse(response);
 }
 
-export function resendOtp(email, type = "email_verification") {
+export function resendOtp(email) {
   return apiClient.post(
     authEndpoints.resendOtp,
-    { email, type },
+    { email, type: "email_verification" },
     { skipAuth: true },
   );
 }

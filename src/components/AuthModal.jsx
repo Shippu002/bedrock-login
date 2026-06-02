@@ -44,7 +44,6 @@ import "../styles/auth-modal.css";
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
 const AUTH_DEBUG_ENABLED =
   import.meta.env.VITE_DEBUG_AUTH === "true";
-const EMAIL_VERIFICATION_OTP_TYPE = "email_verification";
 
 const initialFormData = {
   fullName: "",
@@ -742,7 +741,7 @@ export default function AuthModal({
   }
 
   function resetModalState() {
-    setSelectedCountryId("US");
+    setSelectedCountryId("NG");
     setSignupMode(isAgentSignup ? "agent" : "guest");
     setFormData(initialFormData);
     setLoginData(initialLoginData);
@@ -875,10 +874,9 @@ export default function AuthModal({
         mode: signupMode,
         endpoint: authApi.authEndpoints.resendOtp,
         email: getSignupEmail(),
-        type: EMAIL_VERIFICATION_OTP_TYPE,
       });
 
-      await authApi.resendOtp(getSignupEmail(), EMAIL_VERIFICATION_OTP_TYPE);
+      await authApi.resendOtp(getSignupEmail());
     } catch (error) {
       setOtpErrorMessage(
         error.message ||
@@ -907,15 +905,10 @@ export default function AuthModal({
         mode: signupMode,
         endpoint: authApi.authEndpoints.verifyOtp,
         email: getSignupEmail(),
-        type: EMAIL_VERIFICATION_OTP_TYPE,
         otpLength: otpCode.length,
       });
 
-      const response = await authApi.verifyOtp(
-        getSignupEmail(),
-        otpCode,
-        EMAIL_VERIFICATION_OTP_TYPE,
-      );
+      const response = await authApi.verifyOtp(getSignupEmail(), otpCode);
       setPendingSessionUser((currentUser) =>
         normalizeBackendUser(response, currentUser || buildRegisteredUser()),
       );
@@ -937,10 +930,9 @@ export default function AuthModal({
         mode: signupMode,
         endpoint: authApi.authEndpoints.resendOtp,
         email: getSignupEmail(),
-        type: EMAIL_VERIFICATION_OTP_TYPE,
       });
 
-      await authApi.resendOtp(getSignupEmail(), EMAIL_VERIFICATION_OTP_TYPE);
+      await authApi.resendOtp(getSignupEmail());
     } catch (error) {
       setOtpErrorMessage(error.message || "Unable to resend OTP.");
     } finally {

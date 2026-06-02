@@ -9,7 +9,7 @@ export function createBooking(data = {}) {
     special_requests: data.specialRequests || data.special_requests || "",
     coupon_code: data.couponCode || data.coupon_code || null,
     use_rock_points: Boolean(data.useRockPoints || data.use_rock_points),
-    agree_to_policies: data.agreeToPolicies ?? data.agree_to_policies ?? true,
+    agree_to_policies: data.agreeToPolicies ?? data.agree_to_policies ?? false,
   });
 }
 
@@ -51,7 +51,7 @@ export function getExtensionSummary(bookingId, newCheckOutDate) {
 export function extendBooking(bookingId, data = {}) {
   return apiClient.post(`/bookings/${bookingId}/extend`, {
     new_check_out_date: data.newCheckOutDate || data.new_check_out_date,
-    agree_to_policies: data.agreeToPolicies ?? data.agree_to_policies ?? true,
+    agree_to_policies: data.agreeToPolicies ?? data.agree_to_policies ?? false,
   });
 }
 

@@ -1,4 +1,8 @@
 import bedrockLogo from "../assets/bedrock-logo.svg";
+import {
+  getLegalDocumentKey,
+  mergeLegalDocuments,
+} from "../data/legalDocuments";
 import "../styles/footer.css";
 
 const defaultSocialLinks = [
@@ -10,9 +14,10 @@ const defaultSocialLinks = [
 ];
 
 const defaultLegalLinks = [
-  { label: "Legal Notice", type: "profile", value: "legal" },
-  { label: "Privacy Policy", type: "profile", value: "privacy" },
-  { label: "Terms of Use", type: "profile", value: "legal" },
+  { label: "Terms of service", type: "legal", value: "terms" },
+  { label: "Cancellation policy", type: "legal", value: "cancellation" },
+  { label: "Refund policy", type: "legal", value: "refund" },
+  { label: "Privacy policy", type: "legal", value: "privacy" },
 ];
 
 const baseFooterColumns = [
@@ -83,32 +88,15 @@ function getFooterSocialLinks(helpInfo) {
 }
 
 function getFooterLegalLinks(legalDocuments = []) {
-  if (!Array.isArray(legalDocuments) || legalDocuments.length === 0) {
-    return defaultLegalLinks;
-  }
+  const documents = mergeLegalDocuments(legalDocuments);
 
-  return legalDocuments.map((document) => {
-    const label = document.title || document.name || "Legal document";
-    const href = normalizeLink(document.url);
-    const documentKey = [
-      document.id,
-      document.type,
-      document.title,
-      document.raw?.slug,
-      document.raw?.type,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
+  if (documents.length === 0) return defaultLegalLinks;
 
-    return href
-      ? { label, href }
-      : {
-          label,
-          type: "profile",
-          value: documentKey.includes("privacy") ? "privacy" : "legal",
-        };
-  });
+  return documents.map((document) => ({
+    label: document.title || document.name || "Legal document",
+    type: "legal",
+    value: getLegalDocumentKey(document),
+  }));
 }
 
 function Footer({
@@ -116,6 +104,7 @@ function Footer({
   legalDocuments = [],
   onResidenceSelect,
   onProfileView,
+  onLegalSelect,
 }) {
   const footerColumns = baseFooterColumns.map((column) => {
     if (column.title === "Social") {
@@ -141,6 +130,11 @@ function Footer({
 
     if (link.type === "profile") {
       onProfileView?.(link.value);
+      return;
+    }
+
+    if (link.type === "legal") {
+      onLegalSelect?.(link.value);
     }
   }
 

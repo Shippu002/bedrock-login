@@ -214,6 +214,22 @@ function Toggle({ checked, onClick }) {
   );
 }
 
+function PolicyAgreementText({ onOpenPolicy }) {
+  if (!onOpenPolicy) {
+    return <p>I agree to residence &amp; cancellation policy</p>;
+  }
+
+  return (
+    <button
+      type="button"
+      className="shop-food-policy-link"
+      onClick={onOpenPolicy}
+    >
+      I agree to residence &amp; cancellation policy
+    </button>
+  );
+}
+
 function Rating({ value }) {
   return (
     <span className="shop-food-rating">
@@ -418,6 +434,7 @@ function ShopCheckoutCard({
   onCancel,
   onQuantityChange,
   onTogglePolicy,
+  onOpenPolicy,
   primaryDisabled = false,
   showCancel = false,
   showPolicy = false,
@@ -499,7 +516,7 @@ function ShopCheckoutCard({
 
       {showPolicy && (
         <div className="shop-food-policy">
-          <p>I agree to residence &amp; cancellation policy</p>
+          <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
           <Toggle
             checked={orderDetails.agreedToPolicy}
             onClick={onTogglePolicy}
@@ -527,6 +544,7 @@ export default function ShopFoodPage({
   onBackToReview,
   onPaymentContinue,
   onFinishOrder,
+  onOpenPolicy,
 }) {
   const [filterState, setFilterState] = useState({
     variant: "food",
@@ -570,7 +588,7 @@ export default function ShopFoodPage({
     guests: 1,
     note: "",
     paymentMethod: "card",
-    agreedToPolicy: true,
+    agreedToPolicy: false,
     useRockPoints: true,
     ...orderDetails,
   };
@@ -766,7 +784,7 @@ export default function ShopFoodPage({
                 </button>
 
                 <div className="shop-food-policy">
-                  <p>I agree to residence &amp; cancellation policy</p>
+                  <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
                   <Toggle
                     checked={safeOrderDetails.agreedToPolicy}
                     onClick={() =>
@@ -865,7 +883,7 @@ export default function ShopFoodPage({
               </button>
 
               <div className="shop-food-policy">
-                <p>I agree to residence &amp; cancellation policy</p>
+                <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
                 <Toggle
                   checked={safeOrderDetails.agreedToPolicy}
                   onClick={() =>
@@ -924,6 +942,7 @@ export default function ShopFoodPage({
                 onTogglePolicy={() =>
                   updateOrder("agreedToPolicy", !safeOrderDetails.agreedToPolicy)
                 }
+                onOpenPolicy={onOpenPolicy}
                 primaryDisabled={pendingAction === "payment"}
                 showPolicy
               />
@@ -1004,7 +1023,7 @@ export default function ShopFoodPage({
                 </button>
 
                 <div className="shop-food-policy">
-                  <p>I agree to residence &amp; cancellation policy</p>
+                  <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
                   <Toggle
                     checked={safeOrderDetails.agreedToPolicy}
                     onClick={() =>
