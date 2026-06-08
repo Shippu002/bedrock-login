@@ -77,6 +77,7 @@ function SearchBar({
   onResidenceSelect,
   residences = [],
   apartmentCategories = [],
+  shopCategories = [],
   isLoading = false,
 }) {
   const residenceOptions = residences;
@@ -89,6 +90,7 @@ function SearchBar({
     checkOut: "",
   });
   const [guestCounts, setGuestCounts] = useState(initialGuestCounts);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const totalGuests = guestTypes.reduce(
     (total, guestType) => total + (Number(guestCounts[guestType.id]) || 0),
@@ -115,17 +117,68 @@ function SearchBar({
   const mobileFilterRef = useDialogFocus(isMobileFilterOpen, {
     onClose: closeMobileFilter,
   });
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const searchSuggestions = normalizedSearchQuery
+    ? [
+        ...residenceOptions.map((residence) => ({
+          id: `residence-${residence.id}`,
+          label: residence.title,
+          meta: residence.location || "Residence",
+          query: residence.title,
+          icon: "residence",
+        })),
+        ...selectedApartmentOptions.map((apartment) => ({
+          id: `apartment-${apartment}`,
+          label: apartment,
+          meta: selectedResidence?.title || "Apartment type",
+          query: [selectedResidence?.title, apartment].filter(Boolean).join(" "),
+          icon: "apartment",
+        })),
+        ...shopCategories.map((category) => ({
+          id: `shop-${category.id}`,
+          label: category.title,
+          meta: category.location || "Shop",
+          query: category.title,
+          icon: "shop",
+        })),
+      ]
+        .filter((item) =>
+          [item.label, item.meta, item.query]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .includes(normalizedSearchQuery),
+        )
+        .slice(0, 6)
+    : [];
 
-  function handleSubmit(event) {
-    event.preventDefault();
-    setOpenPanel(null);
-    onSearch?.({
+  function buildSearchPayload(overrides = {}) {
+    return {
       residenceId: selectedResidenceId,
       apartmentTitle: selectedApartment || "",
       checkIn: dateRange.checkIn,
       checkOut: dateRange.checkOut,
       guests: totalGuests,
-    });
+      query: searchQuery.trim(),
+      ...overrides,
+    };
+  }
+
+  function handleSubmit(event) {
+    event.preventDefault();
+    setOpenPanel(null);
+    onSearch?.(buildSearchPayload());
+  }
+
+  function handleSuggestionClick(suggestion) {
+    setSearchQuery(suggestion.query);
+    setOpenPanel(null);
+    setIsMobileFilterOpen(false);
+    onSearch?.(
+      buildSearchPayload({
+        query: suggestion.query,
+      }),
+    );
   }
 
   function togglePanel(panel) {
@@ -156,6 +209,8 @@ function SearchBar({
   }
 
   function handleResidenceClick(residenceId) {
+    setSearchQuery("");
+
     if (shouldOpenResidencePage() && onResidenceSelect) {
       setOpenPanel(null);
       onResidenceSelect(residenceId);
@@ -169,6 +224,7 @@ function SearchBar({
   }
 
   function handleMobileResidenceSelect(residenceId) {
+    setSearchQuery("");
     setSelectedResidenceId((currentResidenceId) =>
       currentResidenceId === residenceId ? "" : residenceId,
     );
@@ -176,6 +232,7 @@ function SearchBar({
   }
 
   function handleApartmentClick(apartment) {
+    setSearchQuery("");
     setSelectedApartment(apartment);
     setOpenPanel(null);
   }
@@ -183,40 +240,39 @@ function SearchBar({
   function handleAllResidencesClick() {
     setSelectedResidenceId("");
     setSelectedApartment(null);
+    setSearchQuery("");
     setOpenPanel(null);
-    onSearch?.({
-      residenceId: "",
-      apartmentTitle: "",
-      checkIn: dateRange.checkIn,
-      checkOut: dateRange.checkOut,
-      guests: totalGuests,
-    });
+    onSearch?.(
+      buildSearchPayload({
+        residenceId: "",
+        apartmentTitle: "",
+        query: "",
+      }),
+    );
   }
 
   function handleMobileFilterSearch() {
     setOpenPanel(null);
     setIsMobileFilterOpen(false);
-    onSearch?.({
-      residenceId: selectedResidenceId,
-      apartmentTitle: selectedApartment || "",
-      checkIn: dateRange.checkIn,
-      checkOut: dateRange.checkOut,
-      guests: totalGuests,
-    });
+    onSearch?.(buildSearchPayload());
   }
 
   function handleMobileFilterClear() {
     setSelectedResidenceId("");
     setSelectedApartment(null);
+    setSearchQuery("");
     setDateRange({ checkIn: "", checkOut: "" });
     setGuestCounts(initialGuestCounts);
-    onSearch?.({
-      residenceId: "",
-      apartmentTitle: "",
-      checkIn: "",
-      checkOut: "",
-      guests: 0,
-    });
+    onSearch?.(
+      buildSearchPayload({
+        residenceId: "",
+        apartmentTitle: "",
+        checkIn: "",
+        checkOut: "",
+        guests: 0,
+        query: "",
+      }),
+    );
   }
 
   function updateDateRange(field, value) {
@@ -242,14 +298,25 @@ function SearchBar({
     <section className="search-bar-section">
       <form className="search-bar" onSubmit={handleSubmit}>
         <div className="search-bar-mobile">
-          <button
-            type="button"
+          <div
             className="search-bar-mobile__search"
-            onClick={() => togglePanel("residences")}
           >
-            <FiSearch />
-            <span>Search...</span>
-          </button>
+            <button
+              type="submit"
+              className="search-bar-mobile__submit"
+              aria-label="Search"
+            >
+              <FiSearch />
+            </button>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              onFocus={() => setOpenPanel(null)}
+              placeholder="Search..."
+              aria-label="Search residences, apartments, and shops"
+            />
+          </div>
 
           <button
             type="button"
@@ -413,16 +480,29 @@ function SearchBar({
         )}
 
         <div className="search-bar__field search-bar__field--residence">
-          <button
-            type="button"
-            className="search-bar__field-button"
-            onClick={() => togglePanel("residences")}
-            aria-expanded={openPanel === "residences"}
-          >
+          <div className="search-bar__field-control">
             <span className="search-bar__label">Residences</span>
-            <span className="search-bar__value">{residenceLabel}</span>
-            <FiChevronDown />
-          </button>
+            <div className="search-bar__input-row">
+              <input
+                className="search-bar__text-input"
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onFocus={() => setOpenPanel(null)}
+                placeholder={residenceLabel}
+                aria-label="Search residences, apartments, and shops"
+              />
+              <button
+                type="button"
+                className="search-bar__dropdown-button"
+                onClick={() => togglePanel("residences")}
+                aria-label="Open residence list"
+                aria-expanded={openPanel === "residences"}
+              >
+                <FiChevronDown />
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="search-bar__divider" />
@@ -526,6 +606,27 @@ function SearchBar({
                 ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {searchSuggestions.length > 0 && !openPanel && (
+          <div className="search-suggestions" aria-label="Search suggestions">
+            {searchSuggestions.map((suggestion) => (
+              <button
+                type="button"
+                className="search-suggestions__item"
+                onClick={() => handleSuggestionClick(suggestion)}
+                key={suggestion.id}
+              >
+                <span className="search-suggestions__icon">
+                  {suggestion.icon === "residence" ? <FiHome /> : <FiSearch />}
+                </span>
+                <span>
+                  <strong>{suggestion.label}</strong>
+                  <em>{suggestion.meta}</em>
+                </span>
+              </button>
+            ))}
           </div>
         )}
 

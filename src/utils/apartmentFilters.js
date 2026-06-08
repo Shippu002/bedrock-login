@@ -4,6 +4,7 @@ export const defaultApartmentFilters = {
   checkIn: "",
   checkOut: "",
   guests: 0,
+  query: "",
 };
 
 function normalize(value) {
@@ -56,8 +57,45 @@ function matchesDates(item, filters) {
   return item.available !== false;
 }
 
+function includesQueryTerms(text, query) {
+  const normalizedText = normalize(text);
+  const normalizedQuery = normalize(query);
+
+  if (!normalizedQuery) return true;
+
+  return normalizedQuery
+    .split(" ")
+    .filter(Boolean)
+    .every((term) => normalizedText.includes(term));
+}
+
+function matchesSearchQuery(item, query) {
+  if (!query) return true;
+
+  const searchableText = [
+    item.title,
+    item.name,
+    item.type,
+    item.description,
+    item.residenceName,
+    item.residenceTitle,
+    item.sectionTitle,
+    item.location,
+    item.address,
+    item.sectionLocation,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return includesQueryTerms(searchableText, query);
+}
+
 export function apartmentMatchesFilters(item, filters = defaultApartmentFilters) {
   if (filters.residenceId && item.residenceId !== filters.residenceId) {
+    return false;
+  }
+
+  if (!matchesSearchQuery(item, filters.query)) {
     return false;
   }
 
@@ -84,7 +122,14 @@ export function filterListingSections(
     .map((section) => ({
       ...section,
       items: section.items.filter((item) =>
-        apartmentMatchesFilters(item, filters),
+        apartmentMatchesFilters(
+          {
+            ...item,
+            sectionTitle: section.title,
+            sectionLocation: section.location,
+          },
+          filters,
+        ),
       ),
     }))
     .filter((section) => section.items.length > 0);
@@ -94,6 +139,7 @@ export function hasActiveApartmentFilters(filters = defaultApartmentFilters) {
   return Boolean(
     filters.residenceId ||
       filters.apartmentTitle ||
+      filters.query ||
       filters.checkIn ||
       filters.checkOut ||
       filters.guests > 0,

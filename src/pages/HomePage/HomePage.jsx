@@ -1569,6 +1569,172 @@ function HomePage() {
     return shopLoadErrors[variant] || shopLoadError;
   }
 
+  function normalizeSearchValue(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function matchesSearchTerms(fields, query) {
+    const normalizedQuery = normalizeSearchValue(query);
+
+    if (!normalizedQuery) return false;
+
+    const searchableText = normalizeSearchValue(fields.filter(Boolean).join(" "));
+    const queryTerms = normalizedQuery.split(" ").filter(Boolean);
+
+    return queryTerms.every((term) => searchableText.includes(term));
+  }
+
+  function findResidenceSearchMatch(query) {
+    const normalizedQuery = normalizeSearchValue(query);
+
+    if (!normalizedQuery) return null;
+
+    return (
+      backendResidenceOptions.find((residence) =>
+        matchesSearchTerms(
+          [
+            residence.id,
+            residence.title,
+            residence.name,
+            residence.location,
+            residence.address,
+          ],
+          normalizedQuery,
+        ),
+      ) ||
+      (() => {
+        const sectionMatch = backendListingSections.find((section) =>
+          matchesSearchTerms(
+            [
+              section.residenceId,
+              section.id,
+              section.title,
+              section.location,
+              ...(section.items || []).map((item) => item.residenceName),
+            ],
+            normalizedQuery,
+          ),
+        );
+
+        return sectionMatch
+          ? {
+              ...sectionMatch,
+              id: sectionMatch.residenceId || sectionMatch.id,
+            }
+          : null;
+      })() ||
+      null
+    );
+  }
+
+  function removeBedroomTermsFromQuery(query) {
+    return normalizeSearchValue(query)
+      .replace(/\b\d+\s*(bed|bedroom|bedrooms)\b/g, " ")
+      .replace(
+        /\b(one|two|three|four|five|six)\s*(bed|bedroom|bedrooms)\b/g,
+        " ",
+      )
+      .replace(/\b(apartment|apartments|flat|flats|room|rooms)\b/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function getShopIdFromVariant(variant) {
+    if (variant === "food") return "foods";
+    if (variant === "toiletries") return "shop";
+    if (variant === "services") return "services";
+    if (variant === "requests") return "request";
+
+    return variant;
+  }
+
+  function findShopSearchMatch(query) {
+    const normalizedQuery = normalizeSearchValue(query);
+
+    if (!normalizedQuery) return "";
+
+    const categoryMatch = shopDirectoryCategories.find((category) =>
+      matchesSearchTerms(
+        [category.id, category.title],
+        normalizedQuery,
+      ),
+    );
+
+    if (categoryMatch) return categoryMatch.id;
+
+    const itemMatch = Object.entries(backendShopItems).find(
+      ([, items]) =>
+        Array.isArray(items) &&
+        items.some((item) =>
+          matchesSearchTerms(
+            [
+              item.title,
+              item.name,
+              item.description,
+              item.category,
+              ...(Array.isArray(item.tags) ? item.tags : []),
+            ],
+            normalizedQuery,
+          ),
+        ),
+    );
+
+    return itemMatch ? getShopIdFromVariant(itemMatch[0]) : "";
+  }
+
+  function getSearchableApartments() {
+    return backendListingSections.flatMap((section) =>
+      (section.items || []).map((item) => ({
+        ...item,
+        sectionTitle: section.title,
+        sectionLocation: section.location,
+      })),
+    );
+  }
+
+  function findApartmentSearchMatch(query) {
+    const normalizedQuery = normalizeSearchValue(query);
+
+    if (!normalizedQuery || getBedroomCountFromText(normalizedQuery)) {
+      return null;
+    }
+
+    const apartments = getSearchableApartments();
+
+    return (
+      apartments.find((apartment) =>
+        [
+          apartment.title,
+          apartment.name,
+          apartment.slug,
+          apartment.raw?.name,
+          apartment.raw?.title,
+        ]
+          .map(normalizeSearchValue)
+          .filter(Boolean)
+          .includes(normalizedQuery),
+      ) ||
+      apartments.find(
+        (apartment) =>
+          normalizedQuery.length >= 3 &&
+          matchesSearchTerms(
+            [
+              apartment.title,
+              apartment.name,
+              apartment.slug,
+              apartment.residenceName,
+              apartment.sectionTitle,
+            ],
+            normalizedQuery,
+          ),
+      ) ||
+      null
+    );
+  }
+
   async function showHome() {
     setActivePage("home");
     setProfileInitialView("profile");
@@ -1704,6 +1870,7 @@ function HomePage() {
         checkIn: nextFilters.checkIn,
         checkOut: nextFilters.checkOut,
         guests: nextFilters.guests,
+        search: nextFilters.query,
       });
 
       setBackendListingSections(
@@ -1721,15 +1888,72 @@ function HomePage() {
   }
 
   async function handleApartmentSearch(nextFilters) {
-    setApartmentFilters(nextFilters);
+    const query = String(nextFilters.query || "").trim();
+    const bedroomCount = getBedroomCountFromText(query);
+    const apartmentTitle = bedroomCount
+      ? `${bedroomCount} Bedroom Apartment`
+      : nextFilters.apartmentTitle || "";
 
-    if (nextFilters.residenceId) {
-      setSelectedResidenceId(nextFilters.residenceId);
+    if (query) {
+      const residenceMatch = findResidenceSearchMatch(
+        bedroomCount ? removeBedroomTermsFromQuery(query) : query,
+      );
+
+      if (residenceMatch) {
+        await showResidence(residenceMatch.id, apartmentTitle);
+        return;
+      }
+
+      const shopMatch = findShopSearchMatch(query);
+
+      if (shopMatch) {
+        showShop(shopMatch);
+        return;
+      }
+
+      const apartmentMatch = findApartmentSearchMatch(query);
+
+      if (apartmentMatch) {
+        await showApartment(apartmentMatch);
+        return;
+      }
+
+      if (bedroomCount) {
+        const bedroomFilters = {
+          ...nextFilters,
+          apartmentTitle,
+          query: "",
+        };
+
+        setApartmentFilters(bedroomFilters);
+
+        if (bedroomFilters.residenceId) {
+          setSelectedResidenceId(bedroomFilters.residenceId);
+        }
+
+        setActivePage("home");
+        setProfileInitialView("profile");
+        await refreshApartmentListings(bedroomFilters);
+        return;
+      }
+    }
+
+    const normalizedFilters = {
+      ...nextFilters,
+      query,
+    };
+
+    setApartmentFilters(normalizedFilters);
+
+    if (normalizedFilters.residenceId) {
+      setSelectedResidenceId(normalizedFilters.residenceId);
+    } else {
+      setSelectedResidenceId("");
     }
 
     setActivePage("home");
     setProfileInitialView("profile");
-    await refreshApartmentListings(nextFilters);
+    await refreshApartmentListings(normalizedFilters);
   }
 
   async function clearApartmentSearch() {
@@ -3061,6 +3285,7 @@ function HomePage() {
                 key={searchResetKey}
                 residences={backendResidenceOptions}
                 apartmentCategories={backendApartmentCategories}
+                shopCategories={shopDirectoryCategories}
                 isLoading={isApartmentsLoading}
                 onSearch={handleApartmentSearch}
                 onResidenceSelect={showResidence}
