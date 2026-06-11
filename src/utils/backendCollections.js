@@ -413,6 +413,22 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
   return {
     ...fallback,
     backendId: booking.id || booking.uuid || fallback.backendId,
+    apartmentBackendId:
+      booking.apartment_id ||
+      booking.apartmentId ||
+      apartment.id ||
+      apartment.uuid ||
+      fallback.apartmentBackendId ||
+      fallback.apartmentId ||
+      "",
+    apartmentId:
+      booking.apartment_id ||
+      booking.apartmentId ||
+      apartment.id ||
+      apartment.uuid ||
+      fallback.apartmentId ||
+      fallback.apartmentBackendId ||
+      "",
     id: String(
       booking.reference ||
         booking.booking_reference ||
@@ -435,7 +451,7 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
       apartment.address ||
       fallback.location ||
       "",
-    image: getImageUrl(apartment) || getImageUrl(booking),
+    image: getImageUrl(apartment) || getImageUrl(booking) || fallback.image,
     checkIn,
     checkOut,
     guests: Number(

@@ -1363,6 +1363,7 @@ function BookingCard({
   isPast,
   onExtendStay,
   onCancelBooking,
+  onContinueBooking,
   onDownloadInvoice,
   onLoadTimeline,
   onSubmitReview,
@@ -1376,7 +1377,13 @@ function BookingCard({
     comment: "",
   });
   const [actionMessage, setActionMessage] = useState(null);
-  const isCancelled = booking.status === "cancelled";
+  const bookingStatus = String(booking.status || "").toLowerCase();
+  const isCancelled = bookingStatus === "cancelled" || bookingStatus === "canceled";
+  const isIncomplete =
+    booking.isIncomplete ||
+    ["payment_pending", "pending_payment", "pending", "unpaid", "draft"].some(
+      (status) => bookingStatus.includes(status),
+    );
   const hasSubmittedReview = Boolean(booking.reviewed || booking.review);
 
   async function runBookingAction(action) {
@@ -1516,6 +1523,15 @@ function BookingCard({
 
             {!isPast && !isCancelled && (
               <>
+                {isIncomplete && (
+                  <button
+                    type="button"
+                    className="profile-action-button"
+                    onClick={() => onContinueBooking?.(booking)}
+                  >
+                    Continue booking
+                  </button>
+                )}
                 <button
                   type="button"
                   className="profile-outline-button"
@@ -1523,13 +1539,15 @@ function BookingCard({
                 >
                   Cancel booking
                 </button>
-                <button
-                  type="button"
-                  className="profile-action-button"
-                  onClick={() => setIsExtending(true)}
-                >
-                  Extend stay
-                </button>
+                {!isIncomplete && (
+                  <button
+                    type="button"
+                    className="profile-action-button"
+                    onClick={() => setIsExtending(true)}
+                  >
+                    Extend stay
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -1625,6 +1643,7 @@ function BookingsView({
   onBack,
   onExtendStay,
   onCancelBooking,
+  onContinueBooking,
   onDownloadInvoice,
   onLoadTimeline,
   onSubmitReview,
@@ -1632,10 +1651,14 @@ function BookingsView({
   const [bookingTab, setBookingTab] = useState("upcoming");
   const upcomingBookings = bookings.filter(
     (booking) =>
-      booking.status !== "cancelled" && !isPastBooking(booking.checkOut),
+      !["cancelled", "canceled"].includes(
+        String(booking.status || "").toLowerCase(),
+      ) && !isPastBooking(booking.checkOut),
   );
   const pastBookings = bookings.filter((booking) =>
-    booking.status === "cancelled" || isPastBooking(booking.checkOut),
+    ["cancelled", "canceled"].includes(
+      String(booking.status || "").toLowerCase(),
+    ) || isPastBooking(booking.checkOut),
   );
   const visibleBookings =
     bookingTab === "upcoming" ? upcomingBookings : pastBookings;
@@ -1672,6 +1695,7 @@ function BookingsView({
               isPast={bookingTab === "past"}
               onExtendStay={onExtendStay}
               onCancelBooking={onCancelBooking}
+              onContinueBooking={onContinueBooking}
               onDownloadInvoice={onDownloadInvoice}
               onLoadTimeline={onLoadTimeline}
               onSubmitReview={onSubmitReview}
@@ -2706,6 +2730,7 @@ export default function ProfilePage({
   onAvatarUpload,
   onExtendStay,
   onCancelBooking,
+  onContinueBooking,
   onCancelOrder,
   onDownloadInvoice,
   onLoadTimeline,
@@ -2757,6 +2782,7 @@ export default function ProfilePage({
             onBack={goBack}
             onExtendStay={onExtendStay}
             onCancelBooking={onCancelBooking}
+            onContinueBooking={onContinueBooking}
             onDownloadInvoice={onDownloadInvoice}
             onLoadTimeline={onLoadTimeline}
             onSubmitReview={onSubmitReview}

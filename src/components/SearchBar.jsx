@@ -35,6 +35,12 @@ function formatShortDate(value) {
   }).format(new Date(`${value}T00:00:00`));
 }
 
+function addDaysToDateValue(value, days) {
+  const date = value ? new Date(`${value}T00:00:00`) : new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function getShortResidenceLabel(title) {
   return String(title || "Residence")
     .replace(/\s*Residence.*/i, "")
@@ -278,18 +284,30 @@ function SearchBar({
   function updateDateRange(field, value) {
     setDateRange((currentRange) => {
       if (field === "checkIn") {
+        if (!value) {
+          return {
+            checkIn: "",
+            checkOut: "",
+          };
+        }
+
+        const nextCheckOut =
+          !currentRange.checkOut || currentRange.checkOut <= value
+            ? addDaysToDateValue(value, 1)
+            : currentRange.checkOut;
+
         return {
           checkIn: value,
-          checkOut:
-            currentRange.checkOut && currentRange.checkOut <= value
-              ? ""
-              : currentRange.checkOut,
+          checkOut: nextCheckOut,
         };
       }
 
       return {
         ...currentRange,
-        checkOut: value,
+        checkOut:
+          currentRange.checkIn && value <= currentRange.checkIn
+            ? addDaysToDateValue(currentRange.checkIn, 1)
+            : value,
       };
     });
   }
@@ -426,7 +444,11 @@ function SearchBar({
                   <FiCalendar />
                   <input
                     type="date"
-                    min={dateRange.checkIn}
+                    min={
+                      dateRange.checkIn
+                        ? addDaysToDateValue(dateRange.checkIn, 1)
+                        : undefined
+                    }
                     value={dateRange.checkOut}
                     onChange={(event) =>
                       updateDateRange("checkOut", event.target.value)
@@ -647,7 +669,11 @@ function SearchBar({
               <span>End date</span>
               <input
                 type="date"
-                min={dateRange.checkIn}
+                min={
+                  dateRange.checkIn
+                    ? addDaysToDateValue(dateRange.checkIn, 1)
+                    : undefined
+                }
                 value={dateRange.checkOut}
                 onChange={(event) =>
                   updateDateRange("checkOut", event.target.value)

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FiBell, FiChevronDown, FiHome, FiMenu } from "react-icons/fi";
 import bedrockLogo from "../assets/bedrock-logo.svg";
 import AppImage from "./AppImage";
@@ -235,6 +235,22 @@ export default function Header({
 }) {
   const [openMenu, setOpenMenu] = useState(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!openMenu) return undefined;
+
+    const closeFloatingMenus = () => {
+      setOpenMenu(null);
+    };
+
+    window.addEventListener("scroll", closeFloatingMenus, { passive: true });
+    window.addEventListener("resize", closeFloatingMenus);
+
+    return () => {
+      window.removeEventListener("scroll", closeFloatingMenus);
+      window.removeEventListener("resize", closeFloatingMenus);
+    };
+  }, [openMenu]);
 
   const toggleMenu = (menuName) => {
     setOpenMenu((current) => (current === menuName ? null : menuName));

@@ -493,6 +493,36 @@ function getBackendRecordId(record) {
   return record?.backendId || record?.id || "";
 }
 
+function getBookingIdentity(booking = {}) {
+  return (
+    booking.backendId ||
+    booking.id ||
+    booking.paymentReference ||
+    booking.reference ||
+    ""
+  );
+}
+
+function upsertBooking(bookings = [], nextBooking = {}) {
+  const nextIdentity = getBookingIdentity(nextBooking);
+
+  if (!nextIdentity) {
+    return [nextBooking, ...bookings];
+  }
+
+  const existingIndex = bookings.findIndex(
+    (booking) => getBookingIdentity(booking) === nextIdentity,
+  );
+
+  if (existingIndex === -1) {
+    return [nextBooking, ...bookings];
+  }
+
+  return bookings.map((booking, index) =>
+    index === existingIndex ? { ...booking, ...nextBooking } : booking,
+  );
+}
+
 function getOrderTypeForBackend(order = {}) {
   const value = String(
     order.orderType || order.type || order.category || order.variant || "",
@@ -643,13 +673,14 @@ function createDefaultBookingDetails() {
 function createBookingDetailsFromFilters(filters) {
   const defaultDetails = createDefaultBookingDetails();
   const checkIn = filters.checkIn || defaultDetails.checkIn;
+  const checkOut = filters.checkOut
+    ? ensureCheckoutDate(checkIn, filters.checkOut)
+    : addDays(checkIn, 1);
 
   return {
     ...defaultDetails,
     checkIn,
-    checkOut: filters.checkOut
-      ? ensureCheckoutDate(checkIn, filters.checkOut)
-      : defaultDetails.checkOut,
+    checkOut,
     guests: filters.guests > 0 ? filters.guests : defaultDetails.guests,
   };
 }
@@ -2801,10 +2832,64 @@ function HomePage() {
     setActivePage("payment");
   }
 
+  function createBookingFromCurrentSelection(overrides = {}) {
+    const totals = calculateBookingTotals(
+      selectedApartment?.price,
+      bookingDetails.checkIn,
+      bookingDetails.checkOut,
+      bookingDetails.useRockPoints,
+    );
+
+    return {
+      id: overrides.id || createBookingId(),
+      title: selectedApartment?.title || "Apartment booking",
+      residenceName: selectedApartment?.residenceName || "",
+      location: selectedApartment?.location || "",
+      image:
+        selectedApartment?.statusImage ||
+        selectedApartment?.paymentImage ||
+        selectedApartment?.previewImage ||
+        selectedApartment?.image ||
+        "",
+      apartmentBackendId: selectedApartment?.backendId || "",
+      apartmentId: selectedApartment?.backendId || selectedApartment?.id || "",
+      checkIn: bookingDetails.checkIn,
+      checkOut: bookingDetails.checkOut,
+      guests: bookingDetails.guests,
+      nights: totals.nights,
+      nightlyRate: Number(selectedApartment?.price || 0),
+      subtotal: totals.subtotal,
+      taxesAndFees: totals.taxesAndFees,
+      cautionFee: totals.cautionFee,
+      rockPointValue: totals.rockPointValue,
+      totalAmount: totals.payable,
+      status: "payment_pending",
+      isIncomplete: true,
+      createdAt: new Date().toISOString(),
+      ...overrides,
+    };
+  }
+
+  function saveBookingToProfile(booking) {
+    updateCurrentUser((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        bookings: upsertBooking(current.bookings || [], booking),
+      };
+    });
+  }
+
   async function openPendingStep() {
     if (!selectedApartment || !currentUser) {
       showToast("Please log in before paying for your booking.", "error");
       openLogin();
+      return;
+    }
+
+    if (!bookingDetails.checkIn || !bookingDetails.checkOut) {
+      showToast("Choose your check-in and check-out dates before paying.", "error");
       return;
     }
 
@@ -2820,23 +2905,37 @@ function HomePage() {
     }
 
     if (selectedApartment.backendId) {
-      try {
-        const createResponse = await bookingsApi.createBooking({
-          apartmentId: selectedApartment.backendId,
-          checkIn: bookingDetails.checkIn,
-          checkOut: bookingDetails.checkOut,
-          guests: bookingDetails.guests,
-          couponCode: bookingDetails.promo,
-          useRockPoints: bookingDetails.useRockPoints,
-          agreeToPolicies: bookingDetails.agreedToPolicy,
-        });
-        const booking = normalizeBackendBooking(createResponse);
-        const bookingId = getBackendRecordId(booking);
+      let booking = pendingBooking || null;
+      let bookingId = getBackendRecordId(booking);
 
+      try {
         if (!bookingId) {
-          throw new Error(
-            "Booking ID missing from createBooking response. Backend may be returning a wrapped payload.",
-          );
+          const localDraft = createBookingFromCurrentSelection();
+          const createResponse = await bookingsApi.createBooking({
+            apartmentId: selectedApartment.backendId,
+            checkIn: bookingDetails.checkIn,
+            checkOut: bookingDetails.checkOut,
+            guests: bookingDetails.guests,
+            couponCode: bookingDetails.promo,
+            useRockPoints: bookingDetails.useRockPoints,
+            agreeToPolicies: bookingDetails.agreedToPolicy,
+          });
+
+          booking = {
+            ...normalizeBackendBooking(createResponse, localDraft),
+            status: "payment_pending",
+            isIncomplete: true,
+          };
+          bookingId = getBackendRecordId(booking);
+
+          if (!bookingId) {
+            throw new Error(
+              "Booking ID missing from createBooking response. Backend may be returning a wrapped payload.",
+            );
+          }
+
+          setPendingBooking(booking);
+          saveBookingToProfile(booking);
         }
 
         const paymentResponse = await bookingsApi.initiatePayment(
@@ -2844,20 +2943,25 @@ function HomePage() {
           getPaymentMethodForBackend(bookingDetails.paymentMethod),
         );
         const payment = normalizeBackendPayment(paymentResponse);
-
-        setPendingBooking({
+        const nextPendingBooking = {
           ...booking,
+          status: "payment_pending",
+          isIncomplete: true,
           paymentReference: payment.reference || booking.paymentReference,
-        });
+          paymentUrl: payment.authorizationUrl || booking.paymentUrl || "",
+        };
+
+        setPendingBooking(nextPendingBooking);
+        saveBookingToProfile(nextPendingBooking);
         addActivityMessage(
           "Booking payment started",
-          `${booking.title || selectedApartment.title} is waiting for payment confirmation.`,
+          `${nextPendingBooking.title || selectedApartment.title} is waiting for payment confirmation.`,
         );
 
         savePendingPaymentContext({
           type: "booking",
           recordId: bookingId,
-          reference: payment.reference || booking.paymentReference || "",
+          reference: nextPendingBooking.paymentReference || "",
         });
 
         if (payment.authorizationUrl && typeof window !== "undefined") {
@@ -2884,6 +2988,80 @@ function HomePage() {
 
   function openConfirmedStep() {
     setActivePage("confirmed");
+  }
+
+  function findApartmentForBooking(booking = {}) {
+    const bookingApartmentId = String(
+      booking.apartmentBackendId || booking.apartmentId || "",
+    );
+    const allApartments = backendListingSections.flatMap(
+      (section) => section.items || [],
+    );
+
+    return (
+      allApartments.find(
+        (apartment) =>
+          bookingApartmentId &&
+          String(apartment.backendId || apartment.id) === bookingApartmentId,
+      ) ||
+      allApartments.find(
+        (apartment) =>
+          apartment.title === booking.title &&
+          apartment.residenceName === booking.residenceName,
+      ) ||
+      null
+    );
+  }
+
+  function handleContinueBooking(booking) {
+    const status = String(booking?.status || "").toLowerCase();
+    const canContinue =
+      booking?.isIncomplete ||
+      ["payment_pending", "pending_payment", "pending", "unpaid", "draft"].some(
+        (value) => status.includes(value),
+      );
+
+    if (!canContinue) {
+      showToast("Only unpaid or incomplete bookings can be continued.", "error");
+      return;
+    }
+
+    const matchedApartment = findApartmentForBooking(booking);
+    const nextApartment = decorateApartmentWithMedia(
+      matchedApartment || {
+        id: booking.apartmentId || booking.id,
+        backendId: booking.apartmentBackendId || booking.apartmentId || "",
+        title: booking.title,
+        residenceName: booking.residenceName,
+        location: booking.location,
+        price: booking.nightlyRate,
+        image: booking.image,
+        previewImage: booking.image,
+        paymentImage: booking.image,
+        statusImage: booking.image,
+      },
+    );
+    const checkIn = booking.checkIn || getTodayDateValue();
+    const checkOut = ensureCheckoutDate(
+      checkIn,
+      booking.checkOut || addDays(checkIn, 1),
+    );
+
+    setSelectedApartment(nextApartment);
+    setPendingBooking(booking);
+    setBookingDetails((current) => ({
+      ...current,
+      checkIn,
+      checkOut,
+      guests: Math.max(1, Number(booking.guests || current.guests || 1)),
+      agreedToPolicy: true,
+      paymentMethod: current.paymentMethod || "card",
+      useRockPoints: Number(booking.rockPointValue || 0) > 0,
+    }));
+    setApartmentReturnPage("profile");
+    setProfileInitialView("bookings");
+    setActivePage("payment");
+    showToast("Continue your booking payment.", "success");
   }
 
   async function openFoodStatusStep() {
@@ -3088,36 +3266,17 @@ function HomePage() {
       return;
     }
 
-    const totals = calculateBookingTotals(
-      selectedApartment.price,
-      bookingDetails.checkIn,
-      bookingDetails.checkOut,
-      bookingDetails.useRockPoints,
-    );
-
-    const nextBooking = {
-      id: createBookingId(),
-      title: selectedApartment.title,
-      residenceName: selectedApartment.residenceName,
-      location: selectedApartment.location,
-      image:
-        selectedApartment.statusImage ||
-        selectedApartment.paymentImage ||
-        selectedApartment.previewImage ||
-        selectedApartment.image,
-      checkIn: bookingDetails.checkIn,
-      checkOut: bookingDetails.checkOut,
-      guests: bookingDetails.guests,
-      nights: totals.nights,
-      nightlyRate: selectedApartment.price,
-      subtotal: totals.subtotal,
-      taxesAndFees: totals.taxesAndFees,
-      cautionFee: totals.cautionFee,
-      rockPointValue: totals.rockPointValue,
-      totalAmount: totals.payable,
-      createdAt: new Date().toISOString(),
-    };
-    let bookingToStore = pendingBooking || nextBooking;
+    const nextBooking = createBookingFromCurrentSelection({
+      status: "upcoming",
+      isIncomplete: false,
+    });
+    let bookingToStore = pendingBooking
+      ? {
+          ...pendingBooking,
+          status: "upcoming",
+          isIncomplete: false,
+        }
+      : nextBooking;
 
     if (selectedApartment.backendId && !pendingBooking && !getAuthToken()) {
       showToast("Your secure session has expired. Please log in again before confirming.", "error");
@@ -3148,14 +3307,7 @@ function HomePage() {
       }
     }
 
-    updateCurrentUser((current) => {
-      if (!current) return current;
-
-      return {
-        ...current,
-        bookings: [bookingToStore, ...(current.bookings || [])],
-      };
-    });
+    saveBookingToProfile(bookingToStore);
 
     setProfileInitialView("bookings");
     setPendingBooking(null);
@@ -3236,6 +3388,7 @@ function HomePage() {
           onPasswordChange={handlePasswordChange}
           onExtendStay={handleBookingExtension}
           onCancelBooking={handleBookingCancellation}
+          onContinueBooking={handleContinueBooking}
           onCancelOrder={handleOrderCancellation}
           onDownloadInvoice={handleDownloadInvoice}
           onLoadTimeline={handleLoadTimeline}
