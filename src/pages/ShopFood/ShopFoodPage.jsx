@@ -495,6 +495,16 @@ function ShopCheckoutCard({
         </div>
       </div>
 
+      {showPolicy && (
+        <div className="shop-food-policy">
+          <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
+          <Toggle
+            checked={orderDetails.agreedToPolicy}
+            onClick={onTogglePolicy}
+          />
+        </div>
+      )}
+
       <button
         type="button"
         className="shop-food-primary-button"
@@ -512,16 +522,6 @@ function ShopCheckoutCard({
         >
           Cancel
         </button>
-      )}
-
-      {showPolicy && (
-        <div className="shop-food-policy">
-          <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
-          <Toggle
-            checked={orderDetails.agreedToPolicy}
-            onClick={onTogglePolicy}
-          />
-        </div>
       )}
     </aside>
   );
@@ -772,6 +772,16 @@ export default function ShopFoodPage({
                   Free cancellation
                 </span>
 
+                <div className="shop-food-policy">
+                  <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
+                  <Toggle
+                    checked={safeOrderDetails.agreedToPolicy}
+                    onClick={() =>
+                      updateOrder("agreedToPolicy", !safeOrderDetails.agreedToPolicy)
+                    }
+                  />
+                </div>
+
                 <button
                   type="button"
                   className="shop-food-primary-button"
@@ -782,16 +792,6 @@ export default function ShopFoodPage({
                     ? "Please wait..."
                     : pageContent.detailActionLabel}
                 </button>
-
-                <div className="shop-food-policy">
-                  <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
-                  <Toggle
-                    checked={safeOrderDetails.agreedToPolicy}
-                    onClick={() =>
-                      updateOrder("agreedToPolicy", !safeOrderDetails.agreedToPolicy)
-                    }
-                  />
-                </div>
               </aside>
             )}
           </div>
@@ -873,15 +873,6 @@ export default function ShopFoodPage({
                 unitLabel={pageContent.unitLabel}
               />
 
-              <button
-                type="button"
-                className="shop-food-primary-button"
-                onClick={() => runPendingAction("review", onProceedToPayment)}
-                disabled={!safeOrderDetails.agreedToPolicy || pendingAction === "review"}
-              >
-                {pendingAction === "review" ? "Please wait..." : "Continue"}
-              </button>
-
               <div className="shop-food-policy">
                 <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
                 <Toggle
@@ -891,6 +882,15 @@ export default function ShopFoodPage({
                   }
                 />
               </div>
+
+              <button
+                type="button"
+                className="shop-food-primary-button"
+                onClick={() => runPendingAction("review", onProceedToPayment)}
+                disabled={!safeOrderDetails.agreedToPolicy || pendingAction === "review"}
+              >
+                {pendingAction === "review" ? "Please wait..." : "Continue"}
+              </button>
             </aside>
           </div>
         </div>
@@ -1011,6 +1011,16 @@ export default function ShopFoodPage({
                   unitLabel={pageContent.unitLabel}
                 />
 
+                <div className="shop-food-policy">
+                  <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
+                  <Toggle
+                    checked={safeOrderDetails.agreedToPolicy}
+                    onClick={() =>
+                      updateOrder("agreedToPolicy", !safeOrderDetails.agreedToPolicy)
+                    }
+                  />
+                </div>
+
                 <button
                   type="button"
                   className="shop-food-primary-button"
@@ -1021,16 +1031,6 @@ export default function ShopFoodPage({
                     ? "Processing..."
                     : `Pay NGN ${totals.payable.toLocaleString()}`}
                 </button>
-
-                <div className="shop-food-policy">
-                  <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
-                  <Toggle
-                    checked={safeOrderDetails.agreedToPolicy}
-                    onClick={() =>
-                      updateOrder("agreedToPolicy", !safeOrderDetails.agreedToPolicy)
-                    }
-                  />
-                </div>
               </aside>
             )}
           </div>

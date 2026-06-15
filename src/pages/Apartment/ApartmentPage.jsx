@@ -98,6 +98,17 @@ function getPolicyText(value, emptyText) {
   return String(value || "").trim() || emptyText;
 }
 
+function getApartmentGuestCapacity(apartment) {
+  return Number(
+    apartment?.guests ||
+      apartment?.maxGuests ||
+      apartment?.max_guests ||
+      apartment?.guestCapacity ||
+      apartment?.guest_capacity ||
+      0,
+  );
+}
+
 function BackButton({ label = "Back", onClick }) {
   return (
     <button type="button" className="apartment-back-button" onClick={onClick}>
@@ -163,6 +174,7 @@ function ApartmentPage({
   const [pendingAction, setPendingAction] = useState("");
   const checkInInputRef = useRef(null);
   const checkOutInputRef = useRef(null);
+  const bookingCardRef = useRef(null);
 
   const galleryImages =
     apartment?.galleryImages?.length > 0
@@ -182,11 +194,15 @@ function ApartmentPage({
   );
   const checkInMin = getTodayDateValue();
   const checkOutMin = addDays(bookingDetails.checkIn || checkInMin, 1);
+  const guestCapacity = getApartmentGuestCapacity(apartment);
+  const isAtGuestCapacity =
+    guestCapacity > 0 && bookingDetails.guests >= guestCapacity;
   const isApartmentAvailable = quote?.available !== false;
   const canContinueBooking = Boolean(
     bookingDetails.checkIn &&
       bookingDetails.checkOut &&
       bookingDetails.guests > 0 &&
+      (!guestCapacity || bookingDetails.guests <= guestCapacity) &&
       bookingDetails.agreedToPolicy &&
       isApartmentAvailable,
   );
@@ -229,7 +245,12 @@ function ApartmentPage({
       : "No reviews yet";
 
   function updateGuests(direction) {
-    onBookingChange("guests", Math.max(1, bookingDetails.guests + direction));
+    const nextGuests = Math.max(1, bookingDetails.guests + direction);
+
+    onBookingChange(
+      "guests",
+      guestCapacity > 0 ? Math.min(guestCapacity, nextGuests) : nextGuests,
+    );
   }
 
   function openDatePicker(inputRef) {
@@ -252,6 +273,10 @@ function ApartmentPage({
     } finally {
       setPendingAction("");
     }
+  }
+
+  function handleMobileBookClick() {
+    runPendingAction("book", onOpenPayment);
   }
 
   async function handleShareApartment() {
@@ -303,8 +328,11 @@ function ApartmentPage({
           <div className="apartment-payment-layout">
             <div className="apartment-payment-methods">
               <h1 className="apartment-payment-methods__title">
-                Choose a payment method
+                Book apartment
               </h1>
+              <p className="apartment-payment-methods__hint">
+                Choose your stay details and payment method to continue
+              </p>
 
               <div className="apartment-payment-methods__list">
                 <button
@@ -412,15 +440,28 @@ function ApartmentPage({
                   <span>Number of guests</span>
 
                   <div className="apartment-guest-input__actions">
-                    <button type="button" onClick={() => updateGuests(-1)}>
+                    <button
+                      type="button"
+                      onClick={() => updateGuests(-1)}
+                      disabled={bookingDetails.guests <= 1}
+                    >
                       <FiMinus />
                     </button>
                     <strong>{bookingDetails.guests}</strong>
-                    <button type="button" onClick={() => updateGuests(1)}>
+                    <button
+                      type="button"
+                      onClick={() => updateGuests(1)}
+                      disabled={isAtGuestCapacity}
+                    >
                       <FiPlus />
                     </button>
                   </div>
                 </div>
+                {guestCapacity > 0 && (
+                  <p className="apartment-form-note">
+                    Maximum {getGuestLabel(guestCapacity)} for this apartment.
+                  </p>
+                )}
               </div>
 
               <div className="apartment-form-group">
@@ -435,6 +476,17 @@ function ApartmentPage({
                   }
                 />
               </div>
+
+              {quote?.error && (
+                <p className="apartment-action-feedback">{quote.error}</p>
+              )}
+
+              {!isApartmentAvailable && (
+                <p className="apartment-action-feedback">
+                  This apartment is not available for the selected dates. Please
+                  choose another check-in or check-out date.
+                </p>
+              )}
 
               <div className="apartment-payment-breakdown">
                 <div>
@@ -471,17 +523,6 @@ function ApartmentPage({
                 </div>
               </div>
 
-              <button
-                type="button"
-                className="apartment-primary-button"
-                onClick={() => runPendingAction("payment", onPaymentContinue)}
-                disabled={!canContinueBooking || pendingAction === "payment"}
-              >
-                {pendingAction === "payment"
-                  ? "Processing..."
-                  : `Pay NGN ${payable.toLocaleString()}`}
-              </button>
-
               <div className="apartment-policy-row apartment-policy-row--compact">
                 <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
                 <Toggle
@@ -494,6 +535,17 @@ function ApartmentPage({
                   }
                 />
               </div>
+
+              <button
+                type="button"
+                className="apartment-primary-button"
+                onClick={() => runPendingAction("payment", onPaymentContinue)}
+                disabled={!canContinueBooking || pendingAction === "payment"}
+              >
+                {pendingAction === "payment"
+                  ? "Processing..."
+                  : `Pay NGN ${payable.toLocaleString()}`}
+              </button>
             </aside>
           </div>
         </div>
@@ -609,16 +661,6 @@ function ApartmentPage({
 
         {actionFeedback && (
           <p className="apartment-action-feedback">{actionFeedback}</p>
-        )}
-
-        {quote?.error && (
-          <p className="apartment-action-feedback">{quote.error}</p>
-        )}
-
-        {!isApartmentAvailable && (
-          <p className="apartment-action-feedback">
-            This apartment is not available for the selected dates.
-          </p>
         )}
 
         <div className="apartment-detail-layout">
@@ -772,7 +814,7 @@ function ApartmentPage({
             </div>
           </div>
 
-          <aside className="apartment-booking-card">
+          <aside className="apartment-booking-card" ref={bookingCardRef}>
             <div className="apartment-form-group">
               <label>Check-in-Date</label>
               <div
@@ -819,27 +861,29 @@ function ApartmentPage({
                 <span>Number of guests</span>
 
                 <div className="apartment-guest-input__actions">
-                  <button type="button" onClick={() => updateGuests(-1)}>
+                  <button
+                    type="button"
+                    onClick={() => updateGuests(-1)}
+                    disabled={bookingDetails.guests <= 1}
+                  >
                     <FiMinus />
                   </button>
                   <strong>{bookingDetails.guests}</strong>
-                  <button type="button" onClick={() => updateGuests(1)}>
+                  <button
+                    type="button"
+                    onClick={() => updateGuests(1)}
+                    disabled={isAtGuestCapacity}
+                  >
                     <FiPlus />
                   </button>
                 </div>
               </div>
+              {guestCapacity > 0 && (
+                <p className="apartment-form-note">
+                  Maximum {getGuestLabel(guestCapacity)} for this apartment.
+                </p>
+              )}
             </div>
-
-            <button
-              type="button"
-              className="apartment-primary-button"
-              onClick={() => runPendingAction("book", onOpenPayment)}
-              disabled={!canContinueBooking || pendingAction === "book"}
-            >
-              {quote?.loading || pendingAction === "book"
-                ? "Checking..."
-                : "Book Apartment"}
-            </button>
 
             <div className="apartment-policy-row">
               <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
@@ -853,6 +897,17 @@ function ApartmentPage({
                 }
               />
             </div>
+
+            <button
+              type="button"
+              className="apartment-primary-button"
+              onClick={() => runPendingAction("book", onOpenPayment)}
+              disabled={!canContinueBooking || pendingAction === "book"}
+            >
+              {quote?.loading || pendingAction === "book"
+                ? "Checking..."
+                : "Book Apartment"}
+            </button>
 
             <div className="apartment-copy__section apartment-copy__section--summary">
               <h3>Current stay summary</h3>
@@ -873,12 +928,12 @@ function ApartmentPage({
           <button
             type="button"
             className="apartment-primary-button"
-            onClick={() => runPendingAction("book", onOpenPayment)}
-            disabled={!canContinueBooking || pendingAction === "book"}
+            onClick={handleMobileBookClick}
+            disabled={pendingAction === "book"}
           >
             {quote?.loading || pendingAction === "book"
               ? "Checking..."
-              : "Book Apartments"}
+              : "Book Apartment"}
           </button>
         </div>
       </div>

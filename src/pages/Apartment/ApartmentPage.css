@@ -418,6 +418,20 @@
   cursor: pointer;
 }
 
+.apartment-guest-input__actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.apartment-form-note {
+  margin: -2px 0 0;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
 .apartment-text-input {
   padding: 0 14px;
   font-family: "Urbanist", Arial, sans-serif;
@@ -469,6 +483,10 @@
   cursor: pointer;
 }
 
+.apartment-policy-row + .apartment-primary-button {
+  margin-top: 14px;
+}
+
 .apartment-mobile-cta {
   display: none;
 }
@@ -515,6 +533,15 @@
   font-size: 22px;
   font-weight: 600;
   line-height: 30px;
+}
+
+.apartment-payment-methods__hint {
+  margin: -12px 0 18px;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
 }
 
 .apartment-payment-methods__list {
@@ -1132,9 +1159,15 @@
   }
 
   .apartment-payment-methods__title {
-    margin-bottom: 14px;
+    margin-bottom: 8px;
     font-size: 20px;
     line-height: 27px;
+  }
+
+  .apartment-payment-methods__hint {
+    margin: 0 0 14px;
+    font-size: 13px;
+    line-height: 18px;
   }
 
   .apartment-payment-methods__list {

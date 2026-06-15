@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FiBell, FiChevronDown, FiHome, FiMenu } from "react-icons/fi";
 import bedrockLogo from "../assets/bedrock-logo.svg";
 import AppImage from "./AppImage";
@@ -235,6 +235,7 @@ export default function Header({
 }) {
   const [openMenu, setOpenMenu] = useState(null);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const headerRef = useRef(null);
 
   useEffect(() => {
     if (!openMenu) return undefined;
@@ -251,6 +252,32 @@ export default function Header({
       window.removeEventListener("resize", closeFloatingMenus);
     };
   }, [openMenu]);
+
+  useEffect(() => {
+    if (!openMenu && !isProfileMenuOpen) return undefined;
+
+    const closeOnOutsideClick = (event) => {
+      if (headerRef.current?.contains(event.target)) return;
+
+      setOpenMenu(null);
+      setIsProfileMenuOpen(false);
+    };
+
+    const closeOnEscape = (event) => {
+      if (event.key !== "Escape") return;
+
+      setOpenMenu(null);
+      setIsProfileMenuOpen(false);
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [openMenu, isProfileMenuOpen]);
 
   const toggleMenu = (menuName) => {
     setOpenMenu((current) => (current === menuName ? null : menuName));
@@ -321,7 +348,7 @@ export default function Header({
   }
 
   return (
-    <header className="site-header">
+    <header className="site-header" ref={headerRef}>
       <div className="site-inner">
         <button
           type="button"

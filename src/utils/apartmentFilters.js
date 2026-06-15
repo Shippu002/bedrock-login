@@ -57,6 +57,17 @@ function matchesDates(item, filters) {
   return item.available !== false;
 }
 
+function getGuestCapacity(item) {
+  return Number(
+    item.guests ||
+      item.maxGuests ||
+      item.max_guests ||
+      item.guestCapacity ||
+      item.guest_capacity ||
+      0,
+  );
+}
+
 function includesQueryTerms(text, query) {
   const normalizedText = normalize(text);
   const normalizedQuery = normalize(query);
@@ -103,7 +114,7 @@ export function apartmentMatchesFilters(item, filters = defaultApartmentFilters)
     return false;
   }
 
-  if (filters.guests > 0 && item.guests < filters.guests) {
+  if (filters.guests > 0 && getGuestCapacity(item) < filters.guests) {
     return false;
   }
 

@@ -718,6 +718,10 @@
   margin-top: 14px;
 }
 
+.shop-food-policy + .shop-food-primary-button {
+  margin-top: 14px;
+}
+
 .shop-food-toggle {
   width: 43px;
   height: 24px;

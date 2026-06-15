@@ -493,6 +493,17 @@ function getBackendRecordId(record) {
   return record?.backendId || record?.id || "";
 }
 
+function getApartmentGuestCapacity(apartment) {
+  return Number(
+    apartment?.guests ||
+      apartment?.maxGuests ||
+      apartment?.max_guests ||
+      apartment?.guestCapacity ||
+      apartment?.guest_capacity ||
+      0,
+  );
+}
+
 function getBookingIdentity(booking = {}) {
   return (
     booking.backendId ||
@@ -1832,11 +1843,19 @@ function HomePage() {
   async function showApartment(apartment) {
     setApartmentReturnPage(activePage === "residence" ? "residence" : "home");
     const fallbackApartment = decorateApartmentWithMedia(apartment);
+    const guestCapacity = getApartmentGuestCapacity(fallbackApartment);
+    const nextBookingDetails = createBookingDetailsFromFilters(apartmentFilters);
 
     setSelectedApartment(fallbackApartment);
     setApartmentQuote(null);
     setPendingBooking(null);
-    setBookingDetails(createBookingDetailsFromFilters(apartmentFilters));
+    setBookingDetails({
+      ...nextBookingDetails,
+      guests: Math.min(
+        guestCapacity || Infinity,
+        Math.max(1, Number(nextBookingDetails.guests) || 1),
+      ),
+    });
     setActivePage("apartment");
     setProfileInitialView("profile");
 
@@ -2807,7 +2826,10 @@ function HomePage() {
             }
           : field === "guests"
             ? {
-                guests: Math.max(1, Number(value) || 1),
+                guests: Math.min(
+                  getApartmentGuestCapacity(selectedApartment) || Infinity,
+                  Math.max(1, Number(value) || 1),
+                ),
               }
             : {
                 [field]: value,
