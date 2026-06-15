@@ -838,6 +838,22 @@
   box-shadow: 0 12px 34px rgba(16, 24, 40, 0.06);
 }
 
+.profile-wishlist-card--clickable {
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.profile-wishlist-card--clickable:hover,
+.profile-wishlist-card--clickable:focus-visible {
+  border-color: rgba(197, 138, 104, 0.45);
+  box-shadow: 0 16px 42px rgba(16, 24, 40, 0.1);
+  transform: translateY(-2px);
+  outline: none;
+}
+
 .profile-wishlist-card__image {
   height: 150px;
   position: relative;

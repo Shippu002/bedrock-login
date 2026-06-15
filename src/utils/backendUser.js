@@ -8,55 +8,110 @@ function unwrapResponsePayload(response) {
   return response;
 }
 
+function pickNonEmpty(...values) {
+  for (const value of values) {
+    if (value === undefined || value === null) continue;
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed) return trimmed;
+      continue;
+    }
+
+    return value;
+  }
+
+  return "";
+}
+
 export function normalizeBackendUser(response, fallback = {}) {
   const user = unwrapResponsePayload(response);
-  const firstName = user.first_name || user.firstName || "";
-  const lastName = user.last_name || user.lastName || "";
+  const firstName = pickNonEmpty(
+    user.first_name,
+    user.firstName,
+    user.given_name,
+    user.givenName,
+    fallback.firstName,
+    fallback.first_name,
+  );
+  const lastName = pickNonEmpty(
+    user.last_name,
+    user.lastName,
+    user.surname,
+    user.family_name,
+    user.familyName,
+    fallback.lastName,
+    fallback.last_name,
+  );
   const fullName =
-    user.name ||
-    user.full_name ||
-    user.fullName ||
+    pickNonEmpty(user.name, user.full_name, user.fullName, user.display_name) ||
     [firstName, lastName].filter(Boolean).join(" ") ||
-    fallback.name ||
-    fallback.username ||
+    pickNonEmpty(fallback.name, fallback.fullName, fallback.username) ||
     "";
-  const email = user.email || fallback.email || "";
+  const email = pickNonEmpty(user.email, fallback.email);
   const username =
-    user.username ||
-    user.referral_code ||
-    fallback.username ||
+    pickNonEmpty(user.username, user.referral_code, fallback.username) ||
     fullName ||
     email.split("@")[0] ||
     "Bedrock User";
 
   const normalizedUser = {
     ...fallback,
-    backendId: user.id || user.uuid || fallback.backendId || fallback.id,
+    backendId: pickNonEmpty(user.id, user.uuid, fallback.backendId, fallback.id),
     name: fullName,
     username,
     email,
     phone:
-      user.phone_number ||
-      user.phoneNumber ||
-      user.phone ||
-      fallback.phone ||
-      "",
-    state: user.state || fallback.state || "",
-    country: user.country || fallback.country || "",
+      pickNonEmpty(
+        user.phone_number,
+        user.phoneNumber,
+        user.phone,
+        user.mobile,
+        user.telephone,
+        fallback.phone,
+        fallback.phoneNumber,
+        fallback.phone_number,
+      ) || "",
+    state:
+      pickNonEmpty(
+        user.state,
+        user.state_name,
+        user.stateName,
+        user.city,
+        user.location,
+        fallback.state,
+        fallback.stateName,
+        fallback.state_name,
+      ) || "",
+    country:
+      pickNonEmpty(
+        user.country,
+        user.country_name,
+        user.countryName,
+        fallback.country,
+        fallback.countryName,
+        fallback.country_name,
+      ) || "",
     countryCode:
-      user.country_code ||
-      user.countryCode ||
-      fallback.countryCode ||
-      fallback.country_code ||
-      "",
-    currency: user.currency || fallback.currency || "",
+      pickNonEmpty(
+        user.country_code,
+        user.countryCode,
+        fallback.countryCode,
+        fallback.country_code,
+      ) || "",
+    currency: pickNonEmpty(user.currency, fallback.currency) || "",
     profilePhoto:
-      user.avatar_url ||
-      user.avatar ||
-      user.profile_photo ||
-      user.profilePhoto ||
-      fallback.profilePhoto ||
-      "",
+      pickNonEmpty(
+        user.avatar_url,
+        user.avatar,
+        user.profile_photo,
+        user.profile_photo_url,
+        user.profilePhoto,
+        user.profilePhotoUrl,
+        user.image,
+        user.photo,
+        fallback.profilePhoto,
+      ) || "",
     isVerified:
       user.is_verified ??
       user.email_verified ??
@@ -66,6 +121,11 @@ export function normalizeBackendUser(response, fallback = {}) {
       (user.verified_at ? true : undefined) ??
       fallback.isVerified ??
       false,
+    isProfileComplete:
+      user.is_profile_complete ??
+      user.profile_complete ??
+      user.profileComplete ??
+      fallback.isProfileComplete,
     messages: Array.isArray(user.messages)
       ? user.messages
       : Array.isArray(fallback.messages)

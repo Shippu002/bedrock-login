@@ -555,12 +555,21 @@ function getInitials(value) {
 
 function getProfileCountry(user) {
   if (user?.country) return user.country;
+  if (user?.countryName) return user.countryName;
+  if (user?.country_name) return user.country_name;
 
   return findCountryByDialCode(user?.countryCode)?.name || "";
 }
 
 function getProfileState(user) {
-  return String(user?.state || "").trim();
+  return String(
+    user?.state ||
+      user?.stateName ||
+      user?.state_name ||
+      user?.city ||
+      user?.location ||
+      "",
+  ).trim();
 }
 
 function getProfileCurrency(user) {
@@ -601,6 +610,8 @@ function isOrderCancelable(order) {
 }
 
 function isImportantProfileComplete(user) {
+  if (user?.isProfileComplete === true) return true;
+
   return Boolean(
     (user?.name || user?.username)?.trim?.() &&
       user?.email?.trim?.() &&
@@ -1030,7 +1041,7 @@ function EditProfileView({
   );
 }
 
-function WishlistCard({ item }) {
+function WishlistCard({ item, onOpen }) {
   const isApartment =
     item.sourceType === "apartment" ||
     item.residenceName ||
@@ -1054,9 +1065,33 @@ function WishlistCard({ item }) {
     typeof item.price === "number"
       ? `NGN${item.price.toLocaleString()}`
       : item.price || item.priceLabel || "Saved";
+  const isClickable = isApartment && typeof onOpen === "function";
+
+  function handleOpen() {
+    if (!isClickable) return;
+    onOpen(item);
+  }
+
+  function handleKeyDown(event) {
+    if (!isClickable) return;
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      handleOpen();
+    }
+  }
 
   return (
-    <article className="profile-wishlist-card">
+    <article
+      className={`profile-wishlist-card ${
+        isClickable ? "profile-wishlist-card--clickable" : ""
+      }`}
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onClick={handleOpen}
+      onKeyDown={handleKeyDown}
+      aria-label={isClickable ? `Open ${item.title}` : undefined}
+    >
       <div className="profile-wishlist-card__image">
         <AppImage
           className="profile-wishlist-card__photo"
@@ -1103,7 +1138,13 @@ function WishlistCard({ item }) {
         )}
 
         <div className="profile-wishlist-card__bottom">
-          <button type="button">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              handleOpen();
+            }}
+          >
             {isApartment ? "Saved apartment" : "Saved item"}
           </button>
 
@@ -1117,7 +1158,7 @@ function WishlistCard({ item }) {
   );
 }
 
-function WishlistView({ user, onBack }) {
+function WishlistView({ user, onBack, onApartmentSelect }) {
   const visibleWishlistItems = Array.isArray(user?.wishlists)
     ? user.wishlists
     : [];
@@ -1139,6 +1180,7 @@ function WishlistView({ user, onBack }) {
                     : item.price || "Saved",
               }}
               key={item.id}
+              onOpen={onApartmentSelect}
             />
           ))}
         </div>
@@ -2744,6 +2786,7 @@ export default function ProfilePage({
   onDeleteAccount,
   onLogout,
   onToast,
+  onApartmentSelect,
 }) {
   const [activeView, setActiveView] = useState(() => initialView);
   const [viewHistory, setViewHistory] = useState([]);
@@ -2774,7 +2817,13 @@ export default function ProfilePage({
   function renderView() {
     switch (activeView) {
       case "wishlists":
-        return <WishlistView user={user} onBack={goBack} />;
+        return (
+          <WishlistView
+            user={user}
+            onBack={goBack}
+            onApartmentSelect={onApartmentSelect}
+          />
+        );
       case "bookings":
         return (
           <BookingsView

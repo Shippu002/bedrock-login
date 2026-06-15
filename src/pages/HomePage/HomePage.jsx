@@ -199,12 +199,21 @@ function getOrderCancellationKeys(order = {}) {
   return [
     order.backendId,
     order.id,
+    order.reference,
+    order.orderReference,
+    order.orderNo,
     order.paymentReference,
     raw.id,
     raw.uuid,
     raw.reference,
     raw.order_reference,
+    raw.orderReference,
     raw.order_no,
+    raw.orderNo,
+    raw.order_number,
+    raw.orderNumber,
+    raw.payment_reference,
+    raw.paymentReference,
   ]
     .filter(Boolean)
     .map((value) => String(value));
@@ -2718,10 +2727,15 @@ function HomePage() {
           cancelledAt: cancelledOrder.cancelledAt,
         };
       } catch (error) {
-        const message = error.message || "Could not cancel this order.";
+        if (error.status === 404) {
+          resultMessage =
+            "Order cancellation is saved locally for now because the backend cancel endpoint is not deployed yet.";
+        } else {
+          const message = error.message || "Could not cancel this order.";
 
-        showToast(message, "error");
-        return { ok: false, message };
+          showToast(message, "error");
+          return { ok: false, message };
+        }
       }
     } else if (getAuthToken() && backendOrderId && backendOrderType === "service") {
       resultMessage =
@@ -3425,6 +3439,7 @@ function HomePage() {
           orders={currentUser?.orders || []}
           onLogout={handleLogout}
           onToast={showToast}
+          onApartmentSelect={showApartment}
         />
       ) : (
         <>

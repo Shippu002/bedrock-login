@@ -28,12 +28,21 @@ import "../styles/account-views.css";
 
 function getProfileCountry(user) {
   if (user?.country) return user.country;
+  if (user?.countryName) return user.countryName;
+  if (user?.country_name) return user.country_name;
 
   return findCountryByDialCode(user?.countryCode)?.name || "";
 }
 
 function getProfileState(user) {
-  return String(user?.state || "").trim();
+  return String(
+    user?.state ||
+      user?.stateName ||
+      user?.state_name ||
+      user?.city ||
+      user?.location ||
+      "",
+  ).trim();
 }
 
 function getProfileCurrency(user) {
@@ -46,6 +55,8 @@ function getProfileCurrency(user) {
 }
 
 function isImportantProfileComplete(user) {
+  if (user?.isProfileComplete === true) return true;
+
   return Boolean(
     (user?.name || user?.username)?.trim?.() &&
       user?.email?.trim?.() &&
