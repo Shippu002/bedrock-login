@@ -198,6 +198,7 @@ function ApartmentPage({
   const isAtGuestCapacity =
     guestCapacity > 0 && bookingDetails.guests >= guestCapacity;
   const isApartmentAvailable = quote?.available !== false;
+  const promoCode = String(bookingDetails.promo || "").trim();
   const canContinueBooking = Boolean(
     bookingDetails.checkIn &&
       bookingDetails.checkOut &&
@@ -229,9 +230,24 @@ function ApartmentPage({
     taxesAndFees,
     cautionFee,
     rockPointValue,
+    couponDiscount = 0,
+    couponMessage = "",
+    isCouponValid,
     total,
     payable,
   } = quote?.pricing || localTotals;
+  const hasCouponDiscount = Number(couponDiscount) > 0;
+  const hasCouponProblem = Boolean(
+    promoCode && (quote?.loading || quote?.error || isCouponValid === false),
+  );
+  const couponFeedback =
+    promoCode && quote?.loading
+      ? "Checking coupon..."
+      : promoCode && hasCouponDiscount
+        ? couponMessage || `Coupon applied: -NGN${Number(couponDiscount).toLocaleString()}`
+        : promoCode && isCouponValid === false
+          ? couponMessage || "This coupon could not be applied."
+          : "";
   const isSaved = savedOverride ?? isInitiallySaved;
 
   if (!apartment) return null;
@@ -472,9 +488,18 @@ function ApartmentPage({
                   placeholder="Type promo code"
                   value={bookingDetails.promo}
                   onChange={(event) =>
-                    onBookingChange("promo", event.target.value)
+                    onBookingChange("promo", event.target.value.toUpperCase())
                   }
                 />
+                {couponFeedback && (
+                  <p
+                    className={`apartment-coupon-feedback ${
+                      hasCouponDiscount ? "apartment-coupon-feedback--success" : ""
+                    }`}
+                  >
+                    {couponFeedback}
+                  </p>
+                )}
               </div>
 
               {quote?.error && (
@@ -517,10 +542,22 @@ function ApartmentPage({
                     }
                   />
                 </div>
+                {hasCouponDiscount && (
+                  <div className="apartment-payment-breakdown__discount">
+                    <span>Coupon discount</span>
+                    <strong>-{Number(couponDiscount).toLocaleString()}</strong>
+                  </div>
+                )}
                 <div className="apartment-payment-breakdown__total">
                   <span>Total</span>
                   <strong>NGN{total.toLocaleString()}</strong>
                 </div>
+                {(hasCouponDiscount || Number(rockPointValue) > 0) && (
+                  <div className="apartment-payment-breakdown__payable">
+                    <span>Amount to pay</span>
+                    <strong>NGN{payable.toLocaleString()}</strong>
+                  </div>
+                )}
               </div>
 
               <div className="apartment-policy-row apartment-policy-row--compact">
@@ -540,7 +577,11 @@ function ApartmentPage({
                 type="button"
                 className="apartment-primary-button"
                 onClick={() => runPendingAction("payment", onPaymentContinue)}
-                disabled={!canContinueBooking || pendingAction === "payment"}
+                disabled={
+                  !canContinueBooking ||
+                  hasCouponProblem ||
+                  pendingAction === "payment"
+                }
               >
                 {pendingAction === "payment"
                   ? "Processing..."

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FiArrowLeft,
   FiChevronRight,
@@ -9,6 +9,14 @@ import {
   mergeLegalDocuments,
 } from "../../data/legalDocuments";
 import "./LegalPage.css";
+
+function scrollLegalPageToTop() {
+  if (typeof window === "undefined") return;
+
+  window.requestAnimationFrame(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  });
+}
 
 function LegalDetail({ document, onBack }) {
   const paragraphs = String(document?.body || "")
@@ -77,6 +85,26 @@ export default function LegalPage({
   const selectedDocument = documents.find(
     (document) => getLegalDocumentKey(document) === selectedDocumentId,
   );
+  const nextInitialDocumentId = documents.some(
+    (document) => getLegalDocumentKey(document) === initialDocumentId,
+  )
+    ? initialDocumentId
+    : "";
+
+  useEffect(() => {
+    setSelectedDocumentId(nextInitialDocumentId);
+    scrollLegalPageToTop();
+  }, [nextInitialDocumentId]);
+
+  function handleOpenDocument(documentId) {
+    setSelectedDocumentId(documentId);
+    scrollLegalPageToTop();
+  }
+
+  function handleBackToIndex() {
+    setSelectedDocumentId("");
+    scrollLegalPageToTop();
+  }
 
   return (
     <section className="public-legal-page">
@@ -84,7 +112,7 @@ export default function LegalPage({
         {selectedDocument ? (
           <LegalDetail
             document={selectedDocument}
-            onBack={() => setSelectedDocumentId("")}
+            onBack={handleBackToIndex}
           />
         ) : (
           <section className="public-legal-card public-legal-index">
@@ -107,7 +135,7 @@ export default function LegalPage({
                 <button
                   type="button"
                   onClick={() =>
-                    setSelectedDocumentId(getLegalDocumentKey(document))
+                    handleOpenDocument(getLegalDocumentKey(document))
                   }
                   key={document.id}
                 >

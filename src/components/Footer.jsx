@@ -5,8 +5,10 @@ import {
 } from "../data/legalDocuments";
 import "../styles/footer.css";
 
+const BEDROCK_INSTAGRAM_URL = "https://www.instagram.com/bedrockresidences/";
+
 const defaultSocialLinks = [
-  { label: "Instagram", href: "https://www.instagram.com/" },
+  { label: "Instagram", href: BEDROCK_INSTAGRAM_URL },
   { label: "Twitter", href: "https://x.com/" },
   { label: "Facebook", href: "https://www.facebook.com/" },
   { label: "LinkedIn", href: "https://www.linkedin.com/" },
@@ -37,8 +39,6 @@ const baseFooterColumns = [
       { label: "Help centre", type: "profile", value: "help" },
       { label: "FAQ", type: "profile", value: "help" },
       { label: "Contact", type: "profile", value: "help" },
-      { label: "Press", type: "profile", value: "help" },
-      { label: "Status", type: "profile", value: "help" },
     ],
   },
   {
@@ -60,6 +60,16 @@ function normalizeLink(url) {
   return `https://${value}`;
 }
 
+function isInstagramLabel(label = "") {
+  return String(label).toLowerCase().includes("instagram");
+}
+
+function normalizeSocialLink(label, url) {
+  if (isInstagramLabel(label)) return BEDROCK_INSTAGRAM_URL;
+
+  return normalizeLink(url);
+}
+
 function getFooterSocialLinks(helpInfo) {
   const rawSocials =
     helpInfo?.socials ||
@@ -69,19 +79,25 @@ function getFooterSocialLinks(helpInfo) {
     helpInfo?.support?.socials;
 
   if (Array.isArray(rawSocials) && rawSocials.length > 0) {
-    return rawSocials.map((social) => ({
-      label: social.name || social.label || social.title || "Social",
-      href: normalizeLink(social.url || social.link || social.href),
-    }));
+    return rawSocials.map((social) => {
+      const label = social.name || social.label || social.title || "Social";
+
+      return {
+        label,
+        href: normalizeSocialLink(label, social.url || social.link || social.href),
+      };
+    });
   }
 
   if (rawSocials && typeof rawSocials === "object") {
-    return Object.entries(rawSocials).map(([label, value]) => ({
-      label,
-      href: normalizeLink(
+    return Object.entries(rawSocials).map(([label, value]) => {
+      const href = normalizeSocialLink(
+        label,
         typeof value === "string" ? value : value?.url || value?.link || value?.href,
-      ),
-    }));
+      );
+
+      return { label, href };
+    });
   }
 
   return defaultSocialLinks;

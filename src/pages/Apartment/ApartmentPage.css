@@ -343,6 +343,19 @@
   font-weight: 600;
 }
 
+.apartment-coupon-feedback {
+  margin: -2px 0 0;
+  color: #cc400c;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.apartment-coupon-feedback--success {
+  color: #16a34a;
+}
+
 .apartment-select,
 .apartment-guest-input,
 .apartment-text-input {
@@ -697,8 +710,17 @@
   font-weight: 600;
 }
 
+.apartment-payment-breakdown__discount strong {
+  color: #16a34a;
+}
+
 .apartment-payment-breakdown__total strong {
   color: #1a1a1a;
+  font-size: 16px;
+}
+
+.apartment-payment-breakdown__payable strong {
+  color: #cc400c;
   font-size: 16px;
 }
 

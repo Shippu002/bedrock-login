@@ -1223,6 +1223,13 @@ function HomePage() {
     }
 
     let ignoreQuoteResponse = false;
+    const couponCode = String(bookingDetails.promo || "").trim();
+
+    setApartmentQuote((current) => ({
+      ...(current || {}),
+      loading: true,
+      error: "",
+    }));
 
     Promise.allSettled([
       apartmentsApi.checkAvailability({
@@ -1235,7 +1242,7 @@ function HomePage() {
         checkIn: bookingDetails.checkIn,
         checkOut: bookingDetails.checkOut,
         guests: bookingDetails.guests,
-        couponCode: bookingDetails.promo,
+        couponCode,
       }),
     ]).then(([availabilityResult, pricingResult]) => {
       if (ignoreQuoteResponse) return;
@@ -1251,8 +1258,10 @@ function HomePage() {
             ? normalizeBackendPricing(pricingResult.value)
             : null,
         error:
-          availabilityResult.status === "rejected" &&
-          pricingResult.status === "rejected"
+          pricingResult.status === "rejected" && couponCode
+            ? "This coupon could not be applied. Please check the code or continue without it."
+            : availabilityResult.status === "rejected" &&
+                pricingResult.status === "rejected"
             ? "Could not refresh live availability and pricing."
             : "",
       });
@@ -2034,6 +2043,12 @@ function HomePage() {
   function showLegal(documentId = "") {
     setSelectedLegalDocumentId(documentId);
     setActivePage("legal");
+
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      });
+    }
   }
 
   function showFoodDetail(foodItem) {
@@ -2869,12 +2884,13 @@ function HomePage() {
   }
 
   function createBookingFromCurrentSelection(overrides = {}) {
-    const totals = calculateBookingTotals(
+    const fallbackTotals = calculateBookingTotals(
       selectedApartment?.price,
       bookingDetails.checkIn,
       bookingDetails.checkOut,
       bookingDetails.useRockPoints,
     );
+    const totals = apartmentQuote?.pricing || fallbackTotals;
 
     return {
       id: overrides.id || createBookingId(),
@@ -2898,6 +2914,8 @@ function HomePage() {
       taxesAndFees: totals.taxesAndFees,
       cautionFee: totals.cautionFee,
       rockPointValue: totals.rockPointValue,
+      couponCode: String(bookingDetails.promo || "").trim(),
+      couponDiscount: totals.couponDiscount || totals.discountAmount || 0,
       totalAmount: totals.payable,
       status: "payment_pending",
       isIncomplete: true,
@@ -2934,6 +2952,16 @@ function HomePage() {
       return;
     }
 
+    if (
+      String(bookingDetails.promo || "").trim() &&
+      (apartmentQuote?.loading ||
+        apartmentQuote?.error ||
+        apartmentQuote?.pricing?.isCouponValid === false)
+    ) {
+      showToast("Please wait for the coupon check to finish or remove the coupon code.", "error");
+      return;
+    }
+
     if (!getAuthToken()) {
       showToast("Your secure session has expired. Please log in again before paying.", "error");
       openLogin();
@@ -2952,7 +2980,7 @@ function HomePage() {
             checkIn: bookingDetails.checkIn,
             checkOut: bookingDetails.checkOut,
             guests: bookingDetails.guests,
-            couponCode: bookingDetails.promo,
+            couponCode: String(bookingDetails.promo || "").trim(),
             useRockPoints: bookingDetails.useRockPoints,
             agreeToPolicies: bookingDetails.agreedToPolicy,
           });
@@ -3327,7 +3355,7 @@ function HomePage() {
           checkIn: bookingDetails.checkIn,
           checkOut: bookingDetails.checkOut,
           guests: bookingDetails.guests,
-          couponCode: bookingDetails.promo,
+          couponCode: String(bookingDetails.promo || "").trim(),
           useRockPoints: bookingDetails.useRockPoints,
           agreeToPolicies: bookingDetails.agreedToPolicy,
         });

@@ -1,6 +1,6 @@
 import { apiClient, clearAuthToken, setAuthToken } from "./client";
 
-export const authEndpoints = {
+export const authEndpoints = { 
   guestRegister: "/auth/register",
   agentRegister: "/auth/register/agent",
   verifyOtp: "/auth/verify-otp",

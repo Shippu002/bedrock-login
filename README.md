@@ -31,8 +31,18 @@ npm run lint
 npm run build
 ```
 
-`public/_redirects` provides the Netlify SPA fallback. For Vercel or another
-host, configure the equivalent fallback to `/index.html`.
+`public/_redirects` provides the Netlify SPA fallback. `public/.htaccess`
+provides the Apache/cPanel SPA fallback so refreshed routes like `/profile`,
+`/legal/privacy`, and apartment pages load `index.html` instead of a server
+404.
+
+For cPanel/Namecheap shared hosting:
+
+1. Run `npm run build`.
+2. Upload the contents of `dist/` into the domain's `public_html` folder.
+3. Confirm `.htaccess` is included in `public_html`.
+4. Set production environment variables before building, especially
+   `VITE_API_BASE_URL=https://api.bedrockresidences.com/api/v1`.
 
 ## API audit
 

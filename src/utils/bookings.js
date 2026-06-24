@@ -64,14 +64,25 @@ export function calculateBookingTotals(
   checkIn,
   checkOut,
   useRockPoints,
+  adjustments = {},
 ) {
   const nights = Math.max(1, calculateNights(checkIn, checkOut) || 1);
-  const subtotal = nightlyRate * nights;
+  const safeNightlyRate = Number(nightlyRate || 0);
+  const subtotal = safeNightlyRate * nights;
   const taxesAndFees = Math.round(subtotal * 0.075);
   const cautionFee = 100000;
   const rockPointValue = useRockPoints ? 12500 : 0;
   const total = subtotal + taxesAndFees + cautionFee;
-  const payable = total - rockPointValue;
+  const couponDiscount = Math.max(
+    0,
+    Number(
+      adjustments.couponDiscount ??
+        adjustments.discountAmount ??
+        adjustments.discount ??
+        0,
+    ) || 0,
+  );
+  const payable = Math.max(0, total - rockPointValue - couponDiscount);
 
   return {
     nights,
@@ -79,6 +90,8 @@ export function calculateBookingTotals(
     taxesAndFees,
     cautionFee,
     rockPointValue,
+    couponDiscount,
+    discountAmount: couponDiscount,
     total,
     payable,
   };

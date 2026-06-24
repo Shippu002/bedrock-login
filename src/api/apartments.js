@@ -83,7 +83,6 @@ export function calculatePricing({
       guests,
       coupon_code: couponCode || null,
     },
-    { skipAuth: true },
   );
 }
 

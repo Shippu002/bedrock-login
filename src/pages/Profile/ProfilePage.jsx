@@ -89,10 +89,12 @@ const fallbackEarnRules = [
   },
 ];
 
+const BEDROCK_INSTAGRAM_URL = "https://www.instagram.com/bedrockresidences/";
+
 const socials = [
   { label: "X (formerly twitter)", icon: FaXTwitter },
   { label: "Facebook", icon: FaFacebookF },
-  { label: "Instagram", icon: FaInstagram },
+  { label: "Instagram", icon: FaInstagram, url: BEDROCK_INSTAGRAM_URL },
   { label: "Linkedin", icon: FaLinkedinIn },
 ];
 
@@ -438,6 +440,16 @@ function normalizeLink(url) {
   return `https://${value}`;
 }
 
+function isInstagramLabel(label = "") {
+  return String(label).toLowerCase().includes("instagram");
+}
+
+function normalizeSocialUrl(label, url) {
+  if (isInstagramLabel(label)) return BEDROCK_INSTAGRAM_URL;
+
+  return normalizeLink(url);
+}
+
 function getLegalDocumentByType(documents = [], keywords = []) {
   return documents.find((document) => {
     const haystack = [
@@ -474,21 +486,31 @@ function getHelpSocials(helpInfo = {}) {
     helpInfo.support?.socials;
 
   if (Array.isArray(rawSocials) && rawSocials.length > 0) {
-    return rawSocials.map((social) => ({
-      label: social.name || social.label || social.title || "Social link",
-      url: normalizeLink(social.url || social.link || social.href),
-      icon: getSocialIcon(social.name || social.label || social.title),
-    }));
+    return rawSocials.map((social) => {
+      const label = social.name || social.label || social.title || "Social link";
+
+      return {
+        label,
+        url: normalizeSocialUrl(label, social.url || social.link || social.href),
+        icon: getSocialIcon(label),
+      };
+    });
   }
 
   if (rawSocials && typeof rawSocials === "object") {
-    return Object.entries(rawSocials).map(([key, value]) => ({
-      label: key,
-      url: normalizeLink(
+    return Object.entries(rawSocials).map(([key, value]) => {
+      const label = formatBackendKeyTitle(key);
+      const socialUrl = normalizeSocialUrl(
+        label,
         typeof value === "string" ? value : value?.url || value?.link || value?.href,
-      ),
-      icon: getSocialIcon(key),
-    }));
+      );
+
+      return {
+        label,
+        url: socialUrl,
+        icon: getSocialIcon(label),
+      };
+    });
   }
 
   return socials.map((social) => ({ ...social, url: "" }));

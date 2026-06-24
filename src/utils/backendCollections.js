@@ -676,20 +676,45 @@ export function normalizeBackendReview(item = {}, index = 0) {
 }
 
 export function normalizeBackendPricing(response, fallback = {}) {
-  const pricing = extractObject(response);
+  const payload = extractObject(response);
+  const pricing =
+    payload.pricing ||
+    payload.summary ||
+    payload.quote ||
+    payload.breakdown ||
+    payload;
   const total =
     pricing.total ??
     pricing.total_amount ??
     pricing.totalAmount ??
     fallback.total ??
     0;
+  const rockPointValue = Number(
+    pricing.rock_point_value ||
+      pricing.rockPointValue ||
+      pricing.rock_points_discount ||
+      fallback.rockPointValue ||
+      0,
+  );
+  const couponDiscount = Number(
+    pricing.coupon_discount ??
+      pricing.couponDiscount ??
+      pricing.discount_amount ??
+      pricing.discountAmount ??
+      pricing.discount ??
+      pricing.coupon?.discount_amount ??
+      pricing.coupon?.discountAmount ??
+      fallback.couponDiscount ??
+      fallback.discountAmount ??
+      0,
+  );
   const payable =
     pricing.payable ??
     pricing.payable_amount ??
     pricing.amount_payable ??
     pricing.amount ??
     fallback.payable ??
-    total;
+    Math.max(0, Number(total) - rockPointValue - couponDiscount);
 
   return {
     nights: Number(
@@ -713,13 +738,29 @@ export function normalizeBackendPricing(response, fallback = {}) {
     cautionFee: Number(
       pricing.caution_fee || pricing.cautionFee || fallback.cautionFee || 0,
     ),
-    rockPointValue: Number(
-      pricing.rock_point_value ||
-        pricing.rockPointValue ||
-        pricing.rock_points_discount ||
-        fallback.rockPointValue ||
-        0,
-    ),
+    rockPointValue,
+    couponCode:
+      pricing.coupon_code ||
+      pricing.couponCode ||
+      pricing.coupon?.code ||
+      fallback.couponCode ||
+      "",
+    couponDiscount,
+    discountAmount: couponDiscount,
+    couponMessage:
+      pricing.coupon_message ||
+      pricing.couponMessage ||
+      pricing.discount_message ||
+      pricing.discountMessage ||
+      pricing.message ||
+      fallback.couponMessage ||
+      "",
+    isCouponValid:
+      pricing.coupon_valid ??
+      pricing.couponValid ??
+      pricing.is_coupon_valid ??
+      pricing.isCouponValid ??
+      (couponDiscount > 0 ? true : undefined),
     total: Number(total),
     payable: Number(payable),
   };
