@@ -21,13 +21,11 @@ import {
   FiX,
 } from "react-icons/fi";
 import {
-  FaApple,
   FaBriefcase,
   FaDumbbell,
   FaGlassCheers,
   FaUtensils,
 } from "react-icons/fa";
-import { FcGoogle } from "react-icons/fc";
 import {
   countryOptions,
   findCountryByDialCode,
@@ -135,10 +133,6 @@ export default function AuthModal({
   onClose,
   onSwitchToLogin,
   onSwitchToSignup,
-  onGoogleSignIn,
-  onAppleSignIn,
-  socialAuthProvider = "",
-  socialAuthError = "",
   onAuthComplete,
 }) {
   const isAgentSignup = entryPoint === "agentSignup";
@@ -180,6 +174,7 @@ export default function AuthModal({
   const [travelPurpose, setTravelPurpose] = useState("business");
   const [preferredAmenities, setPreferredAmenities] = useState(["gym"]);
   const [budgetRange, setBudgetRange] = useState("");
+  const [showTravelErrors, setShowTravelErrors] = useState(false);
   const [profilePhotoPreview, setProfilePhotoPreview] = useState("");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agentAccountType, setAgentAccountType] = useState("individual");
@@ -199,14 +194,17 @@ export default function AuthModal({
     findCountryById(selectedCountryId) ||
     countryOptions[0];
   const selectedCurrency = selectedCountry.currency;
-  const isSocialAuthLoading = Boolean(socialAuthProvider);
   const isAuthRequestLoading = Boolean(authAction);
-  const isGoogleAuthLoading = socialAuthProvider === "google";
-  const isAppleAuthLoading = socialAuthProvider === "apple";
   const modalRef = useDialogFocus(isOpen, { onClose: handleCloseModal });
 
   const showReferralTip = isReferralActive || formData.referral.trim() !== "";
   const formattedResendTimer = `00:${String(resendTimer).padStart(2, "0")}`;
+  const signupNameParts = formData.fullName.trim().split(/\s+/).filter(Boolean);
+  const signupEmail = formData.email.trim();
+  const signupPhone = formData.phone.trim();
+  const expectedPhoneLength = Number(selectedCountry.localPhoneLength) || 0;
+  const isSignupEmailInvalid =
+    signupEmail !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signupEmail);
 
   const generatedUsernames = buildUsernameSuggestions(formData.fullName);
   const suggestedUsername =
@@ -214,9 +212,11 @@ export default function AuthModal({
   const chosenUsername = customUsername.trim() || suggestedUsername;
 
   const signupErrors = {
-    fullName: formData.fullName.trim() === "",
-    email: formData.email.trim() === "",
-    phone: formData.phone.trim() === "",
+    fullName: signupNameParts.length < 2,
+    email: signupEmail === "" || isSignupEmailInvalid,
+    phone:
+      signupPhone === "" ||
+      (expectedPhoneLength > 0 && signupPhone.length !== expectedPhoneLength),
   };
 
   const loginErrors = {
@@ -260,6 +260,13 @@ export default function AuthModal({
   const resetPasswordsMatch =
     resetData.password !== "" &&
     resetData.password === resetData.confirmPassword;
+  const travelErrors = {
+    travelPurpose: travelPurpose === "",
+    preferredAmenities: preferredAmenities.length === 0,
+    budgetRange: budgetRange === "",
+    agreedToTerms: !agreedToTerms,
+  };
+  const isTravelPreferencesComplete = !Object.values(travelErrors).some(Boolean);
 
   useEffect(() => {
     if (!isOpen || currentStep !== "otpVerification" || resendTimer <= 0) {
@@ -405,20 +412,44 @@ export default function AuthModal({
     return "available";
   }
 
-  function handleUsernameContinue() {
-    const result = evaluateUsername(chosenUsername);
+  async function handleUsernameContinue() {
+    const normalizedUsername = chosenUsername.trim().toLowerCase();
+    const localResult = evaluateUsername(normalizedUsername);
 
-    if (result === "unavailable") {
+    if (!normalizedUsername || isAuthRequestLoading) {
+      return;
+    }
+
+    if (localResult === "unavailable") {
       setUsernameFeedback("unavailable");
       return;
     }
 
-    if (usernameFeedback === "available") {
-      setCurrentStep("passwordCreation");
-      return;
-    }
+    setAuthAction("createUsername");
+    setSignupErrorMessage("");
 
-    setUsernameFeedback("available");
+    try {
+      const availability = await authApi.checkUsername(normalizedUsername);
+
+      if (!availability.available) {
+        setUsernameFeedback("unavailable");
+        return;
+      }
+
+      const response = await authApi.createGuestUsername(normalizedUsername);
+
+      setUsernameFeedback("available");
+      setPendingSessionUser((currentUser) =>
+        normalizeBackendUser(response, currentUser || buildRegisteredUser()),
+      );
+      setCurrentStep("passwordCreation");
+    } catch (error) {
+      setSignupErrorMessage(
+        error.message || "Unable to create your username. Please try again.",
+      );
+    } finally {
+      setAuthAction("");
+    }
   }
 
   function handleRefreshSuggestedUsername() {
@@ -450,33 +481,30 @@ export default function AuthModal({
 
     try {
       const fallbackUser = buildRegisteredUser();
-      const register =
-        signupMode === "agent" ? authApi.registerAgent : authApi.registerGuest;
+      const setPassword =
+        signupMode === "agent"
+          ? authApi.setAgentPassword
+          : authApi.setGuestPassword;
       const endpoint =
         signupMode === "agent"
-          ? authApi.authEndpoints.agentRegister
-          : authApi.authEndpoints.guestRegister;
+          ? authApi.authEndpoints.agentRegisterStep2
+          : authApi.authEndpoints.guestRegisterStep3;
 
-      debugAuthFlow("register-submit", {
+      debugAuthFlow("password-submit", {
         mode: signupMode,
         endpoint,
-        email: formData.email.trim(),
-        phoneCountry: selectedCountry.id,
-        hasReferral: Boolean(formData.referral.trim()),
+        email: signupEmail.toLowerCase(),
       });
 
-      const response = await register({
-        fullName: formData.fullName,
-        email: formData.email,
-        phone: `${selectedCountry.dialCode} ${formData.phone}`,
-        country: selectedCountry.name,
-        countryCode: selectedCountry.id,
+      const response = await setPassword({
         password,
         passwordConfirmation: confirmPassword,
       });
 
-      setPendingSessionUser(normalizeBackendUser(response, fallbackUser));
-      setCurrentStep("emailConfirmation");
+      setPendingSessionUser((currentUser) =>
+        normalizeBackendUser(response, currentUser || fallbackUser),
+      );
+      setCurrentStep(signupMode === "agent" ? "agentDocument" : "travelPreferences");
     } catch (error) {
       setSignupErrorMessage(
         error.message || "Unable to create your account. Please try again.",
@@ -487,6 +515,8 @@ export default function AuthModal({
   }
 
   function toggleAmenity(id) {
+    setShowTravelErrors(false);
+    setSignupErrorMessage("");
     setPreferredAmenities((current) =>
       current.includes(id)
         ? current.filter((item) => item !== id)
@@ -505,9 +535,39 @@ export default function AuthModal({
     reader.readAsDataURL(file);
   }
 
-  function handleTravelContinue() {
-    if (agreedToTerms) {
+  async function handleTravelContinue() {
+    if (isAuthRequestLoading) {
+      return;
+    }
+
+    if (!isTravelPreferencesComplete) {
+      setShowTravelErrors(true);
+      setSignupErrorMessage(
+        "Complete your travel purpose, amenities, budget range, and terms agreement to continue.",
+      );
+      return;
+    }
+
+    setAuthAction("completeGuestRegistration");
+    setSignupErrorMessage("");
+
+    try {
+      const response = await authApi.completeGuestRegistration({
+        travelPurpose,
+        preferredAmenities,
+        budgetRange,
+      });
+
+      setPendingSessionUser((currentUser) =>
+        normalizeBackendUser(response, currentUser || buildRegisteredUser()),
+      );
       setCurrentStep("welcome");
+    } catch (error) {
+      setSignupErrorMessage(
+        error.message || "Unable to complete your registration. Please try again.",
+      );
+    } finally {
+      setAuthAction("");
     }
   }
 
@@ -775,6 +835,7 @@ export default function AuthModal({
     setTravelPurpose("business");
     setPreferredAmenities(["gym"]);
     setBudgetRange("");
+    setShowTravelErrors(false);
     setProfilePhotoPreview("");
     setAgreedToTerms(false);
     setAgentAccountType("individual");
@@ -792,17 +853,57 @@ export default function AuthModal({
     onClose();
   }
 
-  function handleSignupSubmit(event) {
+  async function handleSignupSubmit(event) {
     event.preventDefault();
 
     if (!isSignupComplete) {
       setShowSignupErrors(true);
+      setSignupErrorMessage(
+        "Enter your full name, a valid email address, and a complete phone number.",
+      );
       return;
     }
 
+    setAuthAction("startRegistration");
     setShowSignupErrors(false);
     setSignupErrorMessage("");
-    setCurrentStep("usernameCreation");
+
+    try {
+      const startRegistration =
+        signupMode === "agent"
+          ? authApi.startAgentRegistration
+          : authApi.startGuestRegistration;
+      const endpoint =
+        signupMode === "agent"
+          ? authApi.authEndpoints.agentRegisterStep1
+          : authApi.authEndpoints.guestRegisterStep1;
+
+      debugAuthFlow("registration-step1-submit", {
+        mode: signupMode,
+        endpoint,
+        email: signupEmail.toLowerCase(),
+        phoneCountry: selectedCountry.dialCode,
+        hasReferral: Boolean(formData.referral.trim()),
+      });
+
+      const response = await startRegistration({
+        accountType: agentAccountType,
+        fullName: formData.fullName.trim(),
+        email: signupEmail.toLowerCase(),
+        phoneNumber: signupPhone,
+        phoneCountryCode: selectedCountry.dialCode,
+        referralCode: formData.referral.trim(),
+      });
+
+      setPendingSessionUser(normalizeBackendUser(response, buildRegisteredUser()));
+      setCurrentStep("emailConfirmation");
+    } catch (error) {
+      setSignupErrorMessage(
+        error.message || "Unable to start registration. Please try again.",
+      );
+    } finally {
+      setAuthAction("");
+    }
   }
 
   function handleSignupModeChange(nextMode) {
@@ -850,9 +951,8 @@ export default function AuthModal({
       await profileApi.uploadDocument({
         file: agentDocumentFile,
         type: agentDocumentType,
-        name: agentDocumentFile.name,
       });
-      await profileApi.submitKyc();
+      await authApi.submitAgentApplication();
       setCurrentStep("agentReview");
     } catch (error) {
       setAgentOnboardingError(
@@ -863,27 +963,30 @@ export default function AuthModal({
     }
   }
 
-  async function openOtpVerificationStep() {
+  async function openOtpVerificationStep({ resend = false } = {}) {
     setOtp(initialOtp);
     setResendTimer(60);
     setOtpErrorMessage("");
-    setAuthAction("sendOtp");
 
-    try {
-      debugAuthFlow("resend-otp-before-verification", {
-        mode: signupMode,
-        endpoint: authApi.authEndpoints.resendOtp,
-        email: getSignupEmail(),
-      });
+    if (resend) {
+      setAuthAction("sendOtp");
 
-      await authApi.resendOtp(getSignupEmail());
-    } catch (error) {
-      setOtpErrorMessage(
-        error.message ||
-          "We could not send a fresh OTP, but you can enter the code already sent to your email.",
-      );
-    } finally {
-      setAuthAction("");
+      try {
+        debugAuthFlow("resend-otp-before-verification", {
+          mode: signupMode,
+          endpoint: authApi.authEndpoints.resendOtp,
+          email: getSignupEmail(),
+        });
+
+        await authApi.resendOtp(getSignupEmail());
+      } catch (error) {
+        setOtpErrorMessage(
+          error.message ||
+            "We could not send a fresh OTP, but you can enter the code already sent to your email.",
+        );
+      } finally {
+        setAuthAction("");
+      }
     }
 
     setCurrentStep("otpVerification");
@@ -945,11 +1048,11 @@ export default function AuthModal({
 
   function handleVerifiedProceed() {
     if (signupMode === "agent") {
-      setCurrentStep("agentDocument");
+      setCurrentStep("passwordCreation");
       return;
     }
 
-    setCurrentStep("travelPreferences");
+    setCurrentStep("usernameCreation");
   }
 
   function getModalClassName() {
@@ -1112,40 +1215,6 @@ export default function AuthModal({
 
                 {loginErrorMessage && (
                   <p className="auth-field-error">{loginErrorMessage}</p>
-                )}
-
-                <div className="auth-divider auth-divider--login">
-                  <span>OR</span>
-                </div>
-
-                <button
-                  type="button"
-                  className="auth-social-button"
-                  onClick={onGoogleSignIn}
-                  disabled={isSocialAuthLoading}
-                >
-                  <FcGoogle className="auth-social-icon" />
-                  <span>
-                    {isGoogleAuthLoading
-                      ? "Signing in..."
-                      : "Login with Google"}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  className="auth-social-button"
-                  onClick={onAppleSignIn}
-                  disabled={isSocialAuthLoading}
-                >
-                  <FaApple className="auth-social-icon auth-social-icon--apple" />
-                  <span>
-                    {isAppleAuthLoading ? "Signing in..." : "Login with Apple"}
-                  </span>
-                </button>
-
-                {socialAuthError && (
-                  <p className="auth-field-error">{socialAuthError}</p>
                 )}
 
                 <button
@@ -1453,6 +1522,11 @@ export default function AuthModal({
                     aria-invalid={showSignupErrors && signupErrors.fullName}
                   />
                 </div>
+                {showSignupErrors && signupErrors.fullName && (
+                  <p className="auth-field-error">
+                    Enter both your first name and last name.
+                  </p>
+                )}
               </label>
 
               <label className="auth-field">
@@ -1473,6 +1547,11 @@ export default function AuthModal({
                     aria-invalid={showSignupErrors && signupErrors.email}
                   />
                 </div>
+                {showSignupErrors && signupErrors.email && (
+                  <p className="auth-field-error">
+                    Enter a valid email address.
+                  </p>
+                )}
               </label>
 
               <div className="auth-phone-group">
@@ -1519,6 +1598,11 @@ export default function AuthModal({
                     />
                   </div>
                 </div>
+                {showSignupErrors && signupErrors.phone && (
+                  <p className="auth-field-error">
+                    Enter a complete {selectedCountry.dialCode} phone number.
+                  </p>
+                )}
               </div>
 
               <label className="auth-field">
@@ -1550,42 +1634,16 @@ export default function AuthModal({
                 </div>
               )}
 
-              <div className="auth-divider">
-                <span>OR</span>
-              </div>
-
-              <button
-                type="button"
-                className="auth-social-button"
-                onClick={onGoogleSignIn}
-                disabled={isSocialAuthLoading}
-              >
-                <FcGoogle className="auth-social-icon" />
-                <span>
-                  {isGoogleAuthLoading
-                    ? "Signing in..."
-                    : "Sign up with Google"}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                className="auth-social-button"
-                onClick={onAppleSignIn}
-                disabled={isSocialAuthLoading}
-              >
-                <FaApple className="auth-social-icon auth-social-icon--apple" />
-                <span>
-                  {isAppleAuthLoading ? "Signing in..." : "Sign up with Apple"}
-                </span>
-              </button>
-
-              {socialAuthError && (
-                <p className="auth-field-error">{socialAuthError}</p>
+              {signupErrorMessage && (
+                <p className="auth-field-error">{signupErrorMessage}</p>
               )}
 
-              <button type="submit" className="auth-primary-button">
-                Continue
+              <button
+                type="submit"
+                className="auth-primary-button"
+                disabled={authAction === "startRegistration"}
+              >
+                {authAction === "startRegistration" ? "Sending code..." : "Continue"}
               </button>
 
               <p className="auth-footer-text">
@@ -1684,13 +1742,13 @@ export default function AuthModal({
 
             <p className="auth-stage__text auth-stage__text--small-center">
               Is this email correct? we&apos;ll send you a confirmation code
-              there
+              there. Check your inbox and continue when you&apos;re ready.
             </p>
 
             <button
               type="button"
               className="auth-primary-button auth-primary-button--block-gap"
-              onClick={openOtpVerificationStep}
+              onClick={() => openOtpVerificationStep()}
               disabled={authAction === "sendOtp"}
             >
               {authAction === "sendOtp" ? "Sending code..." : "Continue"}
@@ -1801,7 +1859,7 @@ export default function AuthModal({
             <button
               type="button"
               className="auth-secondary-button auth-secondary-button--retry"
-              onClick={openOtpVerificationStep}
+              onClick={() => openOtpVerificationStep({ resend: true })}
             >
               Retry
             </button>
@@ -2089,8 +2147,9 @@ export default function AuthModal({
                 type="button"
                 className="auth-username__continue-button"
                 onClick={handleUsernameContinue}
+                disabled={authAction === "createUsername"}
               >
-                Continue
+                {authAction === "createUsername" ? "Saving..." : "Continue"}
               </button>
             </div>
           </div>
@@ -2195,7 +2254,9 @@ export default function AuthModal({
               <button
                 type="button"
                 className="auth-username__back-button"
-                onClick={() => setCurrentStep("usernameCreation")}
+                onClick={() =>
+                  setCurrentStep(signupMode === "agent" ? "otpSuccess" : "usernameCreation")
+                }
               >
                 Back
               </button>
@@ -2232,7 +2293,11 @@ export default function AuthModal({
                   className={`auth-travel__chip ${
                     travelPurpose === "business" ? "is-active" : ""
                   }`}
-                  onClick={() => setTravelPurpose("business")}
+                  onClick={() => {
+                    setTravelPurpose("business");
+                    setShowTravelErrors(false);
+                    setSignupErrorMessage("");
+                  }}
                 >
                   <FaBriefcase className="auth-travel__chip-icon" />
                   <span>Business</span>
@@ -2243,12 +2308,20 @@ export default function AuthModal({
                   className={`auth-travel__chip ${
                     travelPurpose === "leisure" ? "is-active" : ""
                   }`}
-                  onClick={() => setTravelPurpose("leisure")}
+                  onClick={() => {
+                    setTravelPurpose("leisure");
+                    setShowTravelErrors(false);
+                    setSignupErrorMessage("");
+                  }}
                 >
                   <FaGlassCheers className="auth-travel__chip-icon" />
                   <span>Leisure</span>
                 </button>
               </div>
+
+              {showTravelErrors && travelErrors.travelPurpose && (
+                <p className="auth-field-error">Choose your travel purpose.</p>
+              )}
             </div>
 
             <div className="auth-travel__section">
@@ -2269,6 +2342,12 @@ export default function AuthModal({
                   </button>
                 ))}
               </div>
+
+              {showTravelErrors && travelErrors.preferredAmenities && (
+                <p className="auth-field-error">
+                  Select at least one preferred amenity.
+                </p>
+              )}
             </div>
 
             <div className="auth-travel__section">
@@ -2277,7 +2356,11 @@ export default function AuthModal({
               <div className="auth-select-wrap">
                 <select
                   value={budgetRange}
-                  onChange={(event) => setBudgetRange(event.target.value)}
+                  onChange={(event) => {
+                    setBudgetRange(event.target.value);
+                    setShowTravelErrors(false);
+                    setSignupErrorMessage("");
+                  }}
                 >
                   <option value="">Select</option>
                   <option value="budget">Below {selectedCurrency} 100,000</option>
@@ -2289,6 +2372,10 @@ export default function AuthModal({
 
                 <FiChevronDown className="auth-select-arrow" />
               </div>
+
+              {showTravelErrors && travelErrors.budgetRange && (
+                <p className="auth-field-error">Select your budget range.</p>
+              )}
             </div>
 
             <div className="auth-travel__section">
@@ -2329,11 +2416,25 @@ export default function AuthModal({
                 className={`auth-travel__toggle ${
                   agreedToTerms ? "is-on" : ""
                 }`}
-                onClick={() => setAgreedToTerms((current) => !current)}
+                onClick={() => {
+                  setAgreedToTerms((current) => !current);
+                  setShowTravelErrors(false);
+                  setSignupErrorMessage("");
+                }}
               >
                 <span />
               </button>
             </div>
+
+            {showTravelErrors && travelErrors.agreedToTerms && (
+              <p className="auth-field-error">
+                Agree to the Terms &amp; Condition to continue.
+              </p>
+            )}
+
+            {signupErrorMessage && (
+              <p className="auth-field-error">{signupErrorMessage}</p>
+            )}
 
             <div className="auth-username__actions">
               <button
@@ -2348,8 +2449,11 @@ export default function AuthModal({
                 type="button"
                 className="auth-username__continue-button"
                 onClick={handleTravelContinue}
+                disabled={authAction === "completeGuestRegistration"}
               >
-                Continue
+                {authAction === "completeGuestRegistration"
+                  ? "Finishing..."
+                  : "Continue"}
               </button>
             </div>
           </div>

@@ -83,21 +83,30 @@ export function markAllNotificationsAsRead() {
 }
 
 export function getDocuments() {
-  return apiClient.get("/profile/documents");
+  return apiClient.get("/documents");
 }
 
-export function uploadDocument({ file, type, name }) {
+function normalizeDocumentType(type) {
+  const documentTypeMap = {
+    cac: "cac_certificate",
+    nin: "id_card",
+    voters_card: "id_card",
+  };
+
+  return documentTypeMap[type] || type || "id_card";
+}
+
+export function uploadDocument({ file, type }) {
   const formData = new FormData();
 
   formData.append("document", file);
-  formData.append("type", type);
-  formData.append("name", name);
+  formData.append("document_type", normalizeDocumentType(type));
 
-  return apiClient.post("/profile/documents", formData);
+  return apiClient.post("/documents/upload", formData);
 }
 
 export function submitKyc() {
-  return apiClient.post("/profile/kyc/submit");
+  return apiClient.post("/auth/agent/submit-application");
 }
 
 export function getHelpInfo() {

@@ -32,14 +32,6 @@ import {
   hasActiveApartmentFilters,
 } from "../../utils/apartmentFilters";
 import {
-  auth,
-  GoogleAuthProvider,
-  isFirebaseConfigReady,
-  missingFirebaseEnvVars,
-  OAuthProvider,
-  signInWithPopup,
-} from "../../firebase";
-import {
   apartmentsApi,
   authApi,
   bookingsApi,
@@ -160,6 +152,11 @@ function saveStoredAccount(nextUser) {
   if (!safeUser) return;
 
   localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(safeUser));
+}
+
+function clearStoredSession() {
+  clearAuthToken();
+  localStorage.removeItem(ACCOUNT_STORAGE_KEY);
 }
 
 function getUserOrderScope(user = {}) {
@@ -625,6 +622,26 @@ function splitProfileName(name = "") {
   return { firstName, lastName };
 }
 
+function isUnauthenticatedError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  const dataMessage =
+    typeof error?.data === "string"
+      ? error.data.toLowerCase()
+      : JSON.stringify(error?.data || {}).toLowerCase();
+
+  return (
+    error?.status === 401 ||
+    message.includes("unauthenticated") ||
+    message.includes("unauthorized") ||
+    dataMessage.includes("unauthenticated") ||
+    dataMessage.includes("unauthorized")
+  );
+}
+
+function isServerError(error) {
+  return error?.status >= 500;
+}
+
 async function fetchBackendUserCollections(baseUser) {
   if (!baseUser || !getAuthToken()) {
     return baseUser;
@@ -767,45 +784,13 @@ function ShopDirectoryPage({ categories = [], onBack, onShopSelect }) {
   );
 }
 
-function getSocialAuthErrorMessage(error, providerName) {
-  const providerLabel = providerName === "apple" ? "Apple" : "Google";
-
-  switch (error?.code) {
-    case "app/missing-firebase-config":
-      return `Firebase is not configured yet. Add ${missingFirebaseEnvVars.join(
-        ", ",
-      )} to your .env file, then restart the dev server.`;
-    case "auth/invalid-api-key":
-      return "Firebase rejected the API key. Check VITE_FIREBASE_API_KEY in your .env file.";
-    case "auth/configuration-not-found":
-      return "Firebase Auth is not enabled for this project. Enable Authentication and the sign-in provider in Firebase Console.";
-    case "auth/operation-not-allowed":
-      return `${providerLabel} sign-in is not enabled. Turn it on in Firebase Console > Authentication > Sign-in method.`;
-    case "auth/unauthorized-domain":
-      return "This domain is not authorized in Firebase. Add localhost and 127.0.0.1 in Firebase Console > Authentication > Settings > Authorized domains.";
-    case "auth/popup-blocked":
-      return "The sign-in popup was blocked by the browser. Allow popups and try again.";
-    case "auth/popup-closed-by-user":
-      return "Sign-in was cancelled before it finished.";
-    case "auth/cancelled-popup-request":
-      return "Another sign-in popup is already open. Close it and try again.";
-    case "auth/account-exists-with-different-credential":
-      return "An account already exists with this email using another sign-in method.";
-    default:
-      return (
-        error?.message ||
-        `${providerLabel} sign-in failed. Please try again or use email login.`
-      );
-  }
-}
-
 function HomePage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authEntry, setAuthEntry] = useState("login");
   const [authModalKey, setAuthModalKey] = useState(0);
-  const [currentUser, setCurrentUser] = useState(() => readStoredAccount());
-  const [socialAuthProvider, setSocialAuthProvider] = useState("");
-  const [socialAuthError, setSocialAuthError] = useState("");
+  const [currentUser, setCurrentUser] = useState(() =>
+    getAuthToken() ? readStoredAccount() : null,
+  );
   const [activePage, setActivePage] = useState("home");
   const [selectedLegalDocumentId, setSelectedLegalDocumentId] = useState("");
   const [profileInitialView, setProfileInitialView] = useState("profile");
@@ -849,11 +834,13 @@ function HomePage() {
     notificationCount: null,
     orderCounts: null,
   });
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [toasts, setToasts] = useState([]);
   const filteredListingSections = filterListingSections(
     backendListingSections,
     apartmentFilters,
   );
+  const selectedApartmentPrice = selectedApartment?.price || 0;
   const shopDirectoryCategories = buildShopCategoriesWithBackendImages(
     shopCategories,
     backendShopItems,
@@ -875,16 +862,19 @@ function HomePage() {
 
   useEffect(() => {
     let ignoreProfileResponse = false;
-    const savedAccount = readStoredAccount();
+    const hasBackendSession = Boolean(getAuthToken());
+    const savedAccount = hasBackendSession ? readStoredAccount() : null;
 
-    if (savedAccount) {
-      saveStoredAccount(savedAccount);
-    }
-
-    if (!getAuthToken()) {
+    if (!hasBackendSession) {
+      clearStoredSession();
+      setCurrentUser(null);
       return () => {
         ignoreProfileResponse = true;
       };
+    }
+
+    if (savedAccount) {
+      saveStoredAccount(savedAccount);
     }
 
     authApi
@@ -901,6 +891,16 @@ function HomePage() {
         saveStoredAccount(hydratedUser);
       })
       .catch((error) => {
+        if (ignoreProfileResponse) return;
+
+        if (isUnauthenticatedError(error)) {
+          clearStoredSession();
+          setCurrentUser(null);
+          setActivePage("home");
+          setProfileInitialView("profile");
+          return;
+        }
+
         logFrontendError("Unable to load current user profile", error);
       });
 
@@ -1225,12 +1225,6 @@ function HomePage() {
     let ignoreQuoteResponse = false;
     const couponCode = String(bookingDetails.promo || "").trim();
 
-    setApartmentQuote((current) => ({
-      ...(current || {}),
-      loading: true,
-      error: "",
-    }));
-
     Promise.allSettled([
       apartmentsApi.checkAvailability({
         apartmentId: selectedApartment.backendId,
@@ -1247,6 +1241,13 @@ function HomePage() {
     ]).then(([availabilityResult, pricingResult]) => {
       if (ignoreQuoteResponse) return;
 
+      const fallbackPricing = calculateBookingTotals(
+        selectedApartmentPrice,
+        bookingDetails.checkIn,
+        bookingDetails.checkOut,
+        bookingDetails.useRockPoints,
+      );
+
       setApartmentQuote({
         loading: false,
         available:
@@ -1255,8 +1256,8 @@ function HomePage() {
             : true,
         pricing:
           pricingResult.status === "fulfilled"
-            ? normalizeBackendPricing(pricingResult.value)
-            : null,
+            ? normalizeBackendPricing(pricingResult.value, fallbackPricing)
+            : fallbackPricing,
         error:
           pricingResult.status === "rejected" && couponCode
             ? "This coupon could not be applied. Please check the code or continue without it."
@@ -1272,10 +1273,12 @@ function HomePage() {
     };
   }, [
     selectedApartment?.backendId,
+    selectedApartmentPrice,
     bookingDetails.checkIn,
     bookingDetails.checkOut,
     bookingDetails.guests,
     bookingDetails.promo,
+    bookingDetails.useRockPoints,
   ]);
 
   async function refreshProfileResources({ silent = false, ignore } = {}) {
@@ -1363,10 +1366,6 @@ function HomePage() {
     setToasts((currentToasts) =>
       currentToasts.filter((toast) => toast.id !== toastId),
     );
-  }
-
-  function readSavedAccount() {
-    return readStoredAccount();
   }
 
   const updateCurrentUser = useCallback((nextUserOrUpdater) => {
@@ -1481,31 +1480,23 @@ function HomePage() {
 
   function openLogin() {
     setAuthEntry("login");
-    setSocialAuthError("");
-    setSocialAuthProvider("");
     setAuthModalKey((current) => current + 1);
     setIsAuthModalOpen(true);
   }
 
   function openSignup() {
     setAuthEntry("signup");
-    setSocialAuthError("");
-    setSocialAuthProvider("");
     setAuthModalKey((current) => current + 1);
     setIsAuthModalOpen(true);
   }
 
   function openAgentSignup() {
     setAuthEntry("agentSignup");
-    setSocialAuthError("");
-    setSocialAuthProvider("");
     setAuthModalKey((current) => current + 1);
     setIsAuthModalOpen(true);
   }
 
   function closeAuthModal() {
-    setSocialAuthError("");
-    setSocialAuthProvider("");
     setIsAuthModalOpen(false);
   }
 
@@ -1524,93 +1515,6 @@ function HomePage() {
     if (hydratedUser !== authenticatedUser) {
       updateCurrentUser(hydratedUser);
     }
-  }
-
-  function buildUserFromFirebaseUser(firebaseUser) {
-    const savedAccount = readSavedAccount();
-    const email = firebaseUser.email || "";
-    const savedAccountMatches =
-      savedAccount?.email?.toLowerCase() === email.toLowerCase();
-    const matchedAccount = savedAccountMatches ? savedAccount : {};
-    const fallbackName =
-      email.split("@")[0] || firebaseUser.displayName || "Bedrock User";
-    const displayName =
-      firebaseUser.displayName || matchedAccount.name || fallbackName;
-
-    return {
-      ...matchedAccount,
-      firebaseUid: firebaseUser.uid,
-      authProvider: "firebase",
-      name: displayName,
-      username: matchedAccount.username || displayName,
-      email,
-      phone: firebaseUser.phoneNumber || matchedAccount.phone || "",
-      state: matchedAccount.state || "",
-      country: matchedAccount.country || "",
-      countryCode: matchedAccount.countryCode || "",
-      currency: matchedAccount.currency || "",
-      profilePhoto: firebaseUser.photoURL || matchedAccount.profilePhoto || "",
-      messages: Array.isArray(matchedAccount.messages)
-        ? matchedAccount.messages
-        : [],
-      bookings: Array.isArray(matchedAccount.bookings)
-        ? matchedAccount.bookings
-        : [],
-      orders: Array.isArray(matchedAccount.orders) ? matchedAccount.orders : [],
-      messageCount: matchedAccount.messageCount || 0,
-    };
-  }
-
-  async function handleSocialSignIn(providerName) {
-    setSocialAuthError("");
-    setSocialAuthProvider(providerName);
-
-    try {
-      if (!isFirebaseConfigReady) {
-        const error = new Error("Missing Firebase environment variables.");
-        error.code = "app/missing-firebase-config";
-        throw error;
-      }
-
-      if (!auth) {
-        const error = new Error("Firebase Auth is not initialized.");
-        error.code = "app/missing-firebase-config";
-        throw error;
-      }
-
-      const provider =
-        providerName === "google"
-          ? new GoogleAuthProvider()
-          : new OAuthProvider("apple.com");
-
-      if (providerName === "google") {
-        provider.setCustomParameters({ prompt: "select_account" });
-      }
-
-      if (providerName === "apple") {
-        provider.addScope("email");
-        provider.addScope("name");
-      }
-
-      const result = await signInWithPopup(auth, provider);
-      const nextUser = buildUserFromFirebaseUser(result.user);
-
-      localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(nextUser));
-      handleAuthComplete(nextUser);
-    } catch (error) {
-      logFrontendError(`${providerName} sign-in failed`, error);
-      setSocialAuthError(getSocialAuthErrorMessage(error, providerName));
-    } finally {
-      setSocialAuthProvider("");
-    }
-  }
-
-  function handleGoogleSignIn() {
-    handleSocialSignIn("google");
-  }
-
-  function handleAppleSignIn() {
-    handleSocialSignIn("apple");
   }
 
   function getShopItemsForVariant(variant) {
@@ -1848,7 +1752,7 @@ function HomePage() {
   }
 
   function showShopDirectory() {
-    if (currentUser) {
+    if (currentUser && getAuthToken()) {
       setProfileInitialView("shop");
       setActivePage("profile");
       return;
@@ -2031,7 +1935,12 @@ function HomePage() {
   }
 
   function showProfile(profileView = "profile") {
-    if (!currentUser) {
+    if (!currentUser || !getAuthToken()) {
+      if (currentUser && !getAuthToken()) {
+        clearStoredSession();
+        setCurrentUser(null);
+      }
+
       openLogin();
       return;
     }
@@ -2329,22 +2238,72 @@ function HomePage() {
     }
   }
 
-  async function handleDeleteAccount() {
+  async function handleDeleteAccount(password) {
+    if (isDeletingAccount) return;
+
+    if (!getAuthToken()) {
+      clearStoredSession();
+      setCurrentUser(null);
+      setActivePage("home");
+      showToast("You are already logged out.", "success");
+      return;
+    }
+
+    const deletePassword = String(password || "");
+
+    if (!deletePassword.trim()) {
+      showToast("Enter your password to delete your account.", "error");
+      return;
+    }
+
     const shouldDelete =
       typeof window !== "undefined" &&
       window.confirm("Delete your Bedrock account permanently?");
 
     if (!shouldDelete) return;
 
+    setIsDeletingAccount(true);
+
     try {
-      await authApi.deleteAccount();
-      clearAuthToken();
-      localStorage.removeItem(ACCOUNT_STORAGE_KEY);
+      try {
+        await authApi.deleteAccount(deletePassword);
+      } catch (error) {
+        if (!isUnauthenticatedError(error) || !currentUser?.email) {
+          throw error;
+        }
+
+        await authApi.login({
+          email: currentUser.email,
+          password: deletePassword,
+        });
+        await authApi.deleteAccount(deletePassword);
+      }
+
+      clearStoredSession();
       setCurrentUser(null);
       setActivePage("home");
+      setProfileInitialView("profile");
       showToast("Account deleted successfully.", "success");
     } catch (error) {
-      showToast(error.message || "Unable to delete account.", "error");
+      if (isUnauthenticatedError(error)) {
+        clearStoredSession();
+        setCurrentUser(null);
+        setActivePage("home");
+        setProfileInitialView("profile");
+        showToast(
+          "Your session expired. Please log in again, then delete your account.",
+          "error",
+        );
+      } else if (isServerError(error)) {
+        showToast(
+          "The backend returned a server error while deleting this account.",
+          "error",
+        );
+      } else {
+        showToast(error.message || "Unable to delete account.", "error");
+      }
+    } finally {
+      setIsDeletingAccount(false);
     }
   }
 
@@ -2437,10 +2396,10 @@ function HomePage() {
       };
     }
 
-    const rating = Number(reviewPayload.rating || 5);
+    const rating = Math.max(1, Math.min(5, Number(reviewPayload.rating) || 5));
     const comment = String(reviewPayload.comment || "").trim();
 
-    if (!comment) {
+    if (comment.length < 3) {
       return {
         ok: false,
         message: "Please add a short review before submitting.",
@@ -2452,6 +2411,23 @@ function HomePage() {
         rating,
         comment,
       });
+      const createdAt = new Date().toISOString();
+      const review = {
+        id: `local-review-${bookingId}`,
+        rating,
+        comment,
+        text: comment,
+        createdAt,
+        date: "Recent",
+        author:
+          currentUser?.fullName ||
+          currentUser?.name ||
+          [currentUser?.firstName, currentUser?.lastName]
+            .filter(Boolean)
+            .join(" ") ||
+          "You",
+        location: booking.location || "Bedrock Guest",
+      };
 
       updateCurrentUser((current) => {
         if (!current) return current;
@@ -2459,18 +2435,54 @@ function HomePage() {
         return {
           ...current,
           bookings: (current.bookings || []).map((currentBooking) =>
-            currentBooking.id === booking.id
+            currentBooking.id === booking.id ||
+            String(currentBooking.backendId || "") === String(bookingId)
               ? {
                   ...currentBooking,
                   reviewed: true,
-                  review: {
-                    rating,
-                    comment,
-                    createdAt: new Date().toISOString(),
-                  },
+                  review,
                 }
               : currentBooking,
           ),
+        };
+      });
+
+      setSelectedApartment((currentApartment) => {
+        if (!currentApartment) return currentApartment;
+
+        const bookingApartmentId = String(
+          booking.apartmentBackendId || booking.apartmentId || "",
+        );
+        const currentApartmentId = String(
+          currentApartment.backendId || currentApartment.id || "",
+        );
+
+        if (
+          bookingApartmentId &&
+          currentApartmentId &&
+          bookingApartmentId !== currentApartmentId
+        ) {
+          return currentApartment;
+        }
+
+        const existingReviews = Array.isArray(currentApartment.reviews)
+          ? currentApartment.reviews
+          : [];
+        const previousCount = Number(
+          currentApartment.reviewsCount || existingReviews.length || 0,
+        );
+        const previousRating = Number(currentApartment.rating || 0);
+        const nextCount = previousCount + 1;
+        const nextRating =
+          nextCount > 0
+            ? (previousRating * previousCount + rating) / nextCount
+            : rating;
+
+        return {
+          ...currentApartment,
+          rating: nextRating,
+          reviews: [review, ...existingReviews],
+          reviewsCount: nextCount,
         };
       });
 
@@ -2485,6 +2497,8 @@ function HomePage() {
         message: "Review submitted successfully.",
       };
     } catch (error) {
+      showToast(error.message || "Unable to submit review.", "error");
+
       return {
         ok: false,
         message: error.message || "Unable to submit review.",
@@ -2613,7 +2627,7 @@ function HomePage() {
     return result;
   }
 
-  async function handleBookingCancellation(bookingId) {
+  async function handleBookingCancellation(bookingOrId) {
     if (!currentUser) {
       showToast("Please log in to cancel this booking.", "error");
       return {
@@ -2622,9 +2636,22 @@ function HomePage() {
       };
     }
 
-    const booking = (currentUser.bookings || []).find(
-      (currentBooking) => currentBooking.id === bookingId,
-    );
+    const requestedBooking =
+      bookingOrId && typeof bookingOrId === "object" ? bookingOrId : null;
+    const bookingId = requestedBooking?.id || bookingOrId;
+    const requestedBackendId = getBackendRecordId(requestedBooking);
+    const booking =
+      requestedBooking ||
+      (currentUser.bookings || []).find((currentBooking) => {
+        const currentBackendId = getBackendRecordId(currentBooking);
+
+        return (
+          currentBooking.id === bookingId ||
+          String(currentBackendId || "") === String(bookingId || "") ||
+          (requestedBackendId &&
+            String(currentBackendId || "") === String(requestedBackendId))
+        );
+      });
 
     if (!booking) {
       showToast("Booking not found.", "error");
@@ -2634,7 +2661,9 @@ function HomePage() {
       };
     }
 
-    if (booking.status === "cancelled") {
+    const bookingStatus = String(booking.status || "").toLowerCase();
+
+    if (bookingStatus === "cancelled" || bookingStatus === "canceled") {
       showToast("This booking is already cancelled.", "error");
       return {
         ok: false,
@@ -2649,16 +2678,23 @@ function HomePage() {
       cancelledAt,
     };
 
-    if (getAuthToken() && booking.backendId) {
+    const backendBookingId = getBackendRecordId(booking);
+
+    if (getAuthToken() && backendBookingId) {
       try {
         const response = await bookingsApi.cancelBooking(
-          booking.backendId,
+          backendBookingId,
           "Cancelled by guest",
         );
 
         cancelledBooking = normalizeBackendBooking(response, cancelledBooking);
       } catch (error) {
-        const message = error.message || "Could not cancel this booking.";
+        const backendMessage = error.message || "Could not cancel this booking.";
+        const message = /cannot be cancelled|cannot be canceled/i.test(
+          backendMessage,
+        )
+          ? `The backend refused cancellation for booking ${backendBookingId}. Please confirm this booking status can be cancelled, or contact support.`
+          : backendMessage;
 
         showToast(message, "error");
         return {
@@ -2670,9 +2706,18 @@ function HomePage() {
 
     updateCurrentUser({
       ...currentUser,
-      bookings: (currentUser.bookings || []).map((currentBooking) =>
-        currentBooking.id === bookingId ? cancelledBooking : currentBooking,
-      ),
+      bookings: (currentUser.bookings || []).map((currentBooking) => {
+        const currentBackendId = getBackendRecordId(currentBooking);
+        const matchesLocalId = currentBooking.id === booking.id;
+        const matchesBackendId =
+          backendBookingId &&
+          currentBackendId &&
+          String(currentBackendId) === String(backendBookingId);
+
+        return matchesLocalId || matchesBackendId
+          ? cancelledBooking
+          : currentBooking;
+      }),
     });
 
     showToast(`${booking.title} booking cancelled.`, "success");
@@ -2801,30 +2846,9 @@ function HomePage() {
     };
   }
 
-  async function handleBecomeAgent() {
-    if (!currentUser || !getAuthToken()) {
-      showToast("Create an agent account to continue.", "success");
-      openAgentSignup();
-      return;
-    }
-
-    try {
-      const response = await authApi.getOnboardingStatus();
-      const status = extractObject(response);
-      const statusLabel =
-        status.status ||
-        status.onboarding_status ||
-        status.stage ||
-        status.message ||
-        "loaded";
-
-      showToast(`Agent onboarding status: ${statusLabel}.`, "success");
-    } catch (error) {
-      showToast(
-        error.message || "Unable to load agent onboarding status.",
-        "error",
-      );
-    }
+  function handleBecomeAgent() {
+    showToast("Create an agent account to continue.", "success");
+    openAgentSignup();
   }
 
   async function handleLogout() {
@@ -2834,8 +2858,7 @@ function HomePage() {
       logFrontendError("Logout failed", error);
     }
 
-    clearAuthToken();
-    localStorage.removeItem(ACCOUNT_STORAGE_KEY);
+    clearStoredSession();
     setCurrentUser(null);
     setActivePage("home");
     setProfileInitialView("profile");
@@ -3464,6 +3487,7 @@ function HomePage() {
           onUploadDocument={handleUploadDocument}
           onSubmitKyc={handleSubmitKyc}
           onDeleteAccount={handleDeleteAccount}
+          isDeletingAccount={isDeletingAccount}
           orders={currentUser?.orders || []}
           onLogout={handleLogout}
           onToast={showToast}
@@ -3709,10 +3733,6 @@ function HomePage() {
         onClose={closeAuthModal}
         onSwitchToLogin={openLogin}
         onSwitchToSignup={openSignup}
-        onGoogleSignIn={handleGoogleSignIn}
-        onAppleSignIn={handleAppleSignIn}
-        socialAuthProvider={socialAuthProvider}
-        socialAuthError={socialAuthError}
         onAuthComplete={handleAuthComplete}
       />
       <ToastHost toasts={toasts} onDismiss={dismissToast} />

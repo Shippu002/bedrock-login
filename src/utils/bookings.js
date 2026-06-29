@@ -1,5 +1,22 @@
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
+function toCurrencyNumber(value) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === "string") {
+    const cleanedValue = value.replace(/,/g, "").replace(/[^\d.-]/g, "");
+    const parsedValue = Number(cleanedValue);
+
+    return Number.isFinite(parsedValue) ? parsedValue : 0;
+  }
+
+  const parsedValue = Number(value);
+
+  return Number.isFinite(parsedValue) ? parsedValue : 0;
+}
+
 function createDateFromValue(dateValue) {
   if (!dateValue) return null;
 
@@ -67,7 +84,7 @@ export function calculateBookingTotals(
   adjustments = {},
 ) {
   const nights = Math.max(1, calculateNights(checkIn, checkOut) || 1);
-  const safeNightlyRate = Number(nightlyRate || 0);
+  const safeNightlyRate = toCurrencyNumber(nightlyRate);
   const subtotal = safeNightlyRate * nights;
   const taxesAndFees = Math.round(subtotal * 0.075);
   const cautionFee = 100000;
@@ -75,12 +92,12 @@ export function calculateBookingTotals(
   const total = subtotal + taxesAndFees + cautionFee;
   const couponDiscount = Math.max(
     0,
-    Number(
+    toCurrencyNumber(
       adjustments.couponDiscount ??
         adjustments.discountAmount ??
         adjustments.discount ??
         0,
-    ) || 0,
+    ),
   );
   const payable = Math.max(0, total - rockPointValue - couponDiscount);
 

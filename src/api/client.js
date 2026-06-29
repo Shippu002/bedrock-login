@@ -1,6 +1,5 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.DEV ? "http://localhost:8000/api/v1" : "");
+const DEFAULT_API_BASE_URL = "https://api.bedrockresidences.com/api/v1";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL;
 const AUTH_TOKEN_STORAGE_KEY = "bedrockAuthToken";
 const AUTH_DEBUG_ENABLED =
   import.meta.env.VITE_DEBUG_AUTH === "true";
@@ -189,7 +188,7 @@ export async function apiRequest(path, options = {}) {
     }
 
     throw new ApiError(
-      `Backend is not reachable at ${API_BASE_URL}. Start the backend server, check VITE_API_BASE_URL, and confirm CORS allows this frontend.`,
+      `Backend is not reachable at ${API_BASE_URL}. Check VITE_API_BASE_URL and confirm CORS allows this frontend.`,
       {
         status: 0,
         data: { cause: error?.message || "Network request failed", requestUrl },

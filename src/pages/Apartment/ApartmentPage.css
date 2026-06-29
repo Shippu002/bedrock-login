@@ -233,7 +233,16 @@
 .apartment-review__stars {
   display: inline-flex;
   gap: 2px;
-  color: #dfcb1c;
+  color: #d0d5dd;
+}
+
+.apartment-review__stars svg {
+  fill: none;
+}
+
+.apartment-review__stars svg.is-filled {
+  color: #f5b71b;
+  fill: #f5b71b;
 }
 
 .apartment-rating-summary {
@@ -714,14 +723,45 @@
   color: #16a34a;
 }
 
+.apartment-payment-breakdown__discount--pending strong {
+  color: #667085;
+}
+
+.apartment-payment-breakdown__note {
+  margin: -2px 0 8px;
+  color: #cc400c;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.apartment-payment-breakdown__note--success {
+  color: #15803d;
+}
+
+.apartment-payment-breakdown__subtotal-total strong {
+  color: #667085;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .apartment-payment-breakdown__total strong {
   color: #1a1a1a;
   font-size: 16px;
 }
 
+.apartment-payment-breakdown__payable {
+  border-bottom: none;
+}
+
+.apartment-payment-breakdown__payable span {
+  color: #111827;
+  font-weight: 700;
+}
+
 .apartment-payment-breakdown__payable strong {
   color: #cc400c;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .apartment-status {

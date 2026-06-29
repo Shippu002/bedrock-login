@@ -789,13 +789,24 @@ function ViewHeading({ title, onBack }) {
   );
 }
 
-function EmptyState({ title, message, actionLabel, onAction }) {
+function EmptyState({
+  title,
+  message,
+  actionLabel,
+  onAction,
+  actionDisabled = false,
+}) {
   return (
     <div className="profile-empty-state">
       <strong>{title}</strong>
       <p>{message}</p>
       {actionLabel && onAction && (
-        <button type="button" className="profile-outline-button" onClick={onAction}>
+        <button
+          type="button"
+          className="profile-outline-button"
+          onClick={onAction}
+          disabled={actionDisabled}
+        >
           {actionLabel}
         </button>
       )}
@@ -1344,7 +1355,7 @@ function CancelBookingModal({ booking, onClose, onCancelBooking }) {
     if (isCancelling) return;
 
     setIsCancelling(true);
-    const result = (await onCancelBooking?.(booking.id)) || {
+    const result = (await onCancelBooking?.(booking)) || {
       ok: false,
       message: "Booking cancellation is unavailable.",
     };
@@ -1396,11 +1407,11 @@ function CancelBookingModal({ booking, onClose, onCancelBooking }) {
           </div>
           <div>
             <span>Check-in</span>
-            <strong>{formatShortDate(booking.checkIn)}</strong>
+            <strong>{formatShortDate(booking.checkIn) || "Not provided"}</strong>
           </div>
           <div>
             <span>Check-out</span>
-            <strong>{formatShortDate(booking.checkOut)}</strong>
+            <strong>{formatShortDate(booking.checkOut) || "Not provided"}</strong>
           </div>
         </div>
 
@@ -1449,6 +1460,31 @@ function BookingCard({
       (status) => bookingStatus.includes(status),
     );
   const hasSubmittedReview = Boolean(booking.reviewed || booking.review);
+  const completedStatus = [
+    "completed",
+    "complete",
+    "checked_out",
+    "checked-out",
+    "checked out",
+    "finished",
+  ].some((status) => bookingStatus.includes(status));
+  const canReviewStay =
+    !isCancelled &&
+    !isIncomplete &&
+    !hasSubmittedReview &&
+    (isPast || completedStatus);
+  const submittedReview =
+    booking.review && typeof booking.review === "object" ? booking.review : null;
+  const submittedReviewRating = Math.max(
+    1,
+    Math.min(5, Number(submittedReview?.rating || submittedReview?.stars || 5)),
+  );
+  const submittedReviewText = String(
+    submittedReview?.comment ||
+      submittedReview?.review ||
+      submittedReview?.text ||
+      "",
+  ).trim();
 
   async function runBookingAction(action) {
     const result = await action?.(booking);
@@ -1464,7 +1500,10 @@ function BookingCard({
   async function handleReviewSubmit(event) {
     event.preventDefault();
 
-    if (!reviewData.comment.trim()) {
+    const comment = reviewData.comment.trim();
+    const rating = Math.max(1, Math.min(5, Number(reviewData.rating) || 5));
+
+    if (comment.length < 3) {
       setActionMessage({
         type: "error",
         text: "Please add a short review before submitting.",
@@ -1474,24 +1513,31 @@ function BookingCard({
 
     setIsReviewSubmitting(true);
 
-    const result = await onSubmitReview?.(booking, {
-      rating: Number(reviewData.rating),
-      comment: reviewData.comment.trim(),
-    });
-
-    if (result?.message) {
-      setActionMessage({
-        type: result.ok ? "success" : "error",
-        text: result.message,
+    try {
+      const result = await onSubmitReview?.(booking, {
+        rating,
+        comment,
       });
-    }
 
-    if (result?.ok) {
-      setIsReviewing(false);
-      setReviewData({ rating: "5", comment: "" });
-    }
+      if (result?.message) {
+        setActionMessage({
+          type: result.ok ? "success" : "error",
+          text: result.message,
+        });
+      }
 
-    setIsReviewSubmitting(false);
+      if (result?.ok) {
+        setIsReviewing(false);
+        setReviewData({ rating: "5", comment: "" });
+      }
+    } catch (error) {
+      setActionMessage({
+        type: "error",
+        text: error.message || "Unable to submit review.",
+      });
+    } finally {
+      setIsReviewSubmitting(false);
+    }
   }
 
   return (
@@ -1568,7 +1614,7 @@ function BookingCard({
             >
               Timeline
             </button>
-            {isPast && !isCancelled && !hasSubmittedReview && (
+            {canReviewStay && (
               <button
                 type="button"
                 className="profile-outline-button"
@@ -1578,7 +1624,7 @@ function BookingCard({
               </button>
             )}
 
-            {isPast && hasSubmittedReview && (
+            {!isCancelled && hasSubmittedReview && (
               <span className="booking-card__reviewed">
                 <FiCheck />
                 Reviewed
@@ -1630,24 +1676,37 @@ function BookingCard({
 
         {isReviewing && (
           <form className="booking-review-form" onSubmit={handleReviewSubmit}>
-            <label className="extend-stay-field">
-              <span>Rating</span>
-              <select
-                value={reviewData.rating}
-                onChange={(event) =>
-                  setReviewData((current) => ({
-                    ...current,
-                    rating: event.target.value,
-                  }))
-                }
+            <div className="booking-review-form__rating">
+              <span>Rate your stay</span>
+              <div
+                className="booking-review-form__stars"
+                role="radiogroup"
+                aria-label="Rate your stay"
               >
-                <option value="5">5 stars</option>
-                <option value="4">4 stars</option>
-                <option value="3">3 stars</option>
-                <option value="2">2 stars</option>
-                <option value="1">1 star</option>
-              </select>
-            </label>
+                {[1, 2, 3, 4, 5].map((star) => {
+                  const isActive = star <= Number(reviewData.rating);
+
+                  return (
+                    <button
+                      type="button"
+                      key={star}
+                      className={isActive ? "is-active" : ""}
+                      aria-pressed={isActive}
+                      aria-label={`${star} ${star === 1 ? "star" : "stars"}`}
+                      onClick={() =>
+                        setReviewData((current) => ({
+                          ...current,
+                          rating: String(star),
+                        }))
+                      }
+                    >
+                      <FiStar />
+                    </button>
+                  );
+                })}
+                <strong>{Number(reviewData.rating || 5).toFixed(1)}</strong>
+              </div>
+            </div>
 
             <label className="extend-stay-field">
               <span>Review</span>
@@ -1664,14 +1723,41 @@ function BookingCard({
               />
             </label>
 
-            <button
-              type="submit"
-              className="profile-action-button"
-              disabled={isReviewSubmitting}
-            >
-              {isReviewSubmitting ? "Submitting..." : "Submit review"}
-            </button>
+            <div className="booking-review-form__actions">
+              <button
+                type="button"
+                className="profile-outline-button"
+                disabled={isReviewSubmitting}
+                onClick={() => {
+                  setIsReviewing(false);
+                  setReviewData({ rating: "5", comment: "" });
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="profile-action-button"
+                disabled={isReviewSubmitting}
+              >
+                {isReviewSubmitting ? "Submitting..." : "Submit review"}
+              </button>
+            </div>
           </form>
+        )}
+
+        {submittedReview && (
+          <div className="booking-review-summary">
+            <div className="booking-review-summary__header">
+              <span>Your review</span>
+              <strong>
+                {Array.from({ length: submittedReviewRating }).map((_, index) => (
+                  <FiStar key={`submitted-review-star-${index}`} />
+                ))}
+              </strong>
+            </div>
+            <p>{submittedReviewText || "Review submitted."}</p>
+          </div>
         )}
 
         {actionMessage && (
@@ -2768,17 +2854,62 @@ function DocumentsView({ documents = [], onBack, onUploadDocument, onSubmitKyc }
   );
 }
 
-function AccountView({ onBack, onDeleteAccount }) {
+function AccountView({ onBack, onDeleteAccount, isDeletingAccount = false }) {
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
+
+  function handleDeleteSubmit(event) {
+    event.preventDefault();
+
+    if (!deletePassword.trim()) {
+      setDeleteError("Enter your password to delete your account.");
+      return;
+    }
+
+    setDeleteError("");
+    onDeleteAccount?.(deletePassword);
+  }
+
   return (
     <section className="profile-panel profile-panel--soft">
       <ViewHeading title="Account" onBack={onBack} />
 
-      <EmptyState
-        title="Delete account"
-        message="This permanently deletes your Bedrock account from the backend."
-        actionLabel="Delete account"
-        onAction={onDeleteAccount}
-      />
+      <form
+        className="profile-empty-state profile-delete-account"
+        onSubmit={handleDeleteSubmit}
+      >
+        <strong>Delete account</strong>
+        <p>
+          This permanently deletes your Bedrock account from the backend and
+          signs you out.
+        </p>
+
+        <label className="profile-field profile-delete-account__field">
+          <span>Password</span>
+          <input
+            type="password"
+            value={deletePassword}
+            onChange={(event) => {
+              setDeletePassword(event.target.value);
+              setDeleteError("");
+            }}
+            placeholder="Enter your password"
+            disabled={isDeletingAccount}
+          />
+        </label>
+
+        {deleteError && (
+          <p className="profile-delete-account__error">{deleteError}</p>
+        )}
+
+        <button
+          type="submit"
+          className="profile-outline-button"
+          disabled={isDeletingAccount}
+        >
+          {isDeletingAccount ? "Deleting account..." : "Delete account"}
+        </button>
+      </form>
     </section>
   );
 }
@@ -2806,6 +2937,7 @@ export default function ProfilePage({
   onUploadDocument,
   onSubmitKyc,
   onDeleteAccount,
+  isDeletingAccount = false,
   onLogout,
   onToast,
   onApartmentSelect,
@@ -2911,7 +3043,13 @@ export default function ProfilePage({
           />
         );
       case "account":
-        return <AccountView onBack={goBack} onDeleteAccount={onDeleteAccount} />;
+        return (
+          <AccountView
+            onBack={goBack}
+            onDeleteAccount={onDeleteAccount}
+            isDeletingAccount={isDeletingAccount}
+          />
+        );
       case "refer":
         return (
           <ReferEarnView

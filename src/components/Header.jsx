@@ -347,6 +347,12 @@ export default function Header({
     onProfileView?.("notifications");
   }
 
+  function handleBecomeAgentClick() {
+    setIsProfileMenuOpen(false);
+    setOpenMenu(null);
+    onBecomeAgent?.();
+  }
+
   return (
     <header className="site-header" ref={headerRef}>
       <div className="site-inner">
@@ -445,7 +451,7 @@ export default function Header({
                   onHome={handleHome}
                   onProfile={handleProfile}
                   onProfileView={handleProfileView}
-                  onBecomeAgent={onBecomeAgent}
+                  onBecomeAgent={handleBecomeAgentClick}
                   onLogout={onLogout}
                 />
               </div>

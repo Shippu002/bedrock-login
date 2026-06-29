@@ -89,9 +89,9 @@ function getHouseRuleItems(apartment) {
 }
 
 function getReviewStars(rating) {
-  const ratingNumber = Math.round(Number(rating || 0));
+  const ratingNumber = Math.max(0, Math.min(5, Math.round(Number(rating || 0))));
 
-  return Array.from({ length: Math.max(0, Math.min(5, ratingNumber)) });
+  return Array.from({ length: 5 }, (_, index) => index < ratingNumber);
 }
 
 function getPolicyText(value, emptyText) {
@@ -237,6 +237,23 @@ function ApartmentPage({
     payable,
   } = quote?.pricing || localTotals;
   const hasCouponDiscount = Number(couponDiscount) > 0;
+  const couponSummaryText = quote?.loading
+    ? "Checking..."
+    : hasCouponDiscount
+      ? `-NGN${Number(couponDiscount).toLocaleString()}`
+      : isCouponValid === false || quote?.error
+        ? "Not applied"
+        : "Pending";
+  const couponSummaryNote =
+    promoCode && !quote?.loading
+      ? hasCouponDiscount
+        ? couponMessage || "Coupon discount has been applied to this booking."
+        : isCouponValid === false || quote?.error
+          ? couponMessage ||
+            quote?.error ||
+            "This coupon could not be applied to this booking."
+          : "Complete the booking details to confirm this coupon."
+      : "";
   const hasCouponProblem = Boolean(
     promoCode && (quote?.loading || quote?.error || isCouponValid === false),
   );
@@ -542,22 +559,37 @@ function ApartmentPage({
                     }
                   />
                 </div>
-                {hasCouponDiscount && (
-                  <div className="apartment-payment-breakdown__discount">
-                    <span>Coupon discount</span>
-                    <strong>-{Number(couponDiscount).toLocaleString()}</strong>
+                {promoCode && (
+                  <div
+                    className={`apartment-payment-breakdown__discount ${
+                      hasCouponDiscount
+                        ? ""
+                        : "apartment-payment-breakdown__discount--pending"
+                    }`}
+                  >
+                    <span>Coupon ({promoCode})</span>
+                    <strong>{couponSummaryText}</strong>
                   </div>
                 )}
-                <div className="apartment-payment-breakdown__total">
-                  <span>Total</span>
+                {promoCode && couponSummaryNote && (
+                  <p
+                    className={`apartment-payment-breakdown__note ${
+                      hasCouponDiscount
+                        ? "apartment-payment-breakdown__note--success"
+                        : ""
+                    }`}
+                  >
+                    {couponSummaryNote}
+                  </p>
+                )}
+                <div className="apartment-payment-breakdown__subtotal-total">
+                  <span>Subtotal before discounts</span>
                   <strong>NGN{total.toLocaleString()}</strong>
                 </div>
-                {(hasCouponDiscount || Number(rockPointValue) > 0) && (
-                  <div className="apartment-payment-breakdown__payable">
-                    <span>Amount to pay</span>
-                    <strong>NGN{payable.toLocaleString()}</strong>
-                  </div>
-                )}
+                <div className="apartment-payment-breakdown__payable">
+                  <span>Total to pay</span>
+                  <strong>NGN{payable.toLocaleString()}</strong>
+                </div>
               </div>
 
               <div className="apartment-policy-row apartment-policy-row--compact">
@@ -810,9 +842,15 @@ function ApartmentPage({
               <section className="apartment-copy__section">
                 <h3>Reviews &amp; Rating</h3>
                 <div className="apartment-rating-summary">
-                  <span className="apartment-review__stars">
-                    {getReviewStars(apartment.rating).map((_, index) => (
-                      <FiStar key={`summary-star-${index}`} />
+                  <span
+                    className="apartment-review__stars"
+                    aria-label={`${Number(apartment.rating || 0).toFixed(1)} out of 5`}
+                  >
+                    {getReviewStars(apartment.rating).map((isFilled, index) => (
+                      <FiStar
+                        key={`summary-star-${index}`}
+                        className={isFilled ? "is-filled" : ""}
+                      />
                     ))}
                   </span>
                   <strong>{Number(apartment.rating || 0).toFixed(1)}</strong>
@@ -821,30 +859,48 @@ function ApartmentPage({
 
                 {reviews.length > 0 ? (
                   <div className="apartment-reviews">
-                    {reviews.map((review) => (
-                    <article className="apartment-review" key={review.id}>
-                      <div className="apartment-review__meta">
-                        <span className="apartment-review__stars">
-                          {getReviewStars(review.rating).map((_, index) => (
-                            <FiStar key={`${review.id}-star-${index}`} />
-                          ))}
-                        </span>
-                        <span>{review.date}</span>
-                      </div>
+                    {reviews.map((review) => {
+                      const author = String(review.author || "Guest").trim() || "Guest";
+                      const reviewText = String(
+                        review.text || review.comment || review.review || "",
+                      ).trim();
 
-                      <p>{review.text}</p>
+                      return (
+                        <article className="apartment-review" key={review.id}>
+                          <div className="apartment-review__meta">
+                            <span
+                              className="apartment-review__stars"
+                              aria-label={`${Number(review.rating || 0).toFixed(1)} out of 5`}
+                            >
+                              {getReviewStars(review.rating).map(
+                                (isFilled, index) => (
+                                  <FiStar
+                                    key={`${review.id}-star-${index}`}
+                                    className={isFilled ? "is-filled" : ""}
+                                  />
+                                ),
+                              )}
+                            </span>
+                            <span>{review.date || "Recent"}</span>
+                          </div>
 
-                      <div className="apartment-review__author">
-                        <span className="apartment-review__avatar">
-                          {review.author.charAt(0)}
-                        </span>
-                        <span>
-                          <strong>{review.author}</strong>
-                          <em>{review.location}</em>
-                        </span>
-                      </div>
-                    </article>
-                    ))}
+                          <p>
+                            {reviewText ||
+                              "This guest rated their stay without adding a written comment."}
+                          </p>
+
+                          <div className="apartment-review__author">
+                            <span className="apartment-review__avatar">
+                              {author.charAt(0).toUpperCase()}
+                            </span>
+                            <span>
+                              <strong>{author}</strong>
+                              <em>{review.location || "Bedrock Guest"}</em>
+                            </span>
+                          </div>
+                        </article>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="apartment-review-empty">

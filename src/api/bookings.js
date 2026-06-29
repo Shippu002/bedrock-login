@@ -56,7 +56,12 @@ export function extendBooking(bookingId, data = {}) {
 }
 
 export function cancelBooking(bookingId, reason) {
-  return apiClient.post(`/bookings/${bookingId}/cancel`, { reason });
+  const cancellationReason = reason || "Cancelled by guest";
+
+  return apiClient.post(`/bookings/${bookingId}/cancel`, {
+    reason: cancellationReason,
+    cancellation_reason: cancellationReason,
+  });
 }
 
 export function initiatePayment(bookingId, paymentMethod = "paystack") {

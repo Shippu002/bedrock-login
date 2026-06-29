@@ -169,6 +169,14 @@ function getPositiveNumber(...values) {
     }
 
     if (typeof value === "string") {
+      const cleanedNumber = Number(
+        value.replace(/,/g, "").replace(/[^\d.-]/g, ""),
+      );
+
+      if (Number.isFinite(cleanedNumber) && cleanedNumber > 0) {
+        return cleanedNumber;
+      }
+
       const matchedNumber = Number(value.match(/\d+(\.\d+)?/)?.[0]);
 
       if (Number.isFinite(matchedNumber) && matchedNumber > 0) {
@@ -178,6 +186,24 @@ function getPositiveNumber(...values) {
   }
 
   return 0;
+}
+
+function getNumberValue(value, fallback = 0) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : fallback;
+  }
+
+  if (typeof value === "string") {
+    const parsedValue = Number(
+      value.replace(/,/g, "").replace(/[^\d.-]/g, ""),
+    );
+
+    return Number.isFinite(parsedValue) ? parsedValue : fallback;
+  }
+
+  const parsedValue = Number(value);
+
+  return Number.isFinite(parsedValue) ? parsedValue : fallback;
 }
 
 function normalizeResidenceId(value, name = "") {
@@ -392,6 +418,12 @@ export function buildListingSectionsFromApartments(apartments = []) {
 export function normalizeBackendBooking(item = {}, fallback = {}) {
   const booking = extractObject(item);
   const apartment = booking.apartment || booking.apartment_details || {};
+  const bookingBackendId =
+    booking.id ||
+    booking.booking_id ||
+    booking.bookingId ||
+    booking.uuid ||
+    fallback.backendId;
   const title =
     booking.title ||
     booking.apartment_title ||
@@ -399,9 +431,42 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
     apartment.name ||
     fallback.title ||
     "Apartment booking";
-  const checkIn = booking.check_in || booking.checkIn || fallback.checkIn || "";
+  const checkIn =
+    booking.check_in ||
+    booking.checkin ||
+    booking.checkIn ||
+    booking.start_date ||
+    booking.startDate ||
+    booking.arrival_date ||
+    booking.arrivalDate ||
+    booking.from_date ||
+    booking.fromDate ||
+    booking.date_from ||
+    booking.dateFrom ||
+    fallback.checkIn ||
+    "";
   const checkOut =
-    booking.check_out || booking.checkOut || fallback.checkOut || "";
+    booking.check_out ||
+    booking.checkout ||
+    booking.checkOut ||
+    booking.end_date ||
+    booking.endDate ||
+    booking.departure_date ||
+    booking.departureDate ||
+    booking.to_date ||
+    booking.toDate ||
+    booking.date_to ||
+    booking.dateTo ||
+    fallback.checkOut ||
+    "";
+  const status =
+    booking.status ||
+    booking.booking_status ||
+    booking.bookingStatus ||
+    booking.payment_status ||
+    booking.paymentStatus ||
+    fallback.status ||
+    "upcoming";
   const totalAmount =
     booking.total_amount ??
     booking.totalAmount ??
@@ -412,7 +477,7 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
 
   return {
     ...fallback,
-    backendId: booking.id || booking.uuid || fallback.backendId,
+    backendId: bookingBackendId,
     apartmentBackendId:
       booking.apartment_id ||
       booking.apartmentId ||
@@ -430,10 +495,11 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
       fallback.apartmentBackendId ||
       "",
     id: String(
-      booking.reference ||
+        booking.reference ||
         booking.booking_reference ||
         booking.booking_no ||
-        booking.id ||
+        booking.booking_id ||
+        bookingBackendId ||
         fallback.id ||
         "",
     ),
@@ -482,7 +548,7 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
         0,
     ),
     totalAmount: Number(totalAmount),
-    status: booking.status || fallback.status || "upcoming",
+    status,
     createdAt:
       booking.created_at || booking.createdAt || fallback.createdAt || "",
     paymentReference:
@@ -491,6 +557,14 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
       booking.reference ||
       fallback.paymentReference ||
       "",
+    reviewed: Boolean(
+      booking.reviewed ||
+        booking.has_review ||
+        booking.hasReview ||
+        booking.review ||
+        fallback.reviewed,
+    ),
+    review: booking.review || booking.user_review || fallback.review || null,
     timeline: Array.isArray(booking.timeline)
       ? booking.timeline
       : fallback.timeline,
@@ -683,60 +757,82 @@ export function normalizeBackendPricing(response, fallback = {}) {
     payload.quote ||
     payload.breakdown ||
     payload;
-  const total =
+  const total = getPositiveNumber(
     pricing.total ??
-    pricing.total_amount ??
-    pricing.totalAmount ??
-    fallback.total ??
-    0;
-  const rockPointValue = Number(
-    pricing.rock_point_value ||
-      pricing.rockPointValue ||
-      pricing.rock_points_discount ||
-      fallback.rockPointValue ||
-      0,
+      pricing.total_amount ??
+      pricing.totalAmount,
+    fallback.total,
   );
-  const couponDiscount = Number(
-    pricing.coupon_discount ??
-      pricing.couponDiscount ??
-      pricing.discount_amount ??
-      pricing.discountAmount ??
-      pricing.discount ??
-      pricing.coupon?.discount_amount ??
-      pricing.coupon?.discountAmount ??
-      fallback.couponDiscount ??
-      fallback.discountAmount ??
-      0,
+  const rockPointValue = getPositiveNumber(
+    pricing.rock_point_value,
+    pricing.rockPointValue,
+    pricing.rock_points_discount,
+    fallback.rockPointValue,
   );
-  const payable =
+  const couponDiscount =
+    getPositiveNumber(
+      pricing.coupon_discount,
+      pricing.couponDiscount,
+      pricing.discount_amount,
+      pricing.discountAmount,
+      pricing.discount,
+      pricing.coupon_discount_amount,
+      pricing.couponDiscountAmount,
+      pricing.applied_discount,
+      pricing.appliedDiscount,
+      pricing.coupon?.discount_amount,
+      pricing.coupon?.discountAmount,
+      pricing.coupon?.discount,
+      pricing.coupon?.amount,
+      pricing.coupon?.value,
+      pricing.coupon?.discount_value,
+      pricing.coupon?.discountValue,
+      pricing.applied_coupon?.discount_amount,
+      pricing.applied_coupon?.discountAmount,
+      pricing.applied_coupon?.discount,
+      pricing.appliedCoupon?.discount_amount,
+      pricing.appliedCoupon?.discountAmount,
+      pricing.appliedCoupon?.discount,
+      fallback.couponDiscount,
+      fallback.discountAmount,
+    ) || 0;
+  const explicitPayable =
     pricing.payable ??
     pricing.payable_amount ??
     pricing.amount_payable ??
-    pricing.amount ??
-    fallback.payable ??
-    Math.max(0, Number(total) - rockPointValue - couponDiscount);
+    pricing.amount_due ??
+    pricing.final_amount ??
+    pricing.finalAmount ??
+    pricing.grand_total ??
+    pricing.grandTotal ??
+    fallback.payable;
+  const payable =
+    explicitPayable ?? Math.max(0, Number(total) - rockPointValue - couponDiscount);
 
   return {
-    nights: Number(
-      pricing.nights || pricing.total_nights || fallback.nights || 1,
+    nights: getPositiveNumber(
+      pricing.nights,
+      pricing.total_nights,
+      fallback.nights,
+      1,
     ),
-    subtotal: Number(
-      pricing.subtotal ||
-        pricing.base_amount ||
-        pricing.baseAmount ||
-        fallback.subtotal ||
-        0,
+    subtotal: getPositiveNumber(
+      pricing.subtotal,
+      pricing.base_amount,
+      pricing.baseAmount,
+      fallback.subtotal,
     ),
-    taxesAndFees: Number(
-      pricing.taxes_and_fees ||
-        pricing.taxesAndFees ||
-        pricing.tax ||
-        pricing.fees ||
-        fallback.taxesAndFees ||
-        0,
+    taxesAndFees: getPositiveNumber(
+      pricing.taxes_and_fees,
+      pricing.taxesAndFees,
+      pricing.tax,
+      pricing.fees,
+      fallback.taxesAndFees,
     ),
-    cautionFee: Number(
-      pricing.caution_fee || pricing.cautionFee || fallback.cautionFee || 0,
+    cautionFee: getPositiveNumber(
+      pricing.caution_fee,
+      pricing.cautionFee,
+      fallback.cautionFee,
     ),
     rockPointValue,
     couponCode:
@@ -753,6 +849,9 @@ export function normalizeBackendPricing(response, fallback = {}) {
       pricing.discount_message ||
       pricing.discountMessage ||
       pricing.message ||
+      pricing.coupon?.message ||
+      pricing.applied_coupon?.message ||
+      pricing.appliedCoupon?.message ||
       fallback.couponMessage ||
       "",
     isCouponValid:
@@ -760,9 +859,23 @@ export function normalizeBackendPricing(response, fallback = {}) {
       pricing.couponValid ??
       pricing.is_coupon_valid ??
       pricing.isCouponValid ??
+      pricing.valid ??
+      pricing.coupon?.valid ??
+      pricing.coupon?.is_valid ??
+      pricing.coupon?.isValid ??
+      pricing.applied_coupon?.valid ??
+      pricing.applied_coupon?.is_valid ??
+      pricing.appliedCoupon?.valid ??
+      pricing.appliedCoupon?.isValid ??
       (couponDiscount > 0 ? true : undefined),
-    total: Number(total),
-    payable: Number(payable),
+    total,
+    payable: Math.max(
+      0,
+      getNumberValue(
+        payable,
+        Math.max(0, Number(total) - rockPointValue - couponDiscount),
+      ),
+    ),
   };
 }
 

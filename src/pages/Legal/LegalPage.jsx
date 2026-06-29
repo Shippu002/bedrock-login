@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   FiArrowLeft,
   FiChevronRight,
@@ -85,16 +85,6 @@ export default function LegalPage({
   const selectedDocument = documents.find(
     (document) => getLegalDocumentKey(document) === selectedDocumentId,
   );
-  const nextInitialDocumentId = documents.some(
-    (document) => getLegalDocumentKey(document) === initialDocumentId,
-  )
-    ? initialDocumentId
-    : "";
-
-  useEffect(() => {
-    setSelectedDocumentId(nextInitialDocumentId);
-    scrollLegalPageToTop();
-  }, [nextInitialDocumentId]);
 
   function handleOpenDocument(documentId) {
     setSelectedDocumentId(documentId);
