@@ -60,6 +60,39 @@ function normalizeAgentAccountType(value) {
   return "individual_agent";
 }
 
+const amenityValueAliases = {
+  wifi: "free_wifi",
+  freewifi: "free_wifi",
+  "free wifi": "free_wifi",
+  "free wi-fi": "free_wifi",
+  gym: "free_gym",
+  "free gym": "free_gym",
+  shuttle: "airport_shuttle",
+  airportshuttle: "airport_shuttle",
+  "airport shuttle": "airport_shuttle",
+};
+
+function normalizeAmenityValue(value) {
+  if (typeof value !== "string") return value;
+
+  const trimmedValue = value.trim();
+  const normalizedKey = trimmedValue.toLowerCase().replace(/[_-]+/g, " ");
+
+  return amenityValueAliases[normalizedKey] || trimmedValue;
+}
+
+function normalizePreferredAmenities(value) {
+  const amenities = Array.isArray(value) ? value : [value];
+
+  return [
+    ...new Set(
+      amenities
+        .map(normalizeAmenityValue)
+        .filter((amenity) => amenity !== undefined && amenity !== null && amenity !== ""),
+    ),
+  ];
+}
+
 const tokenResponseKeys = [
   "token",
   "access_token",
@@ -256,12 +289,14 @@ export async function setGuestPassword({ password, passwordConfirmation }) {
 }
 
 export async function completeGuestRegistration(data = {}) {
+  const preferredAmenities = normalizePreferredAmenities(
+    data.preferredAmenities || data.preferred_amenities,
+  );
   const response = await apiClient.post(
     authEndpoints.guestRegisterStep4,
     cleanPayload({
       travel_purpose: data.travelPurpose || data.travel_purpose,
-      preferred_amenities:
-        data.preferredAmenities || data.preferred_amenities,
+      preferred_amenities: preferredAmenities,
       budget_range: data.budgetRange || data.budget_range,
     }),
   );

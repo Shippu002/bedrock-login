@@ -65,9 +65,9 @@ const initialResetData = {
 const initialOtp = ["", "", "", "", "", ""];
 
 const amenityOptions = [
-  { id: "wifi", label: "Free WIFI", icon: FiWifi },
-  { id: "gym", label: "Free Gym", icon: FaDumbbell },
-  { id: "shuttle", label: "Airport shuttle", icon: FiTruck },
+  { id: "free_wifi", label: "Free WIFI", icon: FiWifi },
+  { id: "free_gym", label: "Free Gym", icon: FaDumbbell },
+  { id: "airport_shuttle", label: "Airport shuttle", icon: FiTruck },
   { id: "breakfast", label: "Breakfast", icon: FiCoffee },
   { id: "restaurant", label: "Restaurant", icon: FaUtensils },
 ];
@@ -172,7 +172,7 @@ export default function AuthModal({
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [travelPurpose, setTravelPurpose] = useState("business");
-  const [preferredAmenities, setPreferredAmenities] = useState(["gym"]);
+  const [preferredAmenities, setPreferredAmenities] = useState(["free_gym"]);
   const [budgetRange, setBudgetRange] = useState("");
   const [showTravelErrors, setShowTravelErrors] = useState(false);
   const [profilePhotoPreview, setProfilePhotoPreview] = useState("");
@@ -833,7 +833,7 @@ export default function AuthModal({
     setShowConfirmPassword(false);
 
     setTravelPurpose("business");
-    setPreferredAmenities(["gym"]);
+    setPreferredAmenities(["free_gym"]);
     setBudgetRange("");
     setShowTravelErrors(false);
     setProfilePhotoPreview("");
