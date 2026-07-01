@@ -34,9 +34,15 @@ import {
   normalizeLocalPhoneNumber,
 } from "../utils/countries";
 import * as authApi from "../api/auth";
+import { getAuthToken } from "../api/client";
 import * as profileApi from "../api/profile";
 import { useDialogFocus } from "../hooks/useDialogFocus";
-import { normalizeBackendUser } from "../utils/backendUser";
+import {
+  isAgentPendingVerification,
+  isAgentUser,
+  mergeAgentVerificationStatus,
+  normalizeBackendUser,
+} from "../utils/backendUser";
 import "../styles/auth-modal.css";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
@@ -127,6 +133,69 @@ function buildUsernameSuggestions(fullName) {
   return [...new Set([joined, underscored, dotted, numbered])];
 }
 
+function readSavedAccount() {
+  try {
+    return JSON.parse(localStorage.getItem(ACCOUNT_STORAGE_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function savePendingAgentAccount(user) {
+  if (!user) return;
+
+  try {
+    localStorage.setItem(
+      ACCOUNT_STORAGE_KEY,
+      JSON.stringify({
+        ...user,
+        isAgent: true,
+        agentStatus: user.agentStatus || "pending",
+        isAgentVerified: false,
+      }),
+    );
+  } catch {
+    // Storage can fail in private browsing; the token still lets us re-check the server.
+  }
+}
+
+async function resolveServerVerifiedUser(user) {
+  let nextUser = user;
+
+  try {
+    const profileResponse = await authApi.getCurrentUser();
+    nextUser = normalizeBackendUser(profileResponse, nextUser);
+  } catch (error) {
+    debugAuthFlow("profile-refresh-after-login-failed", {
+      message: error?.message || "Unable to refresh profile after login",
+    });
+  }
+
+  if (!isAgentUser(nextUser)) {
+    return nextUser;
+  }
+
+  try {
+    const statusResponse = await authApi.getOnboardingStatus();
+    return mergeAgentVerificationStatus(nextUser, statusResponse);
+  } catch (error) {
+    debugAuthFlow("agent-onboarding-status-failed", {
+      message: error?.message || "Unable to confirm agent verification",
+    });
+
+    if (!isAgentPendingVerification(nextUser)) {
+      return nextUser;
+    }
+
+    return {
+      ...nextUser,
+      isAgent: true,
+      agentStatus: nextUser.agentStatus || "pending",
+      isAgentVerified: false,
+    };
+  }
+}
+
 export default function AuthModal({
   isOpen,
   entryPoint = "login",
@@ -136,11 +205,17 @@ export default function AuthModal({
   onAuthComplete,
 }) {
   const isAgentSignup = entryPoint === "agentSignup";
+  const isAgentPendingEntry = entryPoint === "agentPending";
+  const isAgentEntry = isAgentSignup || isAgentPendingEntry;
   const isSignupEntry = entryPoint === "signup" || isAgentSignup;
-  const initialSignupStep = isAgentSignup ? "agentType" : "signup";
+  const initialSignupStep = isAgentPendingEntry
+    ? "agentReview"
+    : isAgentSignup
+      ? "agentType"
+      : "signup";
   const [selectedCountryId, setSelectedCountryId] = useState("NG");
   const [signupMode, setSignupMode] = useState(
-    isAgentSignup ? "agent" : "guest",
+    isAgentEntry ? "agent" : "guest",
   );
   const [formData, setFormData] = useState(initialFormData);
   const [loginData, setLoginData] = useState(initialLoginData);
@@ -156,7 +231,7 @@ export default function AuthModal({
   const [showResetConfirmPassword, setShowResetConfirmPassword] =
     useState(false);
   const [currentStep, setCurrentStep] = useState(
-    isSignupEntry ? initialSignupStep : "login",
+    isSignupEntry || isAgentPendingEntry ? initialSignupStep : "login",
   );
 
   const [otp, setOtp] = useState(initialOtp);
@@ -183,6 +258,10 @@ export default function AuthModal({
   const [agentDocumentPreviewName, setAgentDocumentPreviewName] = useState("");
   const [agentCertification, setAgentCertification] = useState(false);
   const [agentOnboardingError, setAgentOnboardingError] = useState("");
+  const [agentVerificationNotice, setAgentVerificationNotice] = useState("");
+  const [agentStatusRefreshKey, setAgentStatusRefreshKey] = useState(0);
+  const [isAgentVerificationRefreshing, setIsAgentVerificationRefreshing] =
+    useState(false);
 
   const [referralCopied, setReferralCopied] = useState(false);
   const [authAction, setAuthAction] = useState("");
@@ -195,6 +274,7 @@ export default function AuthModal({
     countryOptions[0];
   const selectedCurrency = selectedCountry.currency;
   const isAuthRequestLoading = Boolean(authAction);
+  const hasBackendAuthSession = Boolean(getAuthToken());
   const modalRef = useDialogFocus(isOpen, { onClose: handleCloseModal });
 
   const showReferralTip = isReferralActive || formData.referral.trim() !== "";
@@ -329,6 +409,93 @@ export default function AuthModal({
       root.style.removeProperty("--auth-viewport-top");
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || currentStep !== "agentReview") return undefined;
+
+    let ignoreStatusResponse = false;
+
+    async function checkAgentStatus() {
+      await Promise.resolve();
+
+      if (ignoreStatusResponse) return;
+
+      if (!getAuthToken()) {
+        setAgentVerificationNotice(
+          "Please log in again so we can check your latest agent verification status.",
+        );
+        return;
+      }
+
+      setIsAgentVerificationRefreshing(true);
+
+      try {
+        const savedAccount = readSavedAccount() || {};
+        const fallbackUser = pendingSessionUser ||
+          normalizeBackendUser(savedAccount, {
+            isAgent: true,
+            agentStatus: "pending",
+          });
+        const serverCheckedUser = await resolveServerVerifiedUser({
+          ...fallbackUser,
+          isAgent: true,
+          agentStatus: fallbackUser.agentStatus || "pending",
+        });
+
+        if (ignoreStatusResponse) return;
+
+        if (!isAgentPendingVerification(serverCheckedUser)) {
+          if (onAuthComplete) {
+            onAuthComplete(serverCheckedUser);
+          }
+
+          return;
+        }
+
+        savePendingAgentAccount(serverCheckedUser);
+        setPendingSessionUser((currentUser) => {
+          if (
+            currentUser?.agentStatus === serverCheckedUser.agentStatus &&
+            currentUser?.isAgentVerified === serverCheckedUser.isAgentVerified
+          ) {
+            return currentUser;
+          }
+
+          return serverCheckedUser;
+        });
+      } finally {
+        if (!ignoreStatusResponse) {
+          setIsAgentVerificationRefreshing(false);
+        }
+      }
+    }
+
+    checkAgentStatus();
+
+    const intervalId = window.setInterval(checkAgentStatus, 8000);
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        checkAgentStatus();
+      }
+    }
+
+    window.addEventListener("focus", checkAgentStatus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      ignoreStatusResponse = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", checkAgentStatus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [
+    agentStatusRefreshKey,
+    currentStep,
+    isOpen,
+    onAuthComplete,
+    pendingSessionUser,
+  ]);
 
   function handleFieldChange(field, value) {
     const nextValue =
@@ -592,6 +759,7 @@ export default function AuthModal({
       findCountryByDialCode(account.countryCode);
 
     return {
+      backendId: account.backendId || account.id || "",
       name: account.name,
       username: account.username,
       email: account.email,
@@ -601,6 +769,12 @@ export default function AuthModal({
       countryCode: account.countryCode || "",
       currency: account.currency || "",
       profilePhoto: account.profilePhoto || "",
+      accountType: account.accountType || "",
+      role: account.role || "",
+      roles: Array.isArray(account.roles) ? account.roles : [],
+      isAgent: Boolean(account.isAgent),
+      agentStatus: account.agentStatus || "",
+      isAgentVerified: Boolean(account.isAgentVerified),
       messages,
       bookings,
       orders,
@@ -614,6 +788,7 @@ export default function AuthModal({
 
   function buildRegisteredUser() {
     const phone = normalizeLocalPhoneNumber(formData.phone, selectedCountry);
+    const isAgent = signupMode === "agent";
 
     return {
       name: formData.fullName.trim(),
@@ -625,19 +800,15 @@ export default function AuthModal({
       countryCode: selectedCountry.dialCode,
       currency: selectedCountry.currency,
       profilePhoto: profilePhotoPreview,
+      accountType: isAgent ? `${agentAccountType}_agent` : "guest",
+      isAgent,
+      agentStatus: isAgent ? "pending" : "",
+      isAgentVerified: false,
       messages: [],
       bookings: [],
       orders: [],
       messageCount: 0,
     };
-  }
-
-  function readSavedAccount() {
-    try {
-      return JSON.parse(localStorage.getItem(ACCOUNT_STORAGE_KEY) || "null");
-    } catch {
-      return null;
-    }
   }
 
   function completeSignupSession() {
@@ -677,11 +848,25 @@ export default function AuthModal({
         ...savedAccount,
         email: loginData.email.trim(),
       });
+      const serverCheckedUser = await resolveServerVerifiedUser(nextUser);
+
+      if (isAgentPendingVerification(serverCheckedUser)) {
+        savePendingAgentAccount(serverCheckedUser);
+        setSignupMode("agent");
+        setPendingSessionUser(serverCheckedUser);
+        setShowLoginErrors(false);
+        setLoginErrorMessage("");
+        setAgentVerificationNotice(
+          "Your agent account is still waiting for ID card verification from the server. Access will open after approval.",
+        );
+        setCurrentStep("agentReview");
+        return;
+      }
 
       resetModalState();
 
       if (onAuthComplete) {
-        onAuthComplete(nextUser);
+        onAuthComplete(serverCheckedUser);
       }
     } catch (error) {
       setLoginErrorMessage(
@@ -802,7 +987,7 @@ export default function AuthModal({
 
   function resetModalState() {
     setSelectedCountryId("NG");
-    setSignupMode(isAgentSignup ? "agent" : "guest");
+    setSignupMode(isAgentEntry ? "agent" : "guest");
     setFormData(initialFormData);
     setLoginData(initialLoginData);
     setIsReferralActive(false);
@@ -815,7 +1000,9 @@ export default function AuthModal({
     setResetErrorMessage("");
     setShowResetPassword(false);
     setShowResetConfirmPassword(false);
-    setCurrentStep(isSignupEntry ? initialSignupStep : "login");
+    setCurrentStep(
+      isSignupEntry || isAgentPendingEntry ? initialSignupStep : "login",
+    );
     setOtp(initialOtp);
     setResendTimer(60);
     setAuthAction("");
@@ -844,6 +1031,9 @@ export default function AuthModal({
     setAgentDocumentPreviewName("");
     setAgentCertification(false);
     setAgentOnboardingError("");
+    setAgentVerificationNotice("");
+    setAgentStatusRefreshKey(0);
+    setIsAgentVerificationRefreshing(false);
 
     setReferralCopied(false);
   }
@@ -953,6 +1143,18 @@ export default function AuthModal({
         type: agentDocumentType,
       });
       await authApi.submitAgentApplication();
+      const pendingAgentUser = {
+        ...(pendingSessionUser || buildSessionUser(buildRegisteredUser())),
+        isAgent: true,
+        agentStatus: "pending",
+        isAgentVerified: false,
+      };
+
+      setPendingSessionUser(pendingAgentUser);
+      savePendingAgentAccount(pendingAgentUser);
+      setAgentVerificationNotice(
+        "Your agent credentials have been submitted. Access stays locked until the server verifies your uploaded ID card.",
+      );
       setCurrentStep("agentReview");
     } catch (error) {
       setAgentOnboardingError(
@@ -968,7 +1170,9 @@ export default function AuthModal({
     setResendTimer(60);
     setOtpErrorMessage("");
 
-    if (resend) {
+    const shouldSendCode = resend || signupMode === "agent";
+
+    if (shouldSendCode) {
       setAuthAction("sendOtp");
 
       try {
@@ -1055,6 +1259,18 @@ export default function AuthModal({
     setCurrentStep("usernameCreation");
   }
 
+  function handleAgentReviewBackToLogin() {
+    setAgentVerificationNotice("");
+
+    if (onSwitchToLogin) {
+      onSwitchToLogin();
+      return;
+    }
+
+    setSignupMode("guest");
+    setCurrentStep("login");
+  }
+
   function getModalClassName() {
     if (currentStep === "login") {
       return "auth-modal auth-modal--login";
@@ -1135,7 +1351,13 @@ export default function AuthModal({
       className="auth-overlay"
       role="dialog"
       aria-modal="true"
-      aria-label={isSignupEntry ? "Create account" : "Login"}
+      aria-label={
+        isAgentPendingEntry
+          ? "Agent verification status"
+          : isSignupEntry
+            ? "Create account"
+            : "Login"
+      }
     >
       <div className={getModalClassName()} ref={modalRef} tabIndex={-1}>
         {currentStep === "login" && (
@@ -2008,24 +2230,23 @@ export default function AuthModal({
               <span className="auth-agent-status__icon">
                 <FiRefreshCw />
               </span>
-              <em>In Review</em>
-              <h2>Application Under Review</h2>
+              <em>Verifying Credentials</em>
+              <h2>Credentials Verification Pending</h2>
               <p>
-                Thank you for submitting your agent application. Our verification
-                team is reviewing your documents. This process typically takes
-                24-48 hours.
+                {agentVerificationNotice ||
+                  "Thank you for submitting your agent application. Access stays locked until the server verifies your uploaded ID card."}
               </p>
             </div>
 
             <div className="auth-agent-status__timeline">
               {[
                 "Application Submitted",
-                "Document Verification",
-                "Account Verified",
+                "ID Card Verification",
+                "Access Enabled",
               ].map((item, index) => (
                 <article key={item}>
-                  <span className={index < 2 ? "is-done" : ""}>
-                    {index < 2 ? <FiCheck /> : <FiRefreshCw />}
+                  <span className={index === 0 ? "is-done" : ""}>
+                    {index === 0 ? <FiCheck /> : <FiRefreshCw />}
                   </span>
                   <div>
                     <strong>{item}</strong>
@@ -2045,10 +2266,21 @@ export default function AuthModal({
 
             <button
               type="button"
-              className="auth-primary-button auth-welcome__cta"
-              onClick={completeSignupSession}
+              className="auth-secondary-button"
+              onClick={() => setAgentStatusRefreshKey((current) => current + 1)}
+              disabled={!hasBackendAuthSession || isAgentVerificationRefreshing}
             >
-              Let&apos;s create an experience
+              {isAgentVerificationRefreshing
+                ? "Checking status..."
+                : "Check verification status"}
+            </button>
+
+            <button
+              type="button"
+              className="auth-primary-button auth-welcome__cta"
+              onClick={handleAgentReviewBackToLogin}
+            >
+              Back to login
             </button>
           </div>
         )}

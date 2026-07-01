@@ -66,7 +66,12 @@ import {
   normalizeBackendResidence,
   normalizeBackendReview,
 } from "../../utils/backendCollections";
-import { normalizeBackendUser } from "../../utils/backendUser";
+import {
+  isAgentPendingVerification,
+  isAgentUser,
+  mergeAgentVerificationStatus,
+  normalizeBackendUser,
+} from "../../utils/backendUser";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
 const CANCELLED_ORDERS_STORAGE_KEY = "bedrockCancelledOrders";
@@ -693,6 +698,31 @@ async function fetchBackendUserCollections(baseUser) {
   return nextUser;
 }
 
+async function resolveBackendAgentVerification(baseUser) {
+  if (!baseUser || !getAuthToken() || !isAgentUser(baseUser)) {
+    return baseUser;
+  }
+
+  try {
+    const statusResponse = await authApi.getOnboardingStatus();
+
+    return mergeAgentVerificationStatus(baseUser, statusResponse);
+  } catch (error) {
+    logFrontendError("Unable to confirm agent verification status", error);
+
+    if (!isAgentPendingVerification(baseUser)) {
+      return baseUser;
+    }
+
+    return {
+      ...baseUser,
+      isAgent: true,
+      agentStatus: baseUser.agentStatus || "pending",
+      isAgentVerified: false,
+    };
+  }
+}
+
 function createDefaultBookingDetails() {
   const checkIn = getTodayDateValue();
 
@@ -788,9 +818,13 @@ function HomePage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authEntry, setAuthEntry] = useState("login");
   const [authModalKey, setAuthModalKey] = useState(0);
-  const [currentUser, setCurrentUser] = useState(() =>
-    getAuthToken() ? readStoredAccount() : null,
-  );
+  const [currentUser, setCurrentUser] = useState(() => {
+    const storedAccount = getAuthToken() ? readStoredAccount() : null;
+
+    return storedAccount && isAgentPendingVerification(storedAccount)
+      ? null
+      : storedAccount;
+  });
   const [activePage, setActivePage] = useState("home");
   const [selectedLegalDocumentId, setSelectedLegalDocumentId] = useState("");
   const [profileInitialView, setProfileInitialView] = useState("profile");
@@ -867,7 +901,6 @@ function HomePage() {
 
     if (!hasBackendSession) {
       clearStoredSession();
-      setCurrentUser(null);
       return () => {
         ignoreProfileResponse = true;
       };
@@ -883,7 +916,24 @@ function HomePage() {
         if (ignoreProfileResponse) return;
 
         const nextUser = normalizeBackendUser(response, savedAccount || {});
-        const hydratedUser = await fetchBackendUserCollections(nextUser);
+        const serverCheckedUser =
+          await resolveBackendAgentVerification(nextUser);
+
+        if (ignoreProfileResponse) return;
+
+        if (isAgentPendingVerification(serverCheckedUser)) {
+          saveStoredAccount(serverCheckedUser);
+          setCurrentUser(null);
+          setActivePage("home");
+          setProfileInitialView("profile");
+          setAuthEntry("agentPending");
+          setAuthModalKey((current) => current + 1);
+          setIsAuthModalOpen(true);
+          return;
+        }
+
+        const hydratedUser =
+          await fetchBackendUserCollections(serverCheckedUser);
 
         if (ignoreProfileResponse) return;
 
@@ -1501,7 +1551,21 @@ function HomePage() {
   }
 
   async function handleAuthComplete(authenticatedUser) {
-    updateCurrentUser(authenticatedUser);
+    const serverCheckedUser =
+      await resolveBackendAgentVerification(authenticatedUser);
+
+    if (isAgentPendingVerification(serverCheckedUser)) {
+      saveStoredAccount(serverCheckedUser);
+      setCurrentUser(null);
+      setActivePage("home");
+      setProfileInitialView("profile");
+      setAuthEntry("agentPending");
+      setAuthModalKey((current) => current + 1);
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    updateCurrentUser(serverCheckedUser);
     setActivePage("home");
     setIsAuthModalOpen(false);
     showToast("You are signed in.", "success");
@@ -1510,9 +1574,9 @@ function HomePage() {
       "You are signed in. Booking, order, and service updates will appear here.",
     );
 
-    const hydratedUser = await fetchBackendUserCollections(authenticatedUser);
+    const hydratedUser = await fetchBackendUserCollections(serverCheckedUser);
 
-    if (hydratedUser !== authenticatedUser) {
+    if (hydratedUser !== serverCheckedUser) {
       updateCurrentUser(hydratedUser);
     }
   }
