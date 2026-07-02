@@ -159,6 +159,77 @@ function savePendingAgentAccount(user) {
   }
 }
 
+function collectErrorText(value) {
+  if (!value) return [];
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(collectErrorText);
+  if (typeof value === "object") {
+    return Object.values(value).flatMap(collectErrorText);
+  }
+
+  return [];
+}
+
+function getLoginErrorMessage(error) {
+  const errorText = [
+    error?.message,
+    ...collectErrorText(error?.data),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  const emailNotRegisteredPhrases = [
+    "email not found",
+    "email does not exist",
+    "email doesn't exist",
+    "email is not registered",
+    "email not registered",
+    "email address not found",
+    "account not found",
+    "account does not exist",
+    "account doesn't exist",
+    "user not found",
+    "user does not exist",
+    "user doesn't exist",
+    "no account",
+    "no user",
+    "not linked to an account",
+    "not linked",
+    "selected email is invalid",
+    "selected email",
+  ];
+  const wrongPasswordPhrases = [
+    "wrong password",
+    "incorrect password",
+    "invalid password",
+    "password is incorrect",
+    "password incorrect",
+    "password does not match",
+    "password doesn't match",
+    "invalid credentials",
+    "credentials do not match",
+    "credentials don't match",
+    "login failed",
+  ];
+
+  if (
+    error?.status === 404 ||
+    emailNotRegisteredPhrases.some((phrase) => errorText.includes(phrase))
+  ) {
+    return "This email is not registered to any account.";
+  }
+
+  if (
+    wrongPasswordPhrases.some((phrase) => errorText.includes(phrase)) ||
+    error?.status === 401 ||
+    error?.status === 403
+  ) {
+    return "Wrong password.";
+  }
+
+  return error?.message || "Unable to sign in. Please try again.";
+}
+
 async function resolveServerVerifiedUser(user) {
   let nextUser = user;
 
@@ -869,9 +940,7 @@ export default function AuthModal({
         onAuthComplete(serverCheckedUser);
       }
     } catch (error) {
-      setLoginErrorMessage(
-        error.message || "Email or password is incorrect.",
-      );
+      setLoginErrorMessage(getLoginErrorMessage(error));
     } finally {
       setAuthAction("");
     }

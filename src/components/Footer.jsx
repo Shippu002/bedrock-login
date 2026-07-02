@@ -134,10 +134,6 @@ function Footer({
     return column;
   });
 
-  function handleNewsletterSubmit(event) {
-    event.preventDefault();
-  }
-
   function handleFooterAction(link) {
     if (link.type === "residence") {
       onResidenceSelect?.(link.value);
@@ -186,36 +182,13 @@ function Footer({
           ))}
         </div>
 
-        <div className="site-footer__newsletter">
-          <div className="site-footer__newsletter-copy">
-            <p className="site-footer__newsletter-label">
-              SUBSCRIBE TO OUR NEWSLETTER
-            </p>
-            <p className="site-footer__newsletter-text">
-              A monthly digest of the latest news, articles, and resources.
-            </p>
-          </div>
-
-          <form
-            className="site-footer__newsletter-form"
-            onSubmit={handleNewsletterSubmit}
-          >
-            <input
-              type="email"
-              placeholder="Email address"
-              aria-label="Email address"
-            />
-            <button type="submit">Subscribe</button>
-          </form>
-        </div>
-
         <div className="site-footer__bottom">
           <img
             src={bedrockLogo}
             alt="Bedrock Residences"
             className="site-footer__logo"
           />
-          <p>© 2023 Rayna. All rights reserved.</p>
+          <p>© 2026 Bedsoft. All rights reserved.</p>
         </div>
       </div>
     </footer>

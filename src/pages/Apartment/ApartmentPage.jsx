@@ -175,6 +175,13 @@ function ApartmentPage({
   const checkInInputRef = useRef(null);
   const checkOutInputRef = useRef(null);
   const bookingCardRef = useRef(null);
+  const gallerySwipeRef = useRef({
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+    lastX: 0,
+    lastY: 0,
+  });
 
   const galleryImages =
     apartment?.galleryImages?.length > 0
@@ -266,6 +273,78 @@ function ApartmentPage({
           ? couponMessage || "This coupon could not be applied."
           : "";
   const isSaved = savedOverride ?? isInitiallySaved;
+
+  function setActiveGalleryImage(index) {
+    if (!apartment?.id || galleryImages.length === 0) return;
+
+    const nextIndex =
+      ((index % galleryImages.length) + galleryImages.length) %
+      galleryImages.length;
+
+    setSelectedGalleryImage({
+      apartmentId: apartment.id,
+      index: nextIndex,
+    });
+  }
+
+  function moveGalleryImage(direction) {
+    if (galleryImages.length < 2) return;
+
+    setActiveGalleryImage(activeImage + direction);
+  }
+
+  function resetGallerySwipe() {
+    gallerySwipeRef.current = {
+      pointerId: null,
+      startX: 0,
+      startY: 0,
+      lastX: 0,
+      lastY: 0,
+    };
+  }
+
+  function handleGalleryPointerDown(event) {
+    if (galleryImages.length < 2) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+
+    gallerySwipeRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
+    };
+
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function handleGalleryPointerMove(event) {
+    if (gallerySwipeRef.current.pointerId !== event.pointerId) return;
+
+    gallerySwipeRef.current.lastX = event.clientX;
+    gallerySwipeRef.current.lastY = event.clientY;
+  }
+
+  function handleGalleryPointerEnd(event) {
+    const swipe = gallerySwipeRef.current;
+
+    if (swipe.pointerId !== event.pointerId) return;
+
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    const deltaX = swipe.lastX - swipe.startX;
+    const deltaY = swipe.lastY - swipe.startY;
+    const isHorizontalSwipe =
+      Math.abs(deltaX) >= 42 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
+
+    resetGallerySwipe();
+
+    if (isHorizontalSwipe) {
+      moveGalleryImage(deltaX < 0 ? 1 : -1);
+    }
+  }
 
   if (!apartment) return null;
 
@@ -739,12 +818,21 @@ function ApartmentPage({
         <div className="apartment-detail-layout">
           <div className="apartment-detail-main">
             <div className="apartment-gallery">
-              <div className="apartment-gallery__hero">
+              <div
+                className="apartment-gallery__hero"
+                onPointerDown={handleGalleryPointerDown}
+                onPointerMove={handleGalleryPointerMove}
+                onPointerUp={handleGalleryPointerEnd}
+                onPointerCancel={resetGallerySwipe}
+                role="group"
+                aria-label="Apartment image gallery. Swipe left or right to change image."
+              >
                 <AppImage
                   src={galleryImages[activeImage]}
                   fallbackSrc=""
                   alt={apartment.title}
                   loading="eager"
+                  draggable={false}
                 />
               </div>
 
