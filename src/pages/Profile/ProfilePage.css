@@ -3396,6 +3396,179 @@
   }
 }
 
+@media (max-width: 560px) {
+  .profile-page--profile .profile-main {
+    padding: 14px 12px 28px;
+  }
+
+  .profile-page--profile .profile-panel--plain {
+    padding-top: 18px;
+  }
+
+  .profile-page--profile .profile-view-heading {
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .profile-page--profile .profile-view-heading button {
+    width: 30px;
+    height: 30px;
+  }
+
+  .profile-page--profile .profile-view-heading button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .profile-page--profile .profile-view-heading h1 {
+    font-size: 20px;
+    line-height: 26px;
+  }
+
+  .profile-page--profile .edit-profile-hero {
+    min-height: 78px;
+    margin-bottom: 18px;
+    padding: 10px 8px;
+    border-radius: 16px;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 12px;
+  }
+
+  .profile-page--profile .edit-profile-avatar {
+    width: 54px;
+    height: 54px;
+    border-radius: 12px;
+    font-size: 17px;
+  }
+
+  .profile-page--profile .edit-profile-summary {
+    min-width: 0;
+    flex: 1;
+    gap: 2px;
+  }
+
+  .profile-page--profile .edit-profile-summary strong {
+    overflow: hidden;
+    font-size: 14px;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .profile-page--profile .edit-profile-summary span {
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .profile-page--profile .edit-profile-summary em {
+    min-height: 19px;
+    padding: 0 8px;
+    font-size: 10px;
+    line-height: 19px;
+  }
+
+  .profile-page--profile .edit-profile-summary small {
+    font-size: 10px;
+    line-height: 14px;
+  }
+
+  .profile-page--profile .edit-profile-photo-button {
+    width: 30px;
+    height: 30px;
+    margin-left: 0;
+    flex-shrink: 0;
+  }
+
+  .profile-page--profile .edit-profile-photo-button svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .profile-page--profile .edit-profile-form {
+    gap: 10px;
+  }
+
+  .profile-page--profile .edit-profile-form__label {
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  .profile-page--profile .profile-field {
+    min-height: 58px;
+    padding: 9px 12px;
+    border-radius: 12px;
+    gap: 5px;
+  }
+
+  .profile-page--profile .profile-field span {
+    font-size: 11px;
+    line-height: 15px;
+  }
+
+  .profile-page--profile .profile-field input,
+  .profile-page--profile .profile-field select {
+    line-height: 20px !important;
+  }
+
+  .profile-page--profile .profile-field--select {
+    width: 100%;
+  }
+
+  .profile-page--profile .profile-country-select {
+    min-height: 22px;
+    grid-template-columns: 22px minmax(0, 1fr) 16px;
+  }
+
+  .profile-page--profile .profile-field .profile-country-flag {
+    width: 22px;
+    height: 22px;
+    font-size: 16px;
+  }
+
+  .profile-page--profile .edit-profile-security-link {
+    min-height: 58px;
+    padding: 9px 12px;
+    border-radius: 12px;
+    grid-template-columns: 30px minmax(0, 1fr) 16px;
+    gap: 10px;
+  }
+
+  .profile-page--profile .edit-profile-security-link > svg:first-child {
+    width: 30px;
+    height: 30px;
+    padding: 8px;
+  }
+
+  .profile-page--profile .edit-profile-security-link > svg:last-child {
+    width: 16px;
+    height: 16px;
+  }
+
+  .profile-page--profile .edit-profile-security-link span {
+    gap: 2px;
+  }
+
+  .profile-page--profile .edit-profile-security-link strong {
+    font-size: 13px;
+    line-height: 17px;
+  }
+
+  .profile-page--profile .edit-profile-security-link em {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 15px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .profile-page--profile .edit-profile-form > .profile-action-button {
+    min-height: 40px;
+    margin-top: 2px;
+  }
+}
+
 @media (max-width: 340px) {
   .profile-sidebar__head {
     grid-template-columns: 1fr 40px;

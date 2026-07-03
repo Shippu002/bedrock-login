@@ -888,7 +888,25 @@ export function normalizeBackendAvailability(response) {
     availability.status;
 
   if (typeof value === "string") {
-    return value.toLowerCase() === "available";
+    const normalizedValue = value.trim().toLowerCase();
+
+    if (["available", "true", "1", "yes"].includes(normalizedValue)) {
+      return true;
+    }
+
+    if (
+      ["unavailable", "false", "0", "no", "booked", "reserved"].includes(
+        normalizedValue,
+      )
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  if (typeof value === "number") {
+    return value > 0;
   }
 
   return value === undefined ? true : Boolean(value);

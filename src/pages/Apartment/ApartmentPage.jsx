@@ -205,6 +205,11 @@ function ApartmentPage({
   const isAtGuestCapacity =
     guestCapacity > 0 && bookingDetails.guests >= guestCapacity;
   const isApartmentAvailable = quote?.available !== false;
+  const isDateUnavailable = quote?.available === false;
+  const isCheckingQuote = quote?.loading === true;
+  const dateUnavailableMessage = bookingDateRange
+    ? `${bookingDateRange} is not available for booking. Please choose another check-in or check-out date.`
+    : "This date is not available for booking. Please choose another check-in or check-out date.";
   const promoCode = String(bookingDetails.promo || "").trim();
   const canContinueBooking = Boolean(
     bookingDetails.checkIn &&
@@ -388,6 +393,18 @@ function ApartmentPage({
   }
 
   function handleMobileBookClick() {
+    if (isCheckingQuote) {
+      setActionFeedback(
+        "Please wait while we confirm availability for these dates.",
+      );
+      return;
+    }
+
+    if (isDateUnavailable) {
+      setActionFeedback(dateUnavailableMessage);
+      return;
+    }
+
     runPendingAction("book", onOpenPayment);
   }
 
@@ -602,10 +619,9 @@ function ApartmentPage({
                 <p className="apartment-action-feedback">{quote.error}</p>
               )}
 
-              {!isApartmentAvailable && (
-                <p className="apartment-action-feedback">
-                  This apartment is not available for the selected dates. Please
-                  choose another check-in or check-out date.
+              {isDateUnavailable && (
+                <p className="apartment-date-unavailable">
+                  {dateUnavailableMessage}
                 </p>
               )}
 
@@ -690,6 +706,7 @@ function ApartmentPage({
                 onClick={() => runPendingAction("payment", onPaymentContinue)}
                 disabled={
                   !canContinueBooking ||
+                  isCheckingQuote ||
                   hasCouponProblem ||
                   pendingAction === "payment"
                 }
@@ -1083,11 +1100,21 @@ function ApartmentPage({
               />
             </div>
 
+            {isDateUnavailable && (
+              <p className="apartment-date-unavailable">
+                {dateUnavailableMessage}
+              </p>
+            )}
+
             <button
               type="button"
               className="apartment-primary-button"
               onClick={() => runPendingAction("book", onOpenPayment)}
-              disabled={!canContinueBooking || pendingAction === "book"}
+              disabled={
+                !canContinueBooking ||
+                isCheckingQuote ||
+                pendingAction === "book"
+              }
             >
               {quote?.loading || pendingAction === "book"
                 ? "Checking..."
@@ -1110,11 +1137,17 @@ function ApartmentPage({
             <span>/per night</span>
           </strong>
 
+          {isDateUnavailable && (
+            <p className="apartment-date-unavailable">
+              {dateUnavailableMessage}
+            </p>
+          )}
+
           <button
             type="button"
             className="apartment-primary-button"
             onClick={handleMobileBookClick}
-            disabled={pendingAction === "book"}
+            disabled={isCheckingQuote || pendingAction === "book"}
           >
             {quote?.loading || pendingAction === "book"
               ? "Checking..."

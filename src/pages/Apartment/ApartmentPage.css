@@ -71,6 +71,19 @@
   text-align: right;
 }
 
+.apartment-date-unavailable {
+  margin: -4px 0 16px;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  background: #fff5f5;
+  padding: 10px 12px;
+  color: #d92d20;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+}
+
 .apartment-back-button {
   margin-bottom: 28px;
   font-family: "Urbanist", Arial, sans-serif;

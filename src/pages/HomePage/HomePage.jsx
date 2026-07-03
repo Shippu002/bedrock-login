@@ -76,6 +76,8 @@ import {
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
 const CANCELLED_ORDERS_STORAGE_KEY = "bedrockCancelledOrders";
 const PAYMENT_CONTEXT_STORAGE_KEY = "bedrockPendingPaymentContext";
+const DATE_UNAVAILABLE_MESSAGE =
+  "This date is not available for booking. Please choose another check-in or check-out date.";
 const PAYMENT_REFERENCE_QUERY_KEYS = [
   "reference",
   "trxref",
@@ -1833,7 +1835,17 @@ function HomePage() {
     const nextBookingDetails = createBookingDetailsFromFilters(apartmentFilters);
 
     setSelectedApartment(fallbackApartment);
-    setApartmentQuote(null);
+    setApartmentQuote(
+      fallbackApartment.backendId &&
+        nextBookingDetails.checkIn &&
+        nextBookingDetails.checkOut
+        ? {
+            loading: true,
+            available: undefined,
+            error: "",
+          }
+        : null,
+    );
     setPendingBooking(null);
     setBookingDetails({
       ...nextBookingDetails,
@@ -2929,6 +2941,18 @@ function HomePage() {
   }
 
   function handleBookingChange(field, value) {
+    if (
+      selectedApartment?.backendId &&
+      ["checkIn", "checkOut", "guests", "promo"].includes(field)
+    ) {
+      setApartmentQuote((currentQuote) => ({
+        ...(currentQuote || {}),
+        loading: true,
+        available: undefined,
+        error: "",
+      }));
+    }
+
     setBookingDetails((current) => ({
       ...current,
       ...(field === "checkIn"
@@ -2967,6 +2991,19 @@ function HomePage() {
   }
 
   function openPaymentStep() {
+    if (apartmentQuote?.loading) {
+      showToast(
+        "Please wait while we confirm availability for these dates.",
+        "error",
+      );
+      return;
+    }
+
+    if (apartmentQuote?.available === false) {
+      showToast(DATE_UNAVAILABLE_MESSAGE, "error");
+      return;
+    }
+
     setActivePage("payment");
   }
 
@@ -3036,6 +3073,20 @@ function HomePage() {
 
     if (!bookingDetails.agreedToPolicy) {
       showToast("Agree to the residence and cancellation policy to continue.", "error");
+      return;
+    }
+
+    if (apartmentQuote?.loading) {
+      showToast(
+        "Please wait while we confirm availability for these dates.",
+        "error",
+      );
+      return;
+    }
+
+    if (apartmentQuote?.available === false) {
+      showToast(DATE_UNAVAILABLE_MESSAGE, "error");
+      setActivePage("apartment");
       return;
     }
 
