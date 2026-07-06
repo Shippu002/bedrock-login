@@ -1,4 +1,3 @@
-const TAX_RATE = 0.075;
 const CAUTION_FEE = 100000;
 const ROCK_POINT_VALUE = 12500;
 
@@ -33,7 +32,7 @@ export function calculateFoodOrderTotals(
   const safePrice = Number(price) || 0;
   const safeGuests = Math.max(1, Number(guests) || 1);
   const subtotal = safePrice * safeGuests;
-  const taxesAndFees = Math.round(subtotal * TAX_RATE);
+  const taxesAndFees = 0;
   const cautionFee = CAUTION_FEE;
   const rockPointValue = ROCK_POINT_VALUE;
   const total = subtotal + taxesAndFees + cautionFee;

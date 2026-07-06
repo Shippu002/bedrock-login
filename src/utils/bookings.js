@@ -86,7 +86,7 @@ export function calculateBookingTotals(
   const nights = Math.max(1, calculateNights(checkIn, checkOut) || 1);
   const safeNightlyRate = toCurrencyNumber(nightlyRate);
   const subtotal = safeNightlyRate * nights;
-  const taxesAndFees = Math.round(subtotal * 0.075);
+  const taxesAndFees = 0;
   const cautionFee = 100000;
   const rockPointValue = useRockPoints ? 12500 : 0;
   const total = subtotal + taxesAndFees + cautionFee;

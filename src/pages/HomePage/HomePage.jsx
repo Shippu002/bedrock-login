@@ -726,12 +726,10 @@ async function resolveBackendAgentVerification(baseUser) {
 }
 
 function createDefaultBookingDetails() {
-  const checkIn = getTodayDateValue();
-
   return {
-    checkIn,
-    checkOut: addDays(checkIn, 1),
-    guests: 1,
+    checkIn: "",
+    checkOut: "",
+    guests: 0,
     promo: "",
     paymentMethod: "card",
     agreedToPolicy: false,
@@ -741,10 +739,10 @@ function createDefaultBookingDetails() {
 
 function createBookingDetailsFromFilters(filters) {
   const defaultDetails = createDefaultBookingDetails();
-  const checkIn = filters.checkIn || defaultDetails.checkIn;
+  const checkIn = filters.checkIn || "";
   const checkOut = filters.checkOut
     ? ensureCheckoutDate(checkIn, filters.checkOut)
-    : addDays(checkIn, 1);
+    : "";
 
   return {
     ...defaultDetails,
@@ -846,6 +844,7 @@ function HomePage() {
     createDefaultFoodOrderDetails(),
   );
   const [backendListingSections, setBackendListingSections] = useState([]);
+  const [defaultListingSections, setDefaultListingSections] = useState([]);
   const [backendResidenceOptions, setBackendResidenceOptions] = useState([]);
   const [backendApartmentCategories, setBackendApartmentCategories] = useState(
     [],
@@ -989,6 +988,7 @@ function HomePage() {
         );
 
         setBackendListingSections(sections);
+        setDefaultListingSections(sections);
         setBackendResidenceOptions(
           attachApartmentTypesToResidences(residences, sections),
         );
@@ -1766,6 +1766,10 @@ function HomePage() {
   }
 
   async function showHome() {
+    const cachedHomeSections = defaultListingSections.length
+      ? defaultListingSections
+      : backendListingSections;
+
     setActivePage("home");
     setProfileInitialView("profile");
     setSelectedApartment(null);
@@ -1776,6 +1780,12 @@ function HomePage() {
     setFoodOrderDetails(createDefaultFoodOrderDetails());
     setApartmentFilters(defaultApartmentFilters);
     setSearchResetKey((currentKey) => currentKey + 1);
+    setApartmentLoadError("");
+
+    if (cachedHomeSections.length) {
+      setBackendListingSections(cachedHomeSections);
+      setIsApartmentsLoading(false);
+    }
 
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1838,7 +1848,8 @@ function HomePage() {
     setApartmentQuote(
       fallbackApartment.backendId &&
         nextBookingDetails.checkIn &&
-        nextBookingDetails.checkOut
+        nextBookingDetails.checkOut &&
+        nextBookingDetails.guests > 0
         ? {
             loading: true,
             available: undefined,
@@ -1897,6 +1908,7 @@ function HomePage() {
   async function refreshApartmentListings(
     nextFilters = defaultApartmentFilters,
   ) {
+    const isDefaultListingRequest = !hasActiveApartmentFilters(nextFilters);
     const selectedResidence = backendResidenceOptions.find(
       (residence) => residence.id === nextFilters.residenceId,
     );
@@ -1921,15 +1933,34 @@ function HomePage() {
         search: nextFilters.query,
       });
 
-      setBackendListingSections(
-        buildListingSectionsFromApartments(extractCollection(response)),
+      const sections = buildListingSectionsFromApartments(
+        extractCollection(response),
       );
+
+      if (isDefaultListingRequest && sections.length) {
+        setDefaultListingSections(sections);
+      }
+
+      if (
+        isDefaultListingRequest &&
+        !sections.length &&
+        defaultListingSections.length
+      ) {
+        setBackendListingSections(defaultListingSections);
+      } else {
+        setBackendListingSections(sections);
+      }
     } catch (error) {
       logFrontendError("Unable to filter backend apartments", error);
-      setBackendListingSections([]);
-      setApartmentLoadError(
-        error.message || "Unable to filter apartments from the backend.",
-      );
+      if (isDefaultListingRequest && defaultListingSections.length) {
+        setBackendListingSections(defaultListingSections);
+        setApartmentLoadError("");
+      } else {
+        setBackendListingSections([]);
+        setApartmentLoadError(
+          error.message || "Unable to filter apartments from the backend.",
+        );
+      }
     } finally {
       setIsApartmentsLoading(false);
     }
@@ -2007,6 +2038,13 @@ function HomePage() {
   async function clearApartmentSearch() {
     setApartmentFilters(defaultApartmentFilters);
     setSearchResetKey((currentKey) => currentKey + 1);
+
+    if (defaultListingSections.length) {
+      setBackendListingSections(defaultListingSections);
+      setApartmentLoadError("");
+      setIsApartmentsLoading(false);
+    }
+
     await refreshApartmentListings(defaultApartmentFilters);
   }
 
@@ -2941,28 +2979,18 @@ function HomePage() {
   }
 
   function handleBookingChange(field, value) {
-    if (
-      selectedApartment?.backendId &&
-      ["checkIn", "checkOut", "guests", "promo"].includes(field)
-    ) {
-      setApartmentQuote((currentQuote) => ({
-        ...(currentQuote || {}),
-        loading: true,
-        available: undefined,
-        error: "",
-      }));
-    }
-
-    setBookingDetails((current) => ({
-      ...current,
+    const nextBookingDetails = {
+      ...bookingDetails,
       ...(field === "checkIn"
         ? {
             checkIn: value,
-            checkOut: ensureCheckoutDate(value, current.checkOut),
+            checkOut: bookingDetails.checkOut
+              ? ensureCheckoutDate(value, bookingDetails.checkOut)
+              : "",
           }
         : field === "checkOut"
           ? {
-              checkOut: ensureCheckoutDate(current.checkIn, value),
+              checkOut: ensureCheckoutDate(bookingDetails.checkIn, value),
             }
           : field === "guests"
             ? {
@@ -2974,7 +3002,27 @@ function HomePage() {
             : {
                 [field]: value,
               }),
-    }));
+    };
+    const shouldRefreshQuote = Boolean(
+      selectedApartment?.backendId &&
+        nextBookingDetails.checkIn &&
+        nextBookingDetails.checkOut &&
+        nextBookingDetails.guests > 0 &&
+        ["checkIn", "checkOut", "guests", "promo"].includes(field),
+    );
+
+    if (shouldRefreshQuote) {
+      setApartmentQuote((currentQuote) => ({
+        ...(currentQuote || {}),
+        loading: true,
+        available: undefined,
+        error: "",
+      }));
+    } else if (["checkIn", "checkOut", "guests"].includes(field)) {
+      setApartmentQuote(null);
+    }
+
+    setBookingDetails(nextBookingDetails);
   }
 
   function handleFoodOrderChange(field, value) {
@@ -2991,19 +3039,6 @@ function HomePage() {
   }
 
   function openPaymentStep() {
-    if (apartmentQuote?.loading) {
-      showToast(
-        "Please wait while we confirm availability for these dates.",
-        "error",
-      );
-      return;
-    }
-
-    if (apartmentQuote?.available === false) {
-      showToast(DATE_UNAVAILABLE_MESSAGE, "error");
-      return;
-    }
-
     setActivePage("payment");
   }
 
@@ -3068,6 +3103,11 @@ function HomePage() {
 
     if (!bookingDetails.checkIn || !bookingDetails.checkOut) {
       showToast("Choose your check-in and check-out dates before paying.", "error");
+      return;
+    }
+
+    if (bookingDetails.guests <= 0) {
+      showToast("Add the number of guests before paying.", "error");
       return;
     }
 

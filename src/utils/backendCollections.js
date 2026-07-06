@@ -757,12 +757,19 @@ export function normalizeBackendPricing(response, fallback = {}) {
     payload.quote ||
     payload.breakdown ||
     payload;
-  const total = getPositiveNumber(
-    pricing.total ??
-      pricing.total_amount ??
-      pricing.totalAmount,
-    fallback.total,
+  const subtotal = getPositiveNumber(
+    pricing.subtotal,
+    pricing.base_amount,
+    pricing.baseAmount,
+    fallback.subtotal,
   );
+  const taxesAndFees = 0;
+  const cautionFee = getPositiveNumber(
+    pricing.caution_fee,
+    pricing.cautionFee,
+    fallback.cautionFee,
+  );
+  const total = subtotal + taxesAndFees + cautionFee;
   const rockPointValue = getPositiveNumber(
     pricing.rock_point_value,
     pricing.rockPointValue,
@@ -796,18 +803,7 @@ export function normalizeBackendPricing(response, fallback = {}) {
       fallback.couponDiscount,
       fallback.discountAmount,
     ) || 0;
-  const explicitPayable =
-    pricing.payable ??
-    pricing.payable_amount ??
-    pricing.amount_payable ??
-    pricing.amount_due ??
-    pricing.final_amount ??
-    pricing.finalAmount ??
-    pricing.grand_total ??
-    pricing.grandTotal ??
-    fallback.payable;
-  const payable =
-    explicitPayable ?? Math.max(0, Number(total) - rockPointValue - couponDiscount);
+  const payable = Math.max(0, Number(total) - rockPointValue - couponDiscount);
 
   return {
     nights: getPositiveNumber(
@@ -816,24 +812,9 @@ export function normalizeBackendPricing(response, fallback = {}) {
       fallback.nights,
       1,
     ),
-    subtotal: getPositiveNumber(
-      pricing.subtotal,
-      pricing.base_amount,
-      pricing.baseAmount,
-      fallback.subtotal,
-    ),
-    taxesAndFees: getPositiveNumber(
-      pricing.taxes_and_fees,
-      pricing.taxesAndFees,
-      pricing.tax,
-      pricing.fees,
-      fallback.taxesAndFees,
-    ),
-    cautionFee: getPositiveNumber(
-      pricing.caution_fee,
-      pricing.cautionFee,
-      fallback.cautionFee,
-    ),
+    subtotal,
+    taxesAndFees,
+    cautionFee,
     rockPointValue,
     couponCode:
       pricing.coupon_code ||

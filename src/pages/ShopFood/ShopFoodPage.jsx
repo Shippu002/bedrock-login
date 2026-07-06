@@ -376,11 +376,6 @@ function SummaryBreakdown({
       </div>
 
       <div>
-        <span>Taxes &amp; Fees (7.5%)</span>
-        <strong>{totals.taxesAndFees.toLocaleString()}</strong>
-      </div>
-
-      <div>
         <span>Refundable caution Fee</span>
         <strong>{totals.cautionFee.toLocaleString()}</strong>
       </div>
@@ -480,10 +475,6 @@ function ShopCheckoutCard({
             {pluralizeUnit(unitLabel, quantity)}
           </span>
           <strong>{totals.subtotal.toLocaleString()}</strong>
-        </div>
-        <div>
-          <span>Taxes &amp; Fees (7.5%)</span>
-          <strong>{totals.taxesAndFees.toLocaleString()}</strong>
         </div>
         <div>
           <span>Refundable caution Fee</span>

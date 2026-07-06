@@ -207,6 +207,12 @@ function ApartmentPage({
   const isApartmentAvailable = quote?.available !== false;
   const isDateUnavailable = quote?.available === false;
   const isCheckingQuote = quote?.loading === true;
+  const hasBookingSelection = Boolean(
+    bookingDetails.checkIn &&
+      bookingDetails.checkOut &&
+      bookingDetails.guests > 0,
+  );
+  const shouldShowDateUnavailable = hasBookingSelection && isDateUnavailable;
   const dateUnavailableMessage = bookingDateRange
     ? `${bookingDateRange} is not available for booking. Please choose another check-in or check-out date.`
     : "This date is not available for booking. Please choose another check-in or check-out date.";
@@ -239,7 +245,6 @@ function ApartmentPage({
   const {
     nights,
     subtotal,
-    taxesAndFees,
     cautionFee,
     rockPointValue,
     couponDiscount = 0,
@@ -393,18 +398,6 @@ function ApartmentPage({
   }
 
   function handleMobileBookClick() {
-    if (isCheckingQuote) {
-      setActionFeedback(
-        "Please wait while we confirm availability for these dates.",
-      );
-      return;
-    }
-
-    if (isDateUnavailable) {
-      setActionFeedback(dateUnavailableMessage);
-      return;
-    }
-
     runPendingAction("book", onOpenPayment);
   }
 
@@ -619,73 +612,71 @@ function ApartmentPage({
                 <p className="apartment-action-feedback">{quote.error}</p>
               )}
 
-              {isDateUnavailable && (
+              {shouldShowDateUnavailable && (
                 <p className="apartment-date-unavailable">
                   {dateUnavailableMessage}
                 </p>
               )}
 
-              <div className="apartment-payment-breakdown">
-                <div>
-                  <span>
-                    NGN{apartment.price.toLocaleString()} *{" "}
-                    {nights} {nights === 1 ? "night" : "nights"}
-                  </span>
-                  <strong>{subtotal.toLocaleString()}</strong>
-                </div>
-                <div>
-                  <span>Taxes &amp; Fees (7.5%)</span>
-                  <strong>{taxesAndFees.toLocaleString()}</strong>
-                </div>
-                <div>
-                  <span>Refundable caution Fee</span>
-                  <strong>{cautionFee.toLocaleString()}</strong>
-                </div>
-                <div className="apartment-payment-breakdown__row--toggle">
-                  <span>Rock-point</span>
-                  <strong>{rockPointValue.toLocaleString()}</strong>
-                  <Toggle
-                    checked={bookingDetails.useRockPoints}
-                    onClick={() =>
-                      onBookingChange(
-                        "useRockPoints",
-                        !bookingDetails.useRockPoints,
-                      )
-                    }
-                  />
-                </div>
-                {promoCode && (
-                  <div
-                    className={`apartment-payment-breakdown__discount ${
-                      hasCouponDiscount
-                        ? ""
-                        : "apartment-payment-breakdown__discount--pending"
-                    }`}
-                  >
-                    <span>Coupon ({promoCode})</span>
-                    <strong>{couponSummaryText}</strong>
+              {hasBookingSelection && (
+                <div className="apartment-payment-breakdown">
+                  <div>
+                    <span>
+                      NGN{apartment.price.toLocaleString()} *{" "}
+                      {nights} {nights === 1 ? "night" : "nights"}
+                    </span>
+                    <strong>{subtotal.toLocaleString()}</strong>
                   </div>
-                )}
-                {promoCode && couponSummaryNote && (
-                  <p
-                    className={`apartment-payment-breakdown__note ${
-                      hasCouponDiscount
-                        ? "apartment-payment-breakdown__note--success"
-                        : ""
-                    }`}
-                  >
-                    {couponSummaryNote}
-                  </p>
-                )}
-                <div className="apartment-payment-breakdown__subtotal-total">
-                  <span>Subtotal before discounts</span>
-                  <strong>NGN{total.toLocaleString()}</strong>
+                  <div>
+                    <span>Refundable caution Fee</span>
+                    <strong>{cautionFee.toLocaleString()}</strong>
+                  </div>
+                  <div className="apartment-payment-breakdown__row--toggle">
+                    <span>Rock-point</span>
+                    <strong>{rockPointValue.toLocaleString()}</strong>
+                    <Toggle
+                      checked={bookingDetails.useRockPoints}
+                      onClick={() =>
+                        onBookingChange(
+                          "useRockPoints",
+                          !bookingDetails.useRockPoints,
+                        )
+                      }
+                    />
+                  </div>
+                  {promoCode && (
+                    <div
+                      className={`apartment-payment-breakdown__discount ${
+                        hasCouponDiscount
+                          ? ""
+                          : "apartment-payment-breakdown__discount--pending"
+                      }`}
+                    >
+                      <span>Coupon ({promoCode})</span>
+                      <strong>{couponSummaryText}</strong>
+                    </div>
+                  )}
+                  {promoCode && couponSummaryNote && (
+                    <p
+                      className={`apartment-payment-breakdown__note ${
+                        hasCouponDiscount
+                          ? "apartment-payment-breakdown__note--success"
+                          : ""
+                      }`}
+                    >
+                      {couponSummaryNote}
+                    </p>
+                  )}
+                  <div className="apartment-payment-breakdown__subtotal-total">
+                    <span>Subtotal before discounts</span>
+                    <strong>NGN{total.toLocaleString()}</strong>
+                  </div>
+                  <div className="apartment-payment-breakdown__payable">
+                    <span>Total to pay</span>
+                    <strong>NGN{payable.toLocaleString()}</strong>
+                  </div>
                 </div>
-                <div className="apartment-payment-breakdown__payable">
-                  <span>Total to pay</span>
-                  <strong>NGN{payable.toLocaleString()}</strong>
-                </div>
-              </div>
+              )}
 
               <div className="apartment-policy-row apartment-policy-row--compact">
                 <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
@@ -713,7 +704,9 @@ function ApartmentPage({
               >
                 {pendingAction === "payment"
                   ? "Processing..."
-                  : `Pay NGN ${payable.toLocaleString()}`}
+                  : hasBookingSelection
+                    ? `Pay NGN ${payable.toLocaleString()}`
+                    : "Pay"}
               </button>
             </aside>
           </div>
@@ -1100,7 +1093,7 @@ function ApartmentPage({
               />
             </div>
 
-            {isDateUnavailable && (
+            {shouldShowDateUnavailable && (
               <p className="apartment-date-unavailable">
                 {dateUnavailableMessage}
               </p>
@@ -1121,13 +1114,15 @@ function ApartmentPage({
                 : "Book Apartment"}
             </button>
 
-            <div className="apartment-copy__section apartment-copy__section--summary">
-              <h3>Current stay summary</h3>
-              <p>
-                {bookingDateRange} | {getNightLabel(nights)} | NGN
-                {payable.toLocaleString()}
-              </p>
-            </div>
+            {hasBookingSelection && (
+              <div className="apartment-copy__section apartment-copy__section--summary">
+                <h3>Current stay summary</h3>
+                <p>
+                  {bookingDateRange} | {getNightLabel(nights)} | NGN
+                  {payable.toLocaleString()}
+                </p>
+              </div>
+            )}
           </aside>
         </div>
 
@@ -1137,21 +1132,13 @@ function ApartmentPage({
             <span>/per night</span>
           </strong>
 
-          {isDateUnavailable && (
-            <p className="apartment-date-unavailable">
-              {dateUnavailableMessage}
-            </p>
-          )}
-
           <button
             type="button"
             className="apartment-primary-button"
             onClick={handleMobileBookClick}
-            disabled={isCheckingQuote || pendingAction === "book"}
+            disabled={pendingAction === "book"}
           >
-            {quote?.loading || pendingAction === "book"
-              ? "Checking..."
-              : "Book Apartment"}
+            {pendingAction === "book" ? "Checking..." : "Book Apartment"}
           </button>
         </div>
       </div>

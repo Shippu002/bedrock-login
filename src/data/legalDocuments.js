@@ -18,7 +18,7 @@ export const defaultLegalDocuments = [
         title: "Bookings and payments",
         items: [
           "A booking is confirmed only after the required payment has been completed and confirmation has been issued.",
-          "Prices, taxes, service charges, refundable deposits, and any additional fees are shown before payment.",
+          "Prices, refundable deposits, and any additional fees are shown before payment.",
           "Check-in and check-out dates, guest count, apartment type, and contact information must be reviewed before confirming a booking.",
         ],
       },
