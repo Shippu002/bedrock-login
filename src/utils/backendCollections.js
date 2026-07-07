@@ -366,6 +366,20 @@ export function normalizeBackendApartment(item = {}, index = 0) {
         item.amount ||
         0,
     ),
+    cautionFee: getPositiveNumber(
+      item.caution_fee,
+      item.cautionFee,
+      item.refundable_caution_fee,
+      item.refundableCautionFee,
+      item.security_deposit,
+      item.securityDeposit,
+      item.refundable_deposit,
+      item.refundableDeposit,
+      item.deposit,
+      item.category?.caution_fee,
+      item.category?.cautionFee,
+      50000,
+    ),
     image: getImageUrl(item),
     available:
       item.available ??
@@ -782,6 +796,13 @@ export function normalizeBackendPricing(response, fallback = {}) {
   const cautionFee = getPositiveNumber(
     pricing.caution_fee,
     pricing.cautionFee,
+    pricing.refundable_caution_fee,
+    pricing.refundableCautionFee,
+    pricing.security_deposit,
+    pricing.securityDeposit,
+    pricing.refundable_deposit,
+    pricing.refundableDeposit,
+    pricing.deposit,
     fallback.cautionFee,
   );
   const total = subtotal + taxesAndFees + cautionFee;

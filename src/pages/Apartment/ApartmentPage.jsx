@@ -253,6 +253,7 @@ function ApartmentPage({
         bookingDetails.checkOut,
         isUsingRockPoints,
         {
+          cautionFee: apartment?.cautionFee,
           availableRockPointValue,
           rockPointValue: availableRockPointValue,
         },
@@ -263,6 +264,7 @@ function ApartmentPage({
       bookingDetails.checkOut,
       isUsingRockPoints,
       availableRockPointValue,
+      apartment?.cautionFee,
     ],
   );
 

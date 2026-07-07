@@ -1239,6 +1239,10 @@ function ExtendStayModal({ booking, onClose, onExtendStay }) {
     booking.checkIn,
     ensureCheckoutDate(booking.checkIn, nextCheckout),
     Number(booking.rockPointValue || 0) > 0,
+    {
+      cautionFee: Number(booking.cautionFee || 0) || undefined,
+      rockPointValue: Number(booking.rockPointValue || 0),
+    },
   );
   const extraAmount = Math.max(0, totals.payable - currentTotal);
 

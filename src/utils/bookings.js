@@ -1,4 +1,5 @@
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
+export const DEFAULT_CAUTION_FEE = 50000;
 
 function toCurrencyNumber(value) {
   if (typeof value === "number") {
@@ -87,7 +88,16 @@ export function calculateBookingTotals(
   const safeNightlyRate = toCurrencyNumber(nightlyRate);
   const subtotal = safeNightlyRate * nights;
   const taxesAndFees = 0;
-  const cautionFee = 100000;
+  const cautionFee = Math.max(
+    0,
+    toCurrencyNumber(
+      adjustments.cautionFee ??
+        adjustments.caution_fee ??
+        adjustments.refundableCautionFee ??
+        adjustments.refundable_caution_fee ??
+        DEFAULT_CAUTION_FEE,
+    ),
+  );
   const total = subtotal + taxesAndFees + cautionFee;
   const availableRockPointValue = Math.max(
     0,

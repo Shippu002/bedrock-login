@@ -904,6 +904,7 @@ function HomePage() {
     apartmentFilters,
   );
   const selectedApartmentPrice = selectedApartment?.price || 0;
+  const selectedApartmentCautionFee = selectedApartment?.cautionFee;
   const shopDirectoryCategories = buildShopCategoriesWithBackendImages(
     shopCategories,
     backendShopItems,
@@ -1336,6 +1337,7 @@ function HomePage() {
         bookingDetails.checkOut,
         shouldUseBookingRockPoints,
         {
+          cautionFee: selectedApartmentCautionFee,
           availableRockPointValue,
           rockPointValue: availableRockPointValue,
           useRockPoints: shouldUseBookingRockPoints,
@@ -1368,6 +1370,7 @@ function HomePage() {
   }, [
     selectedApartment?.backendId,
     selectedApartmentPrice,
+    selectedApartmentCautionFee,
     bookingDetails.checkIn,
     bookingDetails.checkOut,
     bookingDetails.guests,
@@ -2716,6 +2719,7 @@ function HomePage() {
       nextCheckout,
       Number(booking.rockPointValue || 0) > 0,
       {
+        cautionFee: Number(booking.cautionFee || 0) || undefined,
         rockPointValue: Number(booking.rockPointValue || 0),
       },
     );
@@ -3140,6 +3144,7 @@ function HomePage() {
       bookingDetails.checkOut,
       shouldUseBookingRockPoints,
       {
+        cautionFee: selectedApartment?.cautionFee,
         availableRockPointValue,
         rockPointValue: availableRockPointValue,
       },
