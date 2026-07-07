@@ -25,6 +25,7 @@ import {
   getNightLabel,
   getTodayDateValue,
 } from "../../utils/bookings";
+import { formatRockPoints } from "../../utils/rockPoints";
 import "./ApartmentPage.css";
 
 function ApartmentMetaPill({ icon, children }) {
@@ -118,13 +119,14 @@ function BackButton({ label = "Back", onClick }) {
   );
 }
 
-function Toggle({ checked, onClick }) {
+function Toggle({ checked, onClick, disabled = false }) {
   return (
     <button
       type="button"
       className={`apartment-toggle ${checked ? "apartment-toggle--on" : ""}`}
       onClick={onClick}
       aria-pressed={checked}
+      disabled={disabled}
     >
       <span />
     </button>
@@ -164,6 +166,7 @@ function ApartmentPage({
   onToggleFavorite,
   onOpenPolicy,
   backLabel,
+  rockPointSummary = {},
 }) {
   const [selectedGalleryImage, setSelectedGalleryImage] = useState({
     apartmentId: null,
@@ -207,6 +210,13 @@ function ApartmentPage({
   const isApartmentAvailable = quote?.available !== false;
   const isDateUnavailable = quote?.available === false;
   const isCheckingQuote = quote?.loading === true;
+  const availableRockPointBalance = Number(rockPointSummary.balance || 0);
+  const availableRockPointValue = Number(rockPointSummary.discountValue || 0);
+  const canApplyRockPoints = availableRockPointValue > 0;
+  const isUsingRockPoints = Boolean(
+    bookingDetails.useRockPoints && canApplyRockPoints,
+  );
+  const rockPointBalanceLabel = formatRockPoints(availableRockPointBalance);
   const hasBookingSelection = Boolean(
     bookingDetails.checkIn &&
       bookingDetails.checkOut &&
@@ -217,6 +227,14 @@ function ApartmentPage({
     ? `${bookingDateRange} is not available for booking. Please choose another check-in or check-out date.`
     : "This date is not available for booking. Please choose another check-in or check-out date.";
   const promoCode = String(bookingDetails.promo || "").trim();
+  const guestName = String(bookingDetails.guestName || "").trim();
+  const guestPhoneDigits = String(bookingDetails.guestPhone || "").replace(
+    /\D/g,
+    "",
+  );
+  const hasGuestContactDetails = Boolean(
+    guestName && guestPhoneDigits.length >= 7,
+  );
   const canContinueBooking = Boolean(
     bookingDetails.checkIn &&
       bookingDetails.checkOut &&
@@ -225,6 +243,7 @@ function ApartmentPage({
       bookingDetails.agreedToPolicy &&
       isApartmentAvailable,
   );
+  const canSubmitBooking = canContinueBooking && hasGuestContactDetails;
 
   const localTotals = useMemo(
     () =>
@@ -232,13 +251,18 @@ function ApartmentPage({
         apartment?.price || 0,
         bookingDetails.checkIn,
         bookingDetails.checkOut,
-        bookingDetails.useRockPoints,
+        isUsingRockPoints,
+        {
+          availableRockPointValue,
+          rockPointValue: availableRockPointValue,
+        },
       ),
     [
       apartment?.price,
       bookingDetails.checkIn,
       bookingDetails.checkOut,
-      bookingDetails.useRockPoints,
+      isUsingRockPoints,
+      availableRockPointValue,
     ],
   );
 
@@ -517,6 +541,46 @@ function ApartmentPage({
               </div>
 
               <div className="apartment-form-group">
+                <label>Guest Name</label>
+                <input
+                  type="text"
+                  className="apartment-text-input"
+                  placeholder="Enter guest name"
+                  autoComplete="name"
+                  value={bookingDetails.guestName || ""}
+                  onChange={(event) =>
+                    onBookingChange("guestName", event.target.value)
+                  }
+                />
+              </div>
+
+              <div className="apartment-form-group">
+                <label>Guest Phone Number</label>
+                <input
+                  type="tel"
+                  className="apartment-text-input"
+                  placeholder="Enter guest phone number"
+                  autoComplete="tel"
+                  inputMode="tel"
+                  value={bookingDetails.guestPhone || ""}
+                  onChange={(event) =>
+                    onBookingChange("guestPhone", event.target.value)
+                  }
+                />
+              </div>
+
+              <label className="apartment-checkbox-row">
+                <input
+                  type="checkbox"
+                  checked={Boolean(bookingDetails.useProfileAsGuest)}
+                  onChange={(event) =>
+                    onBookingChange("useProfileAsGuest", event.target.checked)
+                  }
+                />
+                <span>Use my name</span>
+              </label>
+
+              <div className="apartment-form-group">
                 <label>Check-in-Date</label>
                 <div
                   className="apartment-select apartment-select--compact"
@@ -632,14 +696,18 @@ function ApartmentPage({
                     <strong>{cautionFee.toLocaleString()}</strong>
                   </div>
                   <div className="apartment-payment-breakdown__row--toggle">
-                    <span>Rock-point</span>
+                    <span className="apartment-rock-point-label">
+                      Rock-point
+                      <small>RK {rockPointBalanceLabel} available</small>
+                    </span>
                     <strong>{rockPointValue.toLocaleString()}</strong>
                     <Toggle
-                      checked={bookingDetails.useRockPoints}
+                      checked={isUsingRockPoints}
+                      disabled={!canApplyRockPoints}
                       onClick={() =>
                         onBookingChange(
                           "useRockPoints",
-                          !bookingDetails.useRockPoints,
+                          !isUsingRockPoints,
                         )
                       }
                     />
@@ -696,7 +764,7 @@ function ApartmentPage({
                 className="apartment-primary-button"
                 onClick={() => runPendingAction("payment", onPaymentContinue)}
                 disabled={
-                  !canContinueBooking ||
+                  !canSubmitBooking ||
                   isCheckingQuote ||
                   hasCouponProblem ||
                   pendingAction === "payment"

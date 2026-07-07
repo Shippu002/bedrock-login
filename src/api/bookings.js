@@ -6,6 +6,19 @@ export function createBooking(data = {}) {
     check_in: data.checkIn || data.check_in,
     check_out: data.checkOut || data.check_out,
     guests: data.guests,
+    guest_name: data.guestName || data.guest_name || "",
+    guest_phone:
+      data.guestPhone ||
+      data.guest_phone ||
+      data.guestPhoneNumber ||
+      data.guest_phone_number ||
+      "",
+    guest_phone_number:
+      data.guestPhone ||
+      data.guest_phone ||
+      data.guestPhoneNumber ||
+      data.guest_phone_number ||
+      "",
     special_requests: data.specialRequests || data.special_requests || "",
     coupon_code: data.couponCode || data.coupon_code || null,
     use_rock_points: Boolean(data.useRockPoints || data.use_rock_points),

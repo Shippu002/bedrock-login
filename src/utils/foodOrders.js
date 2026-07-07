@@ -1,6 +1,4 @@
 const CAUTION_FEE = 100000;
-const ROCK_POINT_VALUE = 12500;
-
 function toLocalDateTimeValue(date) {
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return localDate.toISOString().slice(0, 16);
@@ -20,23 +18,26 @@ export function createDefaultFoodOrderDetails() {
     note: "",
     paymentMethod: "card",
     agreedToPolicy: false,
-    useRockPoints: true,
+    useRockPoints: false,
   };
 }
 
 export function calculateFoodOrderTotals(
   price,
   guests,
-  useRockPoints = true,
+  useRockPoints = false,
+  availableRockPointValue = 0,
 ) {
   const safePrice = Number(price) || 0;
   const safeGuests = Math.max(1, Number(guests) || 1);
   const subtotal = safePrice * safeGuests;
   const taxesAndFees = 0;
   const cautionFee = CAUTION_FEE;
-  const rockPointValue = ROCK_POINT_VALUE;
   const total = subtotal + taxesAndFees + cautionFee;
-  const payable = Math.max(0, total - (useRockPoints ? rockPointValue : 0));
+  const rockPointValue = useRockPoints
+    ? Math.min(Math.max(0, Number(availableRockPointValue) || 0), total)
+    : 0;
+  const payable = Math.max(0, total - rockPointValue);
 
   return {
     guests: safeGuests,

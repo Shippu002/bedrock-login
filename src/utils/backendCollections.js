@@ -523,6 +523,21 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
     guests: Number(
       booking.guests || booking.guest_count || fallback.guests || 1,
     ),
+    guestName:
+      booking.guest_name ||
+      booking.guestName ||
+      booking.guest?.name ||
+      fallback.guestName ||
+      "",
+    guestPhone:
+      booking.guest_phone ||
+      booking.guest_phone_number ||
+      booking.guestPhone ||
+      booking.guestPhoneNumber ||
+      booking.guest?.phone ||
+      booking.guest?.phone_number ||
+      fallback.guestPhone ||
+      "",
     nights: Number(booking.nights || fallback.nights || 1),
     nightlyRate: Number(
       booking.nightly_rate ||
@@ -770,12 +785,28 @@ export function normalizeBackendPricing(response, fallback = {}) {
     fallback.cautionFee,
   );
   const total = subtotal + taxesAndFees + cautionFee;
-  const rockPointValue = getPositiveNumber(
+  const canUseRockPoints =
+    fallback.useRockPoints === undefined
+      ? getNumberValue(fallback.rockPointValue, 0) > 0
+      : Boolean(fallback.useRockPoints);
+  const availableRockPointValue = getNumberValue(
+    fallback.availableRockPointValue ??
+      fallback.rockPointDiscountValue ??
+      fallback.rockPointValue,
+    0,
+  );
+  const backendRockPointValue = getPositiveNumber(
     pricing.rock_point_value,
     pricing.rockPointValue,
     pricing.rock_points_discount,
-    fallback.rockPointValue,
   );
+  const rockPointValue = canUseRockPoints
+    ? Math.min(
+        backendRockPointValue || availableRockPointValue,
+        Math.max(0, availableRockPointValue),
+        total,
+      )
+    : 0;
   const couponDiscount =
     getPositiveNumber(
       pricing.coupon_discount,

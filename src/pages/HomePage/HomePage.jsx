@@ -26,6 +26,7 @@ import {
   calculateFoodOrderTotals,
   createDefaultFoodOrderDetails,
 } from "../../utils/foodOrders";
+import { getRockPointSummary } from "../../utils/rockPoints";
 import {
   defaultApartmentFilters,
   filterListingSections,
@@ -629,6 +630,30 @@ function splitProfileName(name = "") {
   return { firstName, lastName };
 }
 
+function getProfileGuestName(user = {}) {
+  return String(
+    user?.fullName ||
+      user?.name ||
+      [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+      user?.username ||
+      "",
+  ).trim();
+}
+
+function getProfileGuestPhone(user = {}) {
+  return String(
+    user?.phone ||
+      user?.phoneNumber ||
+      user?.phone_number ||
+      user?.mobile ||
+      "",
+  ).trim();
+}
+
+function getPhoneDigitCount(value) {
+  return String(value || "").replace(/\D/g, "").length;
+}
+
 function isUnauthenticatedError(error) {
   const message = String(error?.message || "").toLowerCase();
   const dataMessage =
@@ -727,13 +752,16 @@ async function resolveBackendAgentVerification(baseUser) {
 
 function createDefaultBookingDetails() {
   return {
+    guestName: "",
+    guestPhone: "",
+    useProfileAsGuest: false,
     checkIn: "",
     checkOut: "",
     guests: 0,
     promo: "",
     paymentMethod: "card",
     agreedToPolicy: false,
-    useRockPoints: true,
+    useRockPoints: false,
   };
 }
 
@@ -894,6 +922,15 @@ function HomePage() {
         profileResources.notificationCount?.count ||
         0,
     );
+  const rockPointSummary = getRockPointSummary(profileResources.rockPoints);
+  const availableRockPointValue = rockPointSummary.discountValue;
+  const canUseRockPoints = availableRockPointValue > 0;
+  const shouldUseBookingRockPoints = Boolean(
+    bookingDetails.useRockPoints && canUseRockPoints,
+  );
+  const shouldUseFoodRockPoints = Boolean(
+    foodOrderDetails.useRockPoints && canUseRockPoints,
+  );
 
   useEffect(() => {
     let ignoreProfileResponse = false;
@@ -1297,7 +1334,12 @@ function HomePage() {
         selectedApartmentPrice,
         bookingDetails.checkIn,
         bookingDetails.checkOut,
-        bookingDetails.useRockPoints,
+        shouldUseBookingRockPoints,
+        {
+          availableRockPointValue,
+          rockPointValue: availableRockPointValue,
+          useRockPoints: shouldUseBookingRockPoints,
+        },
       );
 
       setApartmentQuote({
@@ -1330,7 +1372,8 @@ function HomePage() {
     bookingDetails.checkOut,
     bookingDetails.guests,
     bookingDetails.promo,
-    bookingDetails.useRockPoints,
+    shouldUseBookingRockPoints,
+    availableRockPointValue,
   ]);
 
   async function refreshProfileResources({ silent = false, ignore } = {}) {
@@ -2672,6 +2715,9 @@ function HomePage() {
       booking.checkIn,
       nextCheckout,
       Number(booking.rockPointValue || 0) > 0,
+      {
+        rockPointValue: Number(booking.rockPointValue || 0),
+      },
     );
     const extendedAt = new Date().toISOString();
     let nextBooking = {
@@ -2979,6 +3025,41 @@ function HomePage() {
   }
 
   function handleBookingChange(field, value) {
+    if (field === "useRockPoints" && value && !canUseRockPoints) {
+      showToast("You do not have rock points available yet.", "error");
+      value = false;
+    }
+
+    if (field === "useProfileAsGuest") {
+      const shouldUseProfile = Boolean(value);
+      const profileGuestName = getProfileGuestName(currentUser);
+      const profileGuestPhone = getProfileGuestPhone(currentUser);
+
+      if (shouldUseProfile && (!profileGuestName || !profileGuestPhone)) {
+        showToast(
+          "Your profile is missing a name or phone number. Please enter the guest details manually.",
+          "error",
+        );
+        setBookingDetails((current) => ({
+          ...current,
+          useProfileAsGuest: false,
+        }));
+        return;
+      }
+
+      setBookingDetails((current) => ({
+        ...current,
+        useProfileAsGuest: shouldUseProfile,
+        ...(shouldUseProfile
+          ? {
+              guestName: profileGuestName,
+              guestPhone: profileGuestPhone,
+            }
+          : {}),
+      }));
+      return;
+    }
+
     const nextBookingDetails = {
       ...bookingDetails,
       ...(field === "checkIn"
@@ -2999,6 +3080,11 @@ function HomePage() {
                   Math.max(1, Number(value) || 1),
                 ),
               }
+            : field === "guestName" || field === "guestPhone"
+              ? {
+                  [field]: value,
+                  useProfileAsGuest: false,
+                }
             : {
                 [field]: value,
               }),
@@ -3026,6 +3112,11 @@ function HomePage() {
   }
 
   function handleFoodOrderChange(field, value) {
+    if (field === "useRockPoints" && value && !canUseRockPoints) {
+      showToast("You do not have rock points available yet.", "error");
+      value = false;
+    }
+
     setFoodOrderDetails((current) => ({
       ...current,
       ...(field === "guests"
@@ -3047,7 +3138,11 @@ function HomePage() {
       selectedApartment?.price,
       bookingDetails.checkIn,
       bookingDetails.checkOut,
-      bookingDetails.useRockPoints,
+      shouldUseBookingRockPoints,
+      {
+        availableRockPointValue,
+        rockPointValue: availableRockPointValue,
+      },
     );
     const totals = apartmentQuote?.pricing || fallbackTotals;
 
@@ -3067,6 +3162,8 @@ function HomePage() {
       checkIn: bookingDetails.checkIn,
       checkOut: bookingDetails.checkOut,
       guests: bookingDetails.guests,
+      guestName: String(bookingDetails.guestName || "").trim(),
+      guestPhone: String(bookingDetails.guestPhone || "").trim(),
       nights: totals.nights,
       nightlyRate: Number(selectedApartment?.price || 0),
       subtotal: totals.subtotal,
@@ -3108,6 +3205,16 @@ function HomePage() {
 
     if (bookingDetails.guests <= 0) {
       showToast("Add the number of guests before paying.", "error");
+      return;
+    }
+
+    if (!String(bookingDetails.guestName || "").trim()) {
+      showToast("Add the guest name before paying.", "error");
+      return;
+    }
+
+    if (getPhoneDigitCount(bookingDetails.guestPhone) < 7) {
+      showToast("Add a valid guest phone number before paying.", "error");
       return;
     }
 
@@ -3158,8 +3265,10 @@ function HomePage() {
             checkIn: bookingDetails.checkIn,
             checkOut: bookingDetails.checkOut,
             guests: bookingDetails.guests,
+            guestName: bookingDetails.guestName,
+            guestPhone: bookingDetails.guestPhone,
             couponCode: String(bookingDetails.promo || "").trim(),
-            useRockPoints: bookingDetails.useRockPoints,
+            useRockPoints: shouldUseBookingRockPoints,
             agreeToPolicies: bookingDetails.agreedToPolicy,
           });
 
@@ -3296,9 +3405,12 @@ function HomePage() {
       checkIn,
       checkOut,
       guests: Math.max(1, Number(booking.guests || current.guests || 1)),
+      guestName: booking.guestName || current.guestName || "",
+      guestPhone: booking.guestPhone || current.guestPhone || "",
+      useProfileAsGuest: false,
       agreedToPolicy: true,
       paymentMethod: current.paymentMethod || "card",
-      useRockPoints: Number(booking.rockPointValue || 0) > 0,
+      useRockPoints: Number(booking.rockPointValue || 0) > 0 && canUseRockPoints,
     }));
     setApartmentReturnPage("profile");
     setProfileInitialView("bookings");
@@ -3346,7 +3458,7 @@ function HomePage() {
           deliveryTime: foodOrderDetails.deliveryTime,
           guests: foodOrderDetails.guests,
           note: foodOrderDetails.note,
-          useRockPoints: foodOrderDetails.useRockPoints,
+          useRockPoints: shouldUseFoodRockPoints,
         };
 
         if (shopVariant === "food") {
@@ -3533,8 +3645,10 @@ function HomePage() {
           checkIn: bookingDetails.checkIn,
           checkOut: bookingDetails.checkOut,
           guests: bookingDetails.guests,
+          guestName: bookingDetails.guestName,
+          guestPhone: bookingDetails.guestPhone,
           couponCode: String(bookingDetails.promo || "").trim(),
-          useRockPoints: bookingDetails.useRockPoints,
+          useRockPoints: shouldUseBookingRockPoints,
           agreeToPolicies: bookingDetails.agreedToPolicy,
         });
 
@@ -3550,6 +3664,7 @@ function HomePage() {
     }
 
     saveBookingToProfile(bookingToStore);
+    await refreshProfileResources({ silent: true });
 
     setProfileInitialView("bookings");
     setPendingBooking(null);
@@ -3580,7 +3695,8 @@ function HomePage() {
       const totals = calculateFoodOrderTotals(
         selectedFoodItem.price,
         foodOrderDetails.guests,
-        foodOrderDetails.useRockPoints,
+        shouldUseFoodRockPoints,
+        availableRockPointValue,
       );
 
       const nextOrder = {
@@ -3712,6 +3828,7 @@ function HomePage() {
                 apartment={selectedApartment}
                 bookingDetails={bookingDetails}
                 quote={apartmentQuote}
+                rockPointSummary={rockPointSummary}
                 isInitiallySaved={isApartmentSaved(selectedApartment)}
                 onToggleFavorite={handleFavoriteToggle}
                 onBookingChange={handleBookingChange}
@@ -3730,6 +3847,7 @@ function HomePage() {
                 apartment={selectedApartment}
                 bookingDetails={bookingDetails}
                 quote={apartmentQuote}
+                rockPointSummary={rockPointSummary}
                 isInitiallySaved={isApartmentSaved(selectedApartment)}
                 onToggleFavorite={handleFavoriteToggle}
                 onBookingChange={handleBookingChange}
@@ -3744,6 +3862,7 @@ function HomePage() {
                 apartment={selectedApartment}
                 bookingDetails={bookingDetails}
                 quote={apartmentQuote}
+                rockPointSummary={rockPointSummary}
                 onBackToPayment={() => setActivePage("payment")}
                 onMoveToConfirmed={openConfirmedStep}
                 backLabel="Back to payment"
@@ -3754,6 +3873,7 @@ function HomePage() {
                 apartment={selectedApartment}
                 bookingDetails={bookingDetails}
                 quote={apartmentQuote}
+                rockPointSummary={rockPointSummary}
                 onBackToPayment={() => setActivePage("pending")}
                 onFinishBooking={finishApartmentFlow}
               />
@@ -3771,6 +3891,7 @@ function HomePage() {
                 filters={getShopFiltersForVariant(shopVariant)}
                 isLoading={isShopLoading}
                 loadError={getShopLoadErrorForVariant(shopVariant)}
+                rockPointSummary={rockPointSummary}
                 onFoodSelect={showFoodDetail}
               />
             ) : activePage === "foodDetail" ? (
@@ -3783,6 +3904,7 @@ function HomePage() {
                 loadError={getShopLoadErrorForVariant(shopVariant)}
                 foodItem={selectedFoodItem}
                 orderDetails={foodOrderDetails}
+                rockPointSummary={rockPointSummary}
                 onOrderChange={handleFoodOrderChange}
                 onBackToFood={() => setActivePage("shopFood")}
                 onProceedToReview={() =>
@@ -3802,6 +3924,7 @@ function HomePage() {
                 loadError={getShopLoadErrorForVariant(shopVariant)}
                 foodItem={selectedFoodItem}
                 orderDetails={foodOrderDetails}
+                rockPointSummary={rockPointSummary}
                 onOrderChange={handleFoodOrderChange}
                 onBackToFood={() => setActivePage("foodDetail")}
                 onProceedToPayment={() => setActivePage("foodPayment")}
@@ -3817,6 +3940,7 @@ function HomePage() {
                 loadError={getShopLoadErrorForVariant(shopVariant)}
                 foodItem={selectedFoodItem}
                 orderDetails={foodOrderDetails}
+                rockPointSummary={rockPointSummary}
                 onOrderChange={handleFoodOrderChange}
                 onBackToReview={() =>
                   setActivePage(
@@ -3836,6 +3960,7 @@ function HomePage() {
                 loadError={getShopLoadErrorForVariant(shopVariant)}
                 foodItem={selectedFoodItem}
                 orderDetails={foodOrderDetails}
+                rockPointSummary={rockPointSummary}
                 onFinishOrder={finishFoodOrderFlow}
               />
             ) : (

@@ -18,6 +18,7 @@ import {
   formatFoodDeliveryTime,
   getDefaultFoodDeliveryValue,
 } from "../../utils/foodOrders";
+import { formatRockPoints } from "../../utils/rockPoints";
 import "./ShopFoodPage.css";
 
 const foodCategoryFilters = [
@@ -201,13 +202,14 @@ function BackButton({ onClick }) {
   );
 }
 
-function Toggle({ checked, onClick }) {
+function Toggle({ checked, onClick, disabled = false }) {
   return (
     <button
       type="button"
       className={`shop-food-toggle ${checked ? "shop-food-toggle--on" : ""}`}
       onClick={onClick}
       aria-pressed={checked}
+      disabled={disabled}
     >
       <span />
     </button>
@@ -358,11 +360,20 @@ function SummaryBreakdown({
   orderDetails,
   onToggleRockPoints,
   unitLabel,
+  rockPointSummary = {},
 }) {
+  const availableRockPointBalance = Number(rockPointSummary.balance || 0);
+  const availableRockPointValue = Number(rockPointSummary.discountValue || 0);
+  const canApplyRockPoints = availableRockPointValue > 0;
+  const isUsingRockPoints = Boolean(
+    orderDetails.useRockPoints && canApplyRockPoints,
+  );
+  const rockPointBalanceLabel = formatRockPoints(availableRockPointBalance);
   const totals = calculateFoodOrderTotals(
     food.price,
     orderDetails.guests,
-    orderDetails.useRockPoints,
+    isUsingRockPoints,
+    availableRockPointValue,
   );
 
   return (
@@ -381,9 +392,16 @@ function SummaryBreakdown({
       </div>
 
       <div>
-        <span>Rock-point</span>
+        <span className="shop-food-rock-point-label">
+          Rock-point
+          <small>RK {rockPointBalanceLabel} available</small>
+        </span>
         <strong>{totals.rockPointValue.toLocaleString()}</strong>
-        <Toggle checked={orderDetails.useRockPoints} onClick={onToggleRockPoints} />
+        <Toggle
+          checked={isUsingRockPoints}
+          disabled={!canApplyRockPoints}
+          onClick={onToggleRockPoints}
+        />
       </div>
 
       <div className="shop-food-breakdown__total">
@@ -536,6 +554,7 @@ export default function ShopFoodPage({
   onPaymentContinue,
   onFinishOrder,
   onOpenPolicy,
+  rockPointSummary = {},
 }) {
   const [filterState, setFilterState] = useState({
     variant: "food",
@@ -580,13 +599,18 @@ export default function ShopFoodPage({
     note: "",
     paymentMethod: "card",
     agreedToPolicy: false,
-    useRockPoints: true,
+    useRockPoints: false,
     ...orderDetails,
   };
+  const availableRockPointValue = Number(rockPointSummary.discountValue || 0);
+  const isUsingRockPoints = Boolean(
+    safeOrderDetails.useRockPoints && availableRockPointValue > 0,
+  );
   const totals = calculateFoodOrderTotals(
     selectedFood?.price || 0,
     safeOrderDetails.guests,
-    safeOrderDetails.useRockPoints,
+    isUsingRockPoints,
+    availableRockPointValue,
   );
   const canProceed = Boolean(
     usesCartCheckout
@@ -602,7 +626,7 @@ export default function ShopFoodPage({
   }
 
   function toggleRockPoints() {
-    updateOrder("useRockPoints", !safeOrderDetails.useRockPoints);
+    updateOrder("useRockPoints", !isUsingRockPoints);
   }
 
   function openDateTimePicker() {
@@ -862,6 +886,7 @@ export default function ShopFoodPage({
                 orderDetails={safeOrderDetails}
                 onToggleRockPoints={toggleRockPoints}
                 unitLabel={pageContent.unitLabel}
+                rockPointSummary={rockPointSummary}
               />
 
               <div className="shop-food-policy">
@@ -1000,6 +1025,7 @@ export default function ShopFoodPage({
                   orderDetails={safeOrderDetails}
                   onToggleRockPoints={toggleRockPoints}
                   unitLabel={pageContent.unitLabel}
+                  rockPointSummary={rockPointSummary}
                 />
 
                 <div className="shop-food-policy">

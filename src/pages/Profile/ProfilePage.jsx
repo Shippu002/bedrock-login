@@ -79,12 +79,12 @@ const sidebarItems = [
 const fallbackEarnRules = [
   {
     id: "rock-coin-apartment-price",
-    title: "Guests earn 1 Rock Coin per ₦1,000 of the apartment price",
+    title: "Guests earn 1 Rock Coin per ₦1,000 after completing a booking",
     reward: "RK1 off",
   },
   {
     id: "three-day-stay-bonus",
-    title: "Guests earn ₦3,000 for 3 days stay in the apartment",
+    title: "Guests earn ₦3,000 after completing a 3-night apartment stay",
     reward: "RK3 off",
   },
 ];

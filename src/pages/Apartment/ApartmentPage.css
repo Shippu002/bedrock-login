@@ -477,6 +477,28 @@
   outline: none;
 }
 
+.apartment-checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  margin: -2px 0 14px;
+  color: #667085;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.apartment-checkbox-row input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #202a45;
+  cursor: pointer;
+}
+
 .apartment-primary-button {
   width: 100%;
   min-height: 48px;
@@ -556,6 +578,11 @@
 
 .apartment-toggle--on span {
   transform: translateX(14px);
+}
+
+.apartment-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .apartment-payment-layout {
@@ -733,6 +760,19 @@
 .apartment-payment-breakdown strong {
   color: #1a1a1a;
   font-weight: 600;
+}
+
+.apartment-rock-point-label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.apartment-rock-point-label small {
+  color: #98a2b3;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
 }
 
 .apartment-payment-breakdown__discount strong {
