@@ -1668,6 +1668,26 @@ function HomePage() {
 
     if (!normalizedQuery) return null;
 
+    const sectionMatch = backendListingSections.find((section) =>
+      matchesSearchTerms(
+        [
+          section.residenceId,
+          section.id,
+          section.title,
+          section.location,
+          ...(section.items || []).map((item) => item.residenceName),
+        ],
+        normalizedQuery,
+      ),
+    );
+
+    if (sectionMatch) {
+      return {
+        ...sectionMatch,
+        id: sectionMatch.residenceId || sectionMatch.id,
+      };
+    }
+
     return (
       backendResidenceOptions.find((residence) =>
         matchesSearchTerms(
@@ -1680,53 +1700,37 @@ function HomePage() {
           ],
           normalizedQuery,
         ),
-      ) ||
-      (() => {
-        const sectionMatch = backendListingSections.find((section) =>
-          matchesSearchTerms(
-            [
-              section.residenceId,
-              section.id,
-              section.title,
-              section.location,
-              ...(section.items || []).map((item) => item.residenceName),
-            ],
-            normalizedQuery,
-          ),
-        );
-
-        return sectionMatch
-          ? {
-              ...sectionMatch,
-              id: sectionMatch.residenceId || sectionMatch.id,
-            }
-          : null;
-      })() ||
-      null
+      ) || null
     );
   }
 
   function resolveResidenceNavigationId(residenceId, residenceLabel = "") {
     const requestedId = String(residenceId || "").trim();
+    const requestedLabel = String(residenceLabel || "").trim();
 
-    if (!requestedId && !residenceLabel) return "";
+    if (!requestedId && !requestedLabel) return "";
 
-    if (
-      requestedId &&
-      (backendResidenceOptions.some((residence) => residence.id === requestedId) ||
-        backendListingSections.some(
-          (section) => section.residenceId === requestedId,
-        ))
-    ) {
+    const hasMatchingSection = backendListingSections.some(
+      (section) => section.residenceId === requestedId,
+    );
+    const hasMatchingResidence = backendResidenceOptions.some(
+      (residence) => residence.id === requestedId,
+    );
+
+    if (requestedId && hasMatchingSection) {
       return requestedId;
     }
 
-    const residenceMatch = findResidenceSearchMatch(
-      [residenceLabel, requestedId].filter(Boolean).join(" "),
-    );
+    const matchQueries = [requestedLabel, requestedId]
+      .filter(Boolean)
+      .filter((value, index, values) => values.indexOf(value) === index);
 
-    if (residenceMatch?.id) {
-      return residenceMatch.id;
+    for (const query of matchQueries) {
+      const residenceMatch = findResidenceSearchMatch(query);
+
+      if (residenceMatch?.id) {
+        return residenceMatch.id;
+      }
     }
 
     if (requestedId.startsWith("opebi-")) {
@@ -1735,6 +1739,10 @@ function HomePage() {
         backendListingSections.some((section) => section.residenceId === "opebi");
 
       if (hasGenericOpebi) return "opebi";
+    }
+
+    if (requestedId && hasMatchingResidence) {
+      return requestedId;
     }
 
     return requestedId;
@@ -4066,6 +4074,7 @@ function HomePage() {
           <Footer
             helpInfo={profileResources.helpInfo}
             legalDocuments={profileResources.legalDocuments}
+            residences={backendResidenceOptions}
             onResidenceSelect={showResidence}
             onProfileView={showProfile}
             onLegalSelect={showLegal}

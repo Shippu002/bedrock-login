@@ -22,16 +22,32 @@ const defaultLegalLinks = [
   { label: "Privacy policy", type: "legal", value: "privacy" },
 ];
 
+const fallbackResidenceLinks = [
+  { label: "Bateye", type: "residence", value: "bateye" },
+  { label: "Opebi", type: "residence", value: "opebi" },
+  { label: "Community", type: "residence", value: "community" },
+  { label: "Oduduwa", type: "residence", value: "oduduwa" },
+  {
+    label: "Obed's Court",
+    type: "residence",
+    value: "obeds-court-ikoyi",
+  },
+  {
+    label: "Patrick's Court",
+    type: "residence",
+    value: "patricks-court-ikoyi",
+  },
+  {
+    label: "Ikate",
+    type: "residence",
+    value: "ikate-residence-lekki",
+  },
+];
+
 const baseFooterColumns = [
   {
     title: "Residences",
-    links: [
-      { label: "Oduduwa's", type: "residence", value: "oduduwa" },
-      { label: "Bateye's", type: "residence", value: "bateye" },
-      { label: "Opebi's I", type: "residence", value: "opebi-i" },
-      { label: "Opebi's II", type: "residence", value: "opebi-ii" },
-      { label: "Community", type: "residence", value: "community" },
-    ],
+    links: fallbackResidenceLinks,
   },
   {
     title: "Support",
@@ -115,14 +131,71 @@ function getFooterLegalLinks(legalDocuments = []) {
   }));
 }
 
+function normalizeFooterResidenceKey(label, value) {
+  const normalized = String(`${label} ${value}`).toLowerCase();
+
+  if (normalized.includes("opebi")) return "opebi";
+
+  return String(value || label || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function getFooterResidenceLabel(label, key) {
+  if (key === "opebi") return "Opebi";
+
+  return String(label || "")
+    .replace(/\bResidence\b/gi, "")
+    .replace(/\bApartments?\b/gi, "")
+    .replace(/\bIkeja\b/gi, "")
+    .replace(/\bGRA\b/gi, "")
+    .replace(/\bYaba\b/gi, "")
+    .replace(/\bIkoyi\b/gi, "")
+    .replace(/\bLekki\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getFooterResidenceLinks(residences = []) {
+  if (!Array.isArray(residences) || residences.length === 0) {
+    return fallbackResidenceLinks;
+  }
+
+  const seen = new Set();
+  const links = [];
+
+  residences.forEach((residence) => {
+    const label = residence.title || residence.name || residence.label;
+    const value = residence.id || residence.slug || residence.value || label;
+    const key = normalizeFooterResidenceKey(label, value);
+
+    if (!label || !value || !key || seen.has(key)) return;
+
+    seen.add(key);
+    links.push({
+      label: getFooterResidenceLabel(label, key),
+      type: "residence",
+      value: key === "opebi" ? "opebi" : value,
+    });
+  });
+
+  return links.length ? links : fallbackResidenceLinks;
+}
+
 function Footer({
   helpInfo,
   legalDocuments = [],
+  residences = [],
   onResidenceSelect,
   onProfileView,
   onLegalSelect,
 }) {
   const footerColumns = baseFooterColumns.map((column) => {
+    if (column.title === "Residences") {
+      return { ...column, links: getFooterResidenceLinks(residences) };
+    }
+
     if (column.title === "Social") {
       return { ...column, links: getFooterSocialLinks(helpInfo) };
     }

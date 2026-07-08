@@ -6,11 +6,12 @@ import "./ResidencePage.css";
 
 const fallbackResidenceTitles = {
   opebi: "Opebi Residence",
-  "opebi-i": "Opebi I Residence",
-  "opebi-ii": "Opebi II Residence",
   oduduwa: "Oduduwa Residence",
   bateye: "Bateye Residence",
   community: "Community Residence",
+  "obeds-court-ikoyi": "Obed's Court Ikoyi",
+  "patricks-court-ikoyi": "Patrick's Court Ikoyi",
+  "ikate-residence-lekki": "Ikate Residence Lekki",
 };
 
 function formatCurrency(value) {
