@@ -209,7 +209,12 @@ function getNumberValue(value, fallback = 0) {
 function normalizeResidenceId(value, name = "") {
   const source = String(name || value || "").toLowerCase();
 
-  if (source.includes("opebi")) return "opebi";
+  if (source.includes("opebi")) {
+    if (/\b(ii|2|two|second)\b/.test(source)) return "opebi-ii";
+    if (/\b(i|1|one|first)\b/.test(source)) return "opebi-i";
+    return "opebi";
+  }
+
   if (source.includes("oduduwa")) return "oduduwa";
   if (source.includes("bateye")) return "bateye";
   if (source.includes("community")) return "community";

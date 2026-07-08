@@ -13,7 +13,7 @@ export function getApartments(params = {}) {
       category_id: params.categoryId || params.category_id,
       check_in: params.checkIn || params.check_in,
       check_out: params.checkOut || params.check_out,
-      guests: params.guests,
+      guests: Number(params.guests || 0) > 0 ? params.guests : undefined,
       search: params.search,
       min_price: params.minPrice || params.min_price,
       max_price: params.maxPrice || params.max_price,

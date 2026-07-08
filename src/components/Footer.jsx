@@ -28,8 +28,8 @@ const baseFooterColumns = [
     links: [
       { label: "Oduduwa's", type: "residence", value: "oduduwa" },
       { label: "Bateye's", type: "residence", value: "bateye" },
-      { label: "Opebi's I", type: "residence", value: "opebi" },
-      { label: "Opebi's II", type: "residence", value: "opebi" },
+      { label: "Opebi's I", type: "residence", value: "opebi-i" },
+      { label: "Opebi's II", type: "residence", value: "opebi-ii" },
       { label: "Community", type: "residence", value: "community" },
     ],
   },
@@ -136,7 +136,7 @@ function Footer({
 
   function handleFooterAction(link) {
     if (link.type === "residence") {
-      onResidenceSelect?.(link.value);
+      onResidenceSelect?.(link.value, "", link.label);
       return;
     }
 

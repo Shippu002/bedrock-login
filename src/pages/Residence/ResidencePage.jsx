@@ -6,6 +6,8 @@ import "./ResidencePage.css";
 
 const fallbackResidenceTitles = {
   opebi: "Opebi Residence",
+  "opebi-i": "Opebi I Residence",
+  "opebi-ii": "Opebi II Residence",
   oduduwa: "Oduduwa Residence",
   bateye: "Bateye Residence",
   community: "Community Residence",

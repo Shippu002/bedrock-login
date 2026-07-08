@@ -1706,6 +1706,40 @@ function HomePage() {
     );
   }
 
+  function resolveResidenceNavigationId(residenceId, residenceLabel = "") {
+    const requestedId = String(residenceId || "").trim();
+
+    if (!requestedId && !residenceLabel) return "";
+
+    if (
+      requestedId &&
+      (backendResidenceOptions.some((residence) => residence.id === requestedId) ||
+        backendListingSections.some(
+          (section) => section.residenceId === requestedId,
+        ))
+    ) {
+      return requestedId;
+    }
+
+    const residenceMatch = findResidenceSearchMatch(
+      [residenceLabel, requestedId].filter(Boolean).join(" "),
+    );
+
+    if (residenceMatch?.id) {
+      return residenceMatch.id;
+    }
+
+    if (requestedId.startsWith("opebi-")) {
+      const hasGenericOpebi =
+        backendResidenceOptions.some((residence) => residence.id === "opebi") ||
+        backendListingSections.some((section) => section.residenceId === "opebi");
+
+      if (hasGenericOpebi) return "opebi";
+    }
+
+    return requestedId;
+  }
+
   function removeBedroomTermsFromQuery(query) {
     return normalizeSearchValue(query)
       .replace(/\b\d+\s*(bed|bedroom|bedrooms)\b/g, " ")
@@ -1823,6 +1857,7 @@ function HomePage() {
     setApartmentQuote(null);
     setPendingBooking(null);
     setPendingOrder(null);
+    setSelectedResidenceId("");
     setFoodOrderDetails(createDefaultFoodOrderDetails());
     setApartmentFilters(defaultApartmentFilters);
     setSearchResetKey((currentKey) => currentKey + 1);
@@ -1844,18 +1879,32 @@ function HomePage() {
     await showHome();
   }
 
-  async function showResidence(residenceId, apartmentTitle = "") {
+  async function showResidence(
+    residenceId,
+    apartmentTitle = "",
+    residenceLabel = "",
+  ) {
+    const resolvedResidenceId = resolveResidenceNavigationId(
+      residenceId,
+      residenceLabel,
+    );
     const normalizedApartmentTitle = String(apartmentTitle || "").trim();
     const nextFilters = {
       ...defaultApartmentFilters,
-      residenceId,
+      residenceId: resolvedResidenceId,
       apartmentTitle: normalizedApartmentTitle,
     };
 
-    setSelectedResidenceId(residenceId);
+    setSelectedResidenceId(resolvedResidenceId);
     setApartmentFilters(nextFilters);
     setActivePage("residence");
     setProfileInitialView("profile");
+
+    if (defaultListingSections.length) {
+      setBackendListingSections(defaultListingSections);
+      setApartmentLoadError("");
+    }
+
     await refreshApartmentListings(nextFilters);
   }
 
@@ -1955,6 +2004,15 @@ function HomePage() {
     nextFilters = defaultApartmentFilters,
   ) {
     const isDefaultListingRequest = !hasActiveApartmentFilters(nextFilters);
+    const isResidenceOnlyRequest = Boolean(nextFilters.residenceId) &&
+      !nextFilters.apartmentTitle &&
+      !nextFilters.query &&
+      !nextFilters.checkIn &&
+      !nextFilters.checkOut &&
+      Number(nextFilters.guests || 0) <= 0;
+    const fallbackSections = defaultListingSections.length
+      ? defaultListingSections
+      : backendListingSections;
     const selectedResidence = backendResidenceOptions.find(
       (residence) => residence.id === nextFilters.residenceId,
     );
@@ -1975,7 +2033,8 @@ function HomePage() {
         categoryId: selectedCategory?.id,
         checkIn: nextFilters.checkIn,
         checkOut: nextFilters.checkOut,
-        guests: nextFilters.guests,
+        guests:
+          Number(nextFilters.guests || 0) > 0 ? nextFilters.guests : undefined,
         search: nextFilters.query,
       });
 
@@ -1988,18 +2047,21 @@ function HomePage() {
       }
 
       if (
-        isDefaultListingRequest &&
+        (isDefaultListingRequest || isResidenceOnlyRequest) &&
         !sections.length &&
-        defaultListingSections.length
+        fallbackSections.length
       ) {
-        setBackendListingSections(defaultListingSections);
+        setBackendListingSections(fallbackSections);
       } else {
         setBackendListingSections(sections);
       }
     } catch (error) {
       logFrontendError("Unable to filter backend apartments", error);
-      if (isDefaultListingRequest && defaultListingSections.length) {
-        setBackendListingSections(defaultListingSections);
+      if (
+        (isDefaultListingRequest || isResidenceOnlyRequest) &&
+        fallbackSections.length
+      ) {
+        setBackendListingSections(fallbackSections);
         setApartmentLoadError("");
       } else {
         setBackendListingSections([]);
