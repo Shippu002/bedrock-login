@@ -100,7 +100,9 @@ function logFrontendError(...args) {
   }
 }
 
-function getAnalyticsUserId(user = {}) {
+function getAnalyticsUserId(user) {
+  if (!user) return "";
+
   return String(
     user.backendId ||
       user.id ||
@@ -110,7 +112,9 @@ function getAnalyticsUserId(user = {}) {
   ).trim();
 }
 
-function getAnalyticsUserName(user = {}) {
+function getAnalyticsUserName(user) {
+  if (!user) return "";
+
   return (
     user.name ||
     user.fullName ||
@@ -120,7 +124,9 @@ function getAnalyticsUserName(user = {}) {
   );
 }
 
-function getAnalyticsUserEmail(user = {}) {
+function getAnalyticsUserEmail(user) {
+  if (!user) return "";
+
   return user.email || "";
 }
 
