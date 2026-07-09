@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FiChevronLeft, FiMapPin, FiShoppingBag } from "react-icons/fi";
 import Header from "../../components/Header";
 import SearchBar from "../../components/SearchBar";
@@ -73,6 +73,13 @@ import {
   mergeAgentVerificationStatus,
   normalizeBackendUser,
 } from "../../utils/backendUser";
+import {
+  identify,
+  reset as resetMixpanel,
+  setUser,
+  track,
+  trackPageView,
+} from "../../services/mixpanel";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
 const CANCELLED_ORDERS_STORAGE_KEY = "bedrockCancelledOrders";
@@ -91,6 +98,30 @@ function logFrontendError(...args) {
   if (DEBUG_FRONTEND_ERRORS) {
     console.error(...args);
   }
+}
+
+function getAnalyticsUserId(user = {}) {
+  return String(
+    user.backendId ||
+      user.id ||
+      user.uuid ||
+      user.firebaseUid ||
+      "",
+  ).trim();
+}
+
+function getAnalyticsUserName(user = {}) {
+  return (
+    user.name ||
+    user.fullName ||
+    [user.firstName, user.lastName].filter(Boolean).join(" ") ||
+    user.username ||
+    ""
+  );
+}
+
+function getAnalyticsUserEmail(user = {}) {
+  return user.email || "";
 }
 
 const fallbackRequestItems = [
@@ -165,6 +196,7 @@ function saveStoredAccount(nextUser) {
 function clearStoredSession() {
   clearAuthToken();
   localStorage.removeItem(ACCOUNT_STORAGE_KEY);
+  resetMixpanel();
 }
 
 function getUserOrderScope(user = {}) {
@@ -843,6 +875,7 @@ function ShopDirectoryPage({ categories = [], onBack, onShopSelect }) {
 }
 
 function HomePage() {
+  const lastIdentifiedAnalyticsIdRef = useRef("");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authEntry, setAuthEntry] = useState("login");
   const [authModalKey, setAuthModalKey] = useState(0);
@@ -932,6 +965,81 @@ function HomePage() {
   const shouldUseFoodRockPoints = Boolean(
     foodOrderDetails.useRockPoints && canUseRockPoints,
   );
+  const currentUserAnalyticsId = getAnalyticsUserId(currentUser);
+  const currentUserAnalyticsName = getAnalyticsUserName(currentUser);
+  const currentUserAnalyticsEmail = getAnalyticsUserEmail(currentUser);
+  const selectedApartmentAnalyticsId =
+    selectedApartment?.backendId || selectedApartment?.id || "";
+  const selectedApartmentAnalyticsName =
+    selectedApartment?.title || selectedApartment?.name || "";
+
+  const identifyAnalyticsUser = useCallback((user, source = "current_user") => {
+    const userId = getAnalyticsUserId(user);
+
+    if (!userId) {
+      track("User Identify Skipped", {
+        reason: "missing_user_id",
+        source,
+      });
+      return;
+    }
+
+    const userName = getAnalyticsUserName(user);
+    const userEmail = getAnalyticsUserEmail(user);
+
+    identify(userId);
+    setUser({
+      $name: userName,
+      $email: userEmail,
+      email: userEmail,
+      name: userName,
+      userId,
+    });
+
+    if (lastIdentifiedAnalyticsIdRef.current !== userId) {
+      track("User Identified", {
+        email: userEmail,
+        name: userName,
+        source,
+        userId,
+      });
+      lastIdentifiedAnalyticsIdRef.current = userId;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!currentUserAnalyticsId) return;
+
+    identifyAnalyticsUser(currentUser, "current_user_effect");
+  }, [
+    currentUser,
+    currentUserAnalyticsEmail,
+    currentUserAnalyticsId,
+    currentUserAnalyticsName,
+    identifyAnalyticsUser,
+  ]);
+
+  useEffect(() => {
+    trackPageView(activePage, {
+      residenceId: activePage === "residence" ? selectedResidenceId : undefined,
+      apartmentId:
+        activePage === "apartment" ? selectedApartmentAnalyticsId : undefined,
+      apartmentName:
+        activePage === "apartment" ? selectedApartmentAnalyticsName : undefined,
+      legalDocumentId:
+        activePage === "legal" ? selectedLegalDocumentId : undefined,
+      profileView: activePage === "profile" ? profileInitialView : undefined,
+      shopVariant: activePage === "shopFood" ? shopVariant : undefined,
+    });
+  }, [
+    activePage,
+    profileInitialView,
+    selectedApartmentAnalyticsId,
+    selectedApartmentAnalyticsName,
+    selectedLegalDocumentId,
+    selectedResidenceId,
+    shopVariant,
+  ]);
 
   useEffect(() => {
     let ignoreProfileResponse = false;
@@ -1613,6 +1721,7 @@ function HomePage() {
       return;
     }
 
+    identifyAnalyticsUser(serverCheckedUser, "auth_complete");
     updateCurrentUser(serverCheckedUser);
     setActivePage("home");
     setIsAuthModalOpen(false);
