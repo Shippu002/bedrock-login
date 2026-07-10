@@ -93,11 +93,273 @@ const PAYMENT_REFERENCE_QUERY_KEYS = [
   "paymentReference",
 ];
 const DEBUG_FRONTEND_ERRORS = import.meta.env.VITE_DEBUG_AUTH === "true";
+const APARTMENT_STAGE_BY_PAGE = {
+  payment: "payment",
+  pending: "pending",
+  confirmed: "confirmed",
+};
+const PAGE_BY_APARTMENT_STAGE = {
+  payment: "payment",
+  pending: "pending",
+  confirmed: "confirmed",
+};
+const SHOP_STAGE_BY_PAGE = {
+  foodReview: "review",
+  foodPayment: "payment",
+  foodStatus: "status",
+};
+const PAGE_BY_SHOP_STAGE = {
+  review: "foodReview",
+  payment: "foodPayment",
+  status: "foodStatus",
+};
+const SHOP_VARIANT_ALIASES = {
+  foods: "food",
+  meals: "food",
+  food: "food",
+  shop: "toiletries",
+  toiletries: "toiletries",
+  products: "toiletries",
+  services: "services",
+  service: "services",
+  requests: "requests",
+  request: "requests",
+};
 
 function logFrontendError(...args) {
   if (DEBUG_FRONTEND_ERRORS) {
     console.error(...args);
   }
+}
+
+function safeDecodeRouteSegment(value = "") {
+  try {
+    return decodeURIComponent(String(value || ""));
+  } catch {
+    return String(value || "");
+  }
+}
+
+function slugifyRouteSegment(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function encodeRouteSegment(value = "") {
+  return encodeURIComponent(String(value || "").trim());
+}
+
+function getRouteRecordSegment(record, fallback = "item") {
+  const rawValue =
+    record?.backendId ||
+    record?.id ||
+    record?.uuid ||
+    record?.slug ||
+    record?.raw?.slug ||
+    slugifyRouteSegment(record?.title || record?.name || fallback);
+
+  return encodeRouteSegment(rawValue || fallback);
+}
+
+function normalizeRouteLookup(value = "") {
+  return safeDecodeRouteSegment(value).trim().toLowerCase();
+}
+
+function getRouteMatchKeys(record, extraValues = []) {
+  const rawValues = [
+    record?.backendId,
+    record?.id,
+    record?.uuid,
+    record?.slug,
+    record?.raw?.id,
+    record?.raw?.uuid,
+    record?.raw?.slug,
+    record?.title,
+    record?.name,
+    record?.raw?.title,
+    record?.raw?.name,
+    ...extraValues,
+  ];
+  const keys = new Set();
+
+  rawValues.filter(Boolean).forEach((value) => {
+    const normalized = normalizeRouteLookup(value);
+    const slug = slugifyRouteSegment(value);
+
+    if (normalized) keys.add(normalized);
+    if (slug) keys.add(slug);
+  });
+
+  return keys;
+}
+
+function recordMatchesRouteKey(record, routeKey, extraValues = []) {
+  const normalizedRouteKey = normalizeRouteLookup(routeKey);
+  const sluggedRouteKey = slugifyRouteSegment(routeKey);
+  const candidateKeys = getRouteMatchKeys(record, extraValues);
+
+  return (
+    candidateKeys.has(normalizedRouteKey) ||
+    candidateKeys.has(sluggedRouteKey)
+  );
+}
+
+function normalizeShopRouteVariant(value = "") {
+  const key = slugifyRouteSegment(value);
+
+  return SHOP_VARIANT_ALIASES[key] || key || "food";
+}
+
+function parseAppRoute(pathname = "/") {
+  const segments = String(pathname || "/")
+    .split("/")
+    .filter(Boolean)
+    .map(safeDecodeRouteSegment);
+  const root = slugifyRouteSegment(segments[0]);
+
+  if (!root) return { page: "home" };
+
+  if (root === "residence" || root === "residences") {
+    return {
+      page: "residence",
+      residenceId: segments[1] || "",
+    };
+  }
+
+  if (root === "apartment" || root === "apartments") {
+    const stage = slugifyRouteSegment(segments[2]);
+
+    return {
+      page: PAGE_BY_APARTMENT_STAGE[stage] || "apartment",
+      apartmentKey: segments[1] || "",
+    };
+  }
+
+  if (root === "shop" || root === "shops") {
+    const shopVariant = normalizeShopRouteVariant(segments[1]);
+    const itemKey = segments[2] || "";
+    const stage = slugifyRouteSegment(segments[3]);
+
+    if (!segments[1]) {
+      return { page: "shopDirectory" };
+    }
+
+    if (!itemKey) {
+      return { page: "shopFood", shopVariant };
+    }
+
+    return {
+      page: PAGE_BY_SHOP_STAGE[stage] || "foodDetail",
+      shopVariant,
+      itemKey,
+    };
+  }
+
+  if (root === "profile" || root === "account") {
+    return {
+      page: "profile",
+      profileView: slugifyRouteSegment(segments[1]) || "profile",
+    };
+  }
+
+  if (root === "legal" || root === "policy" || root === "policies") {
+    return {
+      page: "legal",
+      documentId: slugifyRouteSegment(segments[1]) || "",
+    };
+  }
+
+  return { page: "home" };
+}
+
+function buildAppPath({
+  activePage,
+  selectedResidenceId,
+  selectedApartment,
+  profileInitialView,
+  selectedLegalDocumentId,
+  shopVariant,
+  selectedFoodItem,
+}) {
+  if (activePage === "residence") {
+    return selectedResidenceId
+      ? `/residences/${encodeRouteSegment(selectedResidenceId)}`
+      : "/residences";
+  }
+
+  if (["apartment", "payment", "pending", "confirmed"].includes(activePage)) {
+    const apartmentSegment = getRouteRecordSegment(
+      selectedApartment,
+      "apartment",
+    );
+    const stage = APARTMENT_STAGE_BY_PAGE[activePage];
+
+    return stage
+      ? `/apartments/${apartmentSegment}/${stage}`
+      : `/apartments/${apartmentSegment}`;
+  }
+
+  if (activePage === "shopDirectory") {
+    return "/shops";
+  }
+
+  if (activePage === "shopFood") {
+    return `/shops/${encodeRouteSegment(shopVariant || "food")}`;
+  }
+
+  if (
+    ["foodDetail", "foodReview", "foodPayment", "foodStatus"].includes(
+      activePage,
+    )
+  ) {
+    const itemSegment = getRouteRecordSegment(selectedFoodItem, "item");
+    const stage = SHOP_STAGE_BY_PAGE[activePage];
+    const basePath = `/shops/${encodeRouteSegment(
+      shopVariant || "food",
+    )}/${itemSegment}`;
+
+    return stage ? `${basePath}/${stage}` : basePath;
+  }
+
+  if (activePage === "profile") {
+    return `/profile/${encodeRouteSegment(profileInitialView || "profile")}`;
+  }
+
+  if (activePage === "legal") {
+    return selectedLegalDocumentId
+      ? `/legal/${encodeRouteSegment(selectedLegalDocumentId)}`
+      : "/legal";
+  }
+
+  return "/";
+}
+
+function getCurrentPathname() {
+  if (typeof window === "undefined") return "/";
+
+  return window.location.pathname || "/";
+}
+
+function hasPaymentReturnQuery() {
+  if (typeof window === "undefined") return false;
+
+  const params = new URLSearchParams(window.location.search);
+
+  return PAYMENT_REFERENCE_QUERY_KEYS.some((key) => params.has(key));
+}
+
+function writeBrowserRoute(path, { replace = false } = {}) {
+  if (typeof window === "undefined" || hasPaymentReturnQuery()) return;
+
+  const nextPath = path || "/";
+
+  if (getCurrentPathname() === nextPath) return;
+
+  const method = replace ? "replaceState" : "pushState";
+  window.history[method]({ bedrockRoute: true }, "", nextPath);
 }
 
 function getAnalyticsUserId(user) {
@@ -882,6 +1144,9 @@ function ShopDirectoryPage({ categories = [], onBack, onShopSelect }) {
 
 function HomePage() {
   const lastIdentifiedAnalyticsIdRef = useRef("");
+  const routeSyncReadyRef = useRef(false);
+  const isApplyingBrowserRouteRef = useRef(false);
+  const pendingBrowserRouteRef = useRef(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authEntry, setAuthEntry] = useState("login");
   const [authModalKey, setAuthModalKey] = useState(0);
@@ -1968,6 +2233,56 @@ function HomePage() {
     );
   }
 
+  function findResidenceRouteMatch(routeKey) {
+    if (!routeKey) return null;
+
+    const residenceMatch = backendResidenceOptions.find((residence) =>
+      recordMatchesRouteKey(residence, routeKey, [
+        residence.location,
+        residence.address,
+      ]),
+    );
+
+    if (residenceMatch) return residenceMatch;
+
+    const sectionMatch = backendListingSections.find((section) =>
+      recordMatchesRouteKey(section, routeKey, [
+        section.residenceId,
+        section.title,
+        section.location,
+      ]),
+    );
+
+    return sectionMatch
+      ? {
+          ...sectionMatch,
+          id: sectionMatch.residenceId || sectionMatch.id,
+        }
+      : null;
+  }
+
+  function findApartmentRouteMatch(routeKey) {
+    if (!routeKey) return null;
+
+    return getSearchableApartments().find((apartment) =>
+      recordMatchesRouteKey(apartment, routeKey, [
+        apartment.sectionTitle,
+        apartment.residenceName,
+      ]),
+    );
+  }
+
+  function findShopRouteMatch(variant, routeKey) {
+    if (!routeKey) return null;
+
+    return getShopItemsForVariant(variant).find((item) =>
+      recordMatchesRouteKey(item, routeKey, [
+        item.category,
+        ...(Array.isArray(item.tags) ? item.tags : []),
+      ]),
+    );
+  }
+
   async function showHome() {
     const cachedHomeSections = defaultListingSections.length
       ? defaultListingSections
@@ -2311,6 +2626,235 @@ function HomePage() {
     setActivePage("foodDetail");
     setProfileInitialView("profile");
   }
+
+  async function applyBrowserRoute(route) {
+    if (!route) return false;
+
+    isApplyingBrowserRouteRef.current = true;
+    pendingBrowserRouteRef.current = null;
+
+    if (route.page === "home") {
+      setActivePage("home");
+      setProfileInitialView("profile");
+      setSelectedApartment(null);
+      setSelectedFoodItem(null);
+      setSelectedResidenceId("");
+      setApartmentReturnPage("home");
+      return true;
+    }
+
+    if (route.page === "residence") {
+      const residenceMatch = findResidenceRouteMatch(route.residenceId);
+      const residenceId = residenceMatch?.id || route.residenceId || "";
+
+      if (!residenceId && isApartmentsLoading) {
+        pendingBrowserRouteRef.current = route;
+        return false;
+      }
+
+      setSelectedResidenceId(residenceId);
+      setApartmentFilters({
+        ...defaultApartmentFilters,
+        residenceId,
+      });
+      setActivePage("residence");
+      setProfileInitialView("profile");
+      return true;
+    }
+
+    if (["apartment", "payment", "pending", "confirmed"].includes(route.page)) {
+      const apartmentMatch = findApartmentRouteMatch(route.apartmentKey);
+
+      if (!apartmentMatch && isApartmentsLoading) {
+        pendingBrowserRouteRef.current = route;
+        return false;
+      }
+
+      if (!apartmentMatch) {
+        setActivePage("home");
+        setSelectedApartment(null);
+        return true;
+      }
+
+      const fallbackApartment = decorateApartmentWithMedia(apartmentMatch);
+      const guestCapacity = getApartmentGuestCapacity(fallbackApartment);
+      const nextBookingDetails = createBookingDetailsFromFilters({
+        ...defaultApartmentFilters,
+        residenceId: fallbackApartment.residenceId || "",
+      });
+
+      setApartmentReturnPage(
+        fallbackApartment.residenceId ? "residence" : "home",
+      );
+      setSelectedResidenceId(fallbackApartment.residenceId || "");
+      setApartmentFilters({
+        ...defaultApartmentFilters,
+        residenceId: fallbackApartment.residenceId || "",
+      });
+      setSelectedApartment(fallbackApartment);
+      setBookingDetails({
+        ...nextBookingDetails,
+        guests: Math.min(
+          guestCapacity || Infinity,
+          Math.max(1, Number(nextBookingDetails.guests) || 1),
+        ),
+      });
+      setPendingBooking(null);
+      setApartmentQuote(null);
+      setActivePage(route.page);
+      setProfileInitialView("profile");
+      return true;
+    }
+
+    if (route.page === "shopDirectory") {
+      setActivePage("shopDirectory");
+      setProfileInitialView("profile");
+      return true;
+    }
+
+    if (route.page === "shopFood") {
+      setShopVariant(route.shopVariant || "food");
+      setSelectedFoodItem(getShopItemsForVariant(route.shopVariant)[0] || null);
+      setFoodOrderDetails(createDefaultFoodOrderDetails());
+      setActivePage("shopFood");
+      setProfileInitialView("profile");
+      return true;
+    }
+
+    if (
+      ["foodDetail", "foodReview", "foodPayment", "foodStatus"].includes(
+        route.page,
+      )
+    ) {
+      const routeShopVariant = route.shopVariant || "food";
+      const foodItemMatch = findShopRouteMatch(
+        routeShopVariant,
+        route.itemKey,
+      );
+
+      if (!foodItemMatch && isShopLoading) {
+        pendingBrowserRouteRef.current = route;
+        return false;
+      }
+
+      if (!foodItemMatch) {
+        setShopVariant(routeShopVariant);
+        setActivePage("shopFood");
+        return true;
+      }
+
+      setShopVariant(routeShopVariant);
+      setSelectedFoodItem(foodItemMatch);
+      setFoodOrderDetails(createDefaultFoodOrderDetails());
+      setActivePage(route.page);
+      setProfileInitialView("profile");
+      return true;
+    }
+
+    if (route.page === "profile") {
+      setProfileInitialView(route.profileView || "profile");
+
+      if (currentUser && getAuthToken()) {
+        setActivePage("profile");
+      } else {
+        openLogin();
+      }
+
+      return true;
+    }
+
+    if (route.page === "legal") {
+      setSelectedLegalDocumentId(route.documentId || "");
+      setActivePage("legal");
+      return true;
+    }
+
+    setActivePage("home");
+    return true;
+  }
+
+  useEffect(() => {
+    if (routeSyncReadyRef.current) return undefined;
+
+    let ignoreRoute = false;
+
+    async function applyInitialRoute() {
+      const route = pendingBrowserRouteRef.current ||
+        parseAppRoute(getCurrentPathname());
+      const wasApplied = await applyBrowserRoute(route);
+
+      if (ignoreRoute || !wasApplied) {
+        isApplyingBrowserRouteRef.current = false;
+        return;
+      }
+
+      routeSyncReadyRef.current = true;
+      window.requestAnimationFrame(() => {
+        isApplyingBrowserRouteRef.current = false;
+      });
+    }
+
+    applyInitialRoute();
+
+    return () => {
+      ignoreRoute = true;
+    };
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    async function handlePopState() {
+      const route = parseAppRoute(getCurrentPathname());
+      const wasApplied = await applyBrowserRoute(route);
+
+      if (!wasApplied) {
+        isApplyingBrowserRouteRef.current = false;
+        return;
+      }
+
+      routeSyncReadyRef.current = true;
+      window.requestAnimationFrame(() => {
+        isApplyingBrowserRouteRef.current = false;
+      });
+    }
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  });
+
+  useEffect(() => {
+    if (
+      !routeSyncReadyRef.current ||
+      isApplyingBrowserRouteRef.current ||
+      hasPaymentReturnQuery()
+    ) {
+      return;
+    }
+
+    writeBrowserRoute(
+      buildAppPath({
+        activePage,
+        selectedResidenceId,
+        selectedApartment,
+        profileInitialView,
+        selectedLegalDocumentId,
+        shopVariant,
+        selectedFoodItem,
+      }),
+    );
+  }, [
+    activePage,
+    profileInitialView,
+    selectedApartment,
+    selectedFoodItem,
+    selectedLegalDocumentId,
+    selectedResidenceId,
+    shopVariant,
+  ]);
 
   function isApartmentSaved(apartment) {
     if (!apartment || !Array.isArray(currentUser?.wishlists)) return false;
