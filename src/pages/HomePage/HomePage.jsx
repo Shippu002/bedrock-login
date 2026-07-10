@@ -152,16 +152,113 @@ function encodeRouteSegment(value = "") {
   return encodeURIComponent(String(value || "").trim());
 }
 
-function getRouteRecordSegment(record, fallback = "item") {
-  const rawValue =
-    record?.backendId ||
-    record?.id ||
-    record?.uuid ||
-    record?.slug ||
-    record?.raw?.slug ||
-    slugifyRouteSegment(record?.title || record?.name || fallback);
+function getUniqueRouteParts(parts = []) {
+  const seen = new Set();
 
-  return encodeRouteSegment(rawValue || fallback);
+  return parts
+    .map((part) => String(part || "").trim())
+    .filter(Boolean)
+    .filter((part) => {
+      const key = normalizeRouteLookup(part);
+
+      if (!key || seen.has(key)) return false;
+
+      seen.add(key);
+      return true;
+    });
+}
+
+function getReadableRouteKey(parts = [], fallbackParts = []) {
+  const readableParts = getUniqueRouteParts(parts).filter((part) =>
+    /[a-z]/i.test(part),
+  );
+  const readableSlug = slugifyRouteSegment(readableParts.join(" "));
+
+  if (readableSlug) return readableSlug;
+
+  const fallbackSlug = getUniqueRouteParts(fallbackParts)
+    .map(slugifyRouteSegment)
+    .find(Boolean);
+
+  return fallbackSlug || "item";
+}
+
+function getResidenceRouteKey(residence, fallbackId = "") {
+  return getReadableRouteKey(
+    [
+      residence?.title,
+      residence?.name,
+      residence?.raw?.title,
+      residence?.raw?.name,
+      residence?.location,
+      residence?.address,
+    ],
+    [
+      residence?.slug,
+      residence?.raw?.slug,
+      fallbackId,
+      residence?.id,
+      residence?.backendId,
+      "residence",
+    ],
+  );
+}
+
+function getResidenceRouteSegment(residence, fallbackId = "") {
+  return encodeRouteSegment(getResidenceRouteKey(residence, fallbackId));
+}
+
+function getApartmentRouteKey(apartment) {
+  return getReadableRouteKey(
+    [
+      apartment?.title,
+      apartment?.name,
+      apartment?.raw?.title,
+      apartment?.raw?.name,
+      apartment?.residenceName,
+      apartment?.residenceTitle,
+      apartment?.sectionTitle,
+      apartment?.location,
+      apartment?.address,
+      apartment?.sectionLocation,
+    ],
+    [
+      apartment?.slug,
+      apartment?.raw?.slug,
+      apartment?.backendId,
+      apartment?.id,
+      apartment?.uuid,
+      "apartment",
+    ],
+  );
+}
+
+function getApartmentRouteSegment(apartment) {
+  return encodeRouteSegment(getApartmentRouteKey(apartment));
+}
+
+function getShopItemRouteKey(item) {
+  return getReadableRouteKey(
+    [
+      item?.title,
+      item?.name,
+      item?.raw?.title,
+      item?.raw?.name,
+      item?.category,
+    ],
+    [
+      item?.slug,
+      item?.raw?.slug,
+      item?.backendId,
+      item?.id,
+      item?.uuid,
+      "item",
+    ],
+  );
+}
+
+function getShopItemRouteSegment(item) {
+  return encodeRouteSegment(getShopItemRouteKey(item));
 }
 
 function normalizeRouteLookup(value = "") {
@@ -277,6 +374,7 @@ function parseAppRoute(pathname = "/") {
 
 function buildAppPath({
   activePage,
+  selectedResidence,
   selectedResidenceId,
   selectedApartment,
   profileInitialView,
@@ -285,16 +383,16 @@ function buildAppPath({
   selectedFoodItem,
 }) {
   if (activePage === "residence") {
-    return selectedResidenceId
-      ? `/residences/${encodeRouteSegment(selectedResidenceId)}`
+    return selectedResidence || selectedResidenceId
+      ? `/residences/${getResidenceRouteSegment(
+          selectedResidence,
+          selectedResidenceId,
+        )}`
       : "/residences";
   }
 
   if (["apartment", "payment", "pending", "confirmed"].includes(activePage)) {
-    const apartmentSegment = getRouteRecordSegment(
-      selectedApartment,
-      "apartment",
-    );
+    const apartmentSegment = getApartmentRouteSegment(selectedApartment);
     const stage = APARTMENT_STAGE_BY_PAGE[activePage];
 
     return stage
@@ -315,7 +413,7 @@ function buildAppPath({
       activePage,
     )
   ) {
-    const itemSegment = getRouteRecordSegment(selectedFoodItem, "item");
+    const itemSegment = getShopItemRouteSegment(selectedFoodItem);
     const stage = SHOP_STAGE_BY_PAGE[activePage];
     const basePath = `/shops/${encodeRouteSegment(
       shopVariant || "food",
@@ -1243,6 +1341,14 @@ function HomePage() {
     selectedApartment?.backendId || selectedApartment?.id || "";
   const selectedApartmentAnalyticsName =
     selectedApartment?.title || selectedApartment?.name || "";
+  const selectedResidenceForRoute =
+    backendResidenceOptions.find(
+      (residence) => residence.id === selectedResidenceId,
+    ) ||
+    backendListingSections.find(
+      (section) => section.residenceId === selectedResidenceId,
+    ) ||
+    null;
 
   const identifyAnalyticsUser = useCallback((user, source = "current_user") => {
     const userId = getAnalyticsUserId(user);
@@ -2238,6 +2344,7 @@ function HomePage() {
 
     const residenceMatch = backendResidenceOptions.find((residence) =>
       recordMatchesRouteKey(residence, routeKey, [
+        getResidenceRouteKey(residence, residence.id),
         residence.location,
         residence.address,
       ]),
@@ -2247,6 +2354,7 @@ function HomePage() {
 
     const sectionMatch = backendListingSections.find((section) =>
       recordMatchesRouteKey(section, routeKey, [
+        getResidenceRouteKey(section, section.residenceId || section.id),
         section.residenceId,
         section.title,
         section.location,
@@ -2266,6 +2374,7 @@ function HomePage() {
 
     return getSearchableApartments().find((apartment) =>
       recordMatchesRouteKey(apartment, routeKey, [
+        getApartmentRouteKey(apartment),
         apartment.sectionTitle,
         apartment.residenceName,
       ]),
@@ -2277,6 +2386,7 @@ function HomePage() {
 
     return getShopItemsForVariant(variant).find((item) =>
       recordMatchesRouteKey(item, routeKey, [
+        getShopItemRouteKey(item),
         item.category,
         ...(Array.isArray(item.tags) ? item.tags : []),
       ]),
@@ -2838,6 +2948,7 @@ function HomePage() {
     writeBrowserRoute(
       buildAppPath({
         activePage,
+        selectedResidence: selectedResidenceForRoute,
         selectedResidenceId,
         selectedApartment,
         profileInitialView,
@@ -2852,6 +2963,7 @@ function HomePage() {
     selectedApartment,
     selectedFoodItem,
     selectedLegalDocumentId,
+    selectedResidenceForRoute,
     selectedResidenceId,
     shopVariant,
   ]);
