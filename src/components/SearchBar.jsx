@@ -17,6 +17,15 @@ const guestTypes = [
   { id: "children", label: "Children", hint: "Ages 2 -12" },
   { id: "infants", label: "Infants", hint: "Under 2 years old" },
 ];
+const RESIDENCE_DISPLAY_NAMES = [
+  { key: "bateye", label: "Bateye" },
+  { key: "opebi", label: "Opebi Residence" },
+  { key: "community", label: "Community Residence" },
+  { key: "oduduwa", label: "Oduduwa Residence" },
+  { key: "obeds-court", label: "Obed's Court" },
+  { key: "patricks-court", label: "Patrick's Court" },
+  { key: "ikate", label: "Ikate Residence" },
+];
 
 const initialGuestCounts = guestTypes.reduce(
   (counts, guestType) => ({
@@ -41,15 +50,39 @@ function addDaysToDateValue(value, days) {
   return date.toISOString().slice(0, 10);
 }
 
-function getShortResidenceLabel(title) {
-  return String(title || "Residence")
-    .replace(/\s*Residence.*/i, "")
-    .replace(/'s Apartments/i, "")
-    .replace(/ Apartments/i, "");
+function slugifyResidenceText(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function getResidenceDisplayName(item) {
+  const lookupValue = slugifyResidenceText(
+    [item?.id, item?.slug, item?.title, item?.name]
+      .filter(Boolean)
+      .join(" "),
+  );
+  const knownResidence = RESIDENCE_DISPLAY_NAMES.find((residence) =>
+    lookupValue.includes(residence.key),
+  );
+
+  if (knownResidence) return knownResidence.label;
+
+  return String(item?.title || item?.name || "Residence")
+    .replace(/\bApartments?\b/gi, "Residence")
+    .replace(/\bIkeja\b/gi, "")
+    .replace(/\bGRA\b/gi, "")
+    .replace(/\bYaba\b/gi, "")
+    .replace(/\bIkoyi\b/gi, "")
+    .replace(/\bLekki\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function getResidenceFilterLabel(item) {
-  return [item.title, item.location].filter(Boolean).join(" ");
+  return getResidenceDisplayName(item);
 }
 
 function ResidenceThumbnail({ src, alt, className = "" }) {
@@ -111,7 +144,9 @@ function SearchBar({
           .filter((category) => category.bedrooms)
           .map((category) => `${category.bedrooms} Bedroom Apartment`);
   const residenceLabel =
-    selectedApartment || selectedResidence?.title || "Search by Residence";
+    selectedApartment ||
+    (selectedResidence ? getResidenceDisplayName(selectedResidence) : "") ||
+    "Search by Residence";
   const dateLabel =
     dateRange.checkIn && dateRange.checkOut
       ? `${formatShortDate(dateRange.checkIn)} - ${formatShortDate(
@@ -128,16 +163,23 @@ function SearchBar({
     ? [
         ...residenceOptions.map((residence) => ({
           id: `residence-${residence.id}`,
-          label: residence.title,
+          label: getResidenceDisplayName(residence),
           meta: residence.location || "Residence",
-          query: residence.title,
+          query: getResidenceDisplayName(residence),
           icon: "residence",
         })),
         ...selectedApartmentOptions.map((apartment) => ({
           id: `apartment-${apartment}`,
           label: apartment,
-          meta: selectedResidence?.title || "Apartment type",
-          query: [selectedResidence?.title, apartment].filter(Boolean).join(" "),
+          meta: selectedResidence
+            ? getResidenceDisplayName(selectedResidence)
+            : "Apartment type",
+          query: [
+            selectedResidence ? getResidenceDisplayName(selectedResidence) : "",
+            apartment,
+          ]
+            .filter(Boolean)
+            .join(" "),
           icon: "apartment",
         })),
         ...shopCategories.map((category) => ({
@@ -368,9 +410,9 @@ function SearchBar({
             >
               <ResidenceThumbnail
                 src={item.image}
-                alt={`${item.title} residence`}
+                alt={`${getResidenceDisplayName(item)} residence`}
               />
-              <span>{getShortResidenceLabel(item.title)}</span>
+              <span>{getResidenceDisplayName(item)}</span>
             </button>
             ))}
         </div>
@@ -415,7 +457,7 @@ function SearchBar({
                     >
                       <ResidenceThumbnail
                         src={item.image}
-                        alt={`${item.title} residence`}
+                        alt={`${getResidenceDisplayName(item)} residence`}
                       />
                       <span>{getResidenceFilterLabel(item)}</span>
                     </button>
@@ -588,10 +630,10 @@ function SearchBar({
                   >
                     <ResidenceThumbnail
                       src={item.image}
-                      alt={`${item.title} residence`}
+                      alt={`${getResidenceDisplayName(item)} residence`}
                     />
                     <span>
-                      <strong>{item.title}</strong>
+                      <strong>{getResidenceDisplayName(item)}</strong>
                       <em>{item.location}</em>
                     </span>
                   </button>
@@ -602,7 +644,7 @@ function SearchBar({
             <div className="search-popover__column search-popover__column--types">
               <h3>
                 {selectedResidence
-                  ? `Apartment at ${selectedResidence.title.replace(" Apartments", "")}`
+                  ? `Apartment at ${getResidenceDisplayName(selectedResidence)}`
                   : "Select a residence"}
               </h3>
 

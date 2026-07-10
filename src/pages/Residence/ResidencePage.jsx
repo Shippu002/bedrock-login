@@ -7,12 +7,40 @@ import "./ResidencePage.css";
 const fallbackResidenceTitles = {
   opebi: "Opebi Residence",
   oduduwa: "Oduduwa Residence",
-  bateye: "Bateye Residence",
+  bateye: "Bateye",
   community: "Community Residence",
-  "obeds-court-ikoyi": "Obed's Court Ikoyi",
-  "patricks-court-ikoyi": "Patrick's Court Ikoyi",
-  "ikate-residence-lekki": "Ikate Residence Lekki",
+  "obeds-court": "Obed's Court",
+  "obeds-court-ikoyi": "Obed's Court",
+  "patricks-court": "Patrick's Court",
+  "patricks-court-ikoyi": "Patrick's Court",
+  "ikate-residence-lekki": "Ikate Residence",
 };
+const residenceDisplayNames = [
+  { key: "bateye", label: "Bateye" },
+  { key: "opebi", label: "Opebi Residence" },
+  { key: "community", label: "Community Residence" },
+  { key: "oduduwa", label: "Oduduwa Residence" },
+  { key: "obeds-court", label: "Obed's Court" },
+  { key: "patricks-court", label: "Patrick's Court" },
+  { key: "ikate", label: "Ikate Residence" },
+];
+
+function slugifyResidenceLabel(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function getResidenceDisplayName(residenceId, fallbackTitle = "") {
+  const lookupValue = slugifyResidenceLabel(`${residenceId} ${fallbackTitle}`);
+  const knownResidence = residenceDisplayNames.find((item) =>
+    lookupValue.includes(item.key),
+  );
+
+  return knownResidence?.label || fallbackTitle || "Residences";
+}
 
 function formatCurrency(value) {
   return `NGN${Number(value || 0).toLocaleString()}`;
@@ -72,10 +100,10 @@ function ResidencePage({
     : [];
   const sourceSections = backendSections;
   const selectedApartmentTitle = String(filters?.apartmentTitle || "").trim();
-  const residenceTitle =
-    backendSections[0]?.title ||
-    fallbackResidenceTitles[residenceId] ||
-    "Residences";
+  const residenceTitle = getResidenceDisplayName(
+    residenceId,
+    backendSections[0]?.title || fallbackResidenceTitles[residenceId],
+  );
   const pageTitle = selectedApartmentTitle
     ? `${selectedApartmentTitle} in ${residenceTitle}`
     : residenceTitle;

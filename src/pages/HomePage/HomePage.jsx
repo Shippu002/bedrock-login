@@ -125,6 +125,34 @@ const SHOP_VARIANT_ALIASES = {
   requests: "requests",
   request: "requests",
 };
+const RESIDENCE_ROUTE_NAMES = [
+  { key: "bateye", label: "Bateye" },
+  { key: "opebi", label: "Opebi Residence" },
+  { key: "community", label: "Community Residence" },
+  { key: "oduduwa", label: "Oduduwa Residence" },
+  { key: "obeds-court", label: "Obed's Court" },
+  { key: "patricks-court", label: "Patrick's Court" },
+  { key: "ikate", label: "Ikate Residence" },
+];
+const AUTH_ROUTE_BY_ENTRY = {
+  login: "/login",
+  signup: "/signup",
+  agentSignup: "/agent-signup",
+  agentPending: "/agent-verification",
+};
+const AUTH_ENTRY_BY_ROUTE = {
+  login: "login",
+  signin: "login",
+  "sign-in": "login",
+  signup: "signup",
+  "sign-up": "signup",
+  register: "signup",
+  "agent-signup": "agentSignup",
+  "agent-sign-up": "agentSignup",
+  "become-agent": "agentSignup",
+  "agent-verification": "agentPending",
+  "verification-pending": "agentPending",
+};
 
 function logFrontendError(...args) {
   if (DEBUG_FRONTEND_ERRORS) {
@@ -144,6 +172,7 @@ function slugifyRouteSegment(value = "") {
   return String(value || "")
     .toLowerCase()
     .trim()
+    .replace(/['’]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
@@ -183,15 +212,39 @@ function getReadableRouteKey(parts = [], fallbackParts = []) {
   return fallbackSlug || "item";
 }
 
+function getKnownResidenceRouteLabel(...values) {
+  const normalizedText = values
+    .filter(Boolean)
+    .map((value) => slugifyRouteSegment(value))
+    .join("-");
+
+  if (!normalizedText) return "";
+
+  return (
+    RESIDENCE_ROUTE_NAMES.find((item) => normalizedText.includes(item.key))
+      ?.label || ""
+  );
+}
+
 function getResidenceRouteKey(residence, fallbackId = "") {
+  const knownLabel = getKnownResidenceRouteLabel(
+    fallbackId,
+    residence?.id,
+    residence?.slug,
+    residence?.title,
+    residence?.name,
+    residence?.raw?.title,
+    residence?.raw?.name,
+  );
+
+  if (knownLabel) return slugifyRouteSegment(knownLabel);
+
   return getReadableRouteKey(
     [
       residence?.title,
       residence?.name,
       residence?.raw?.title,
       residence?.raw?.name,
-      residence?.location,
-      residence?.address,
     ],
     [
       residence?.slug,
@@ -319,6 +372,13 @@ function parseAppRoute(pathname = "/") {
 
   if (!root) return { page: "home" };
 
+  if (AUTH_ENTRY_BY_ROUTE[root]) {
+    return {
+      page: "auth",
+      authEntry: AUTH_ENTRY_BY_ROUTE[root],
+    };
+  }
+
   if (root === "residence" || root === "residences") {
     return {
       page: "residence",
@@ -374,6 +434,8 @@ function parseAppRoute(pathname = "/") {
 
 function buildAppPath({
   activePage,
+  isAuthModalOpen,
+  authEntry,
   selectedResidence,
   selectedResidenceId,
   selectedApartment,
@@ -382,6 +444,10 @@ function buildAppPath({
   shopVariant,
   selectedFoodItem,
 }) {
+  if (isAuthModalOpen) {
+    return AUTH_ROUTE_BY_ENTRY[authEntry] || "/login";
+  }
+
   if (activePage === "residence") {
     return selectedResidence || selectedResidenceId
       ? `/residences/${getResidenceRouteSegment(
@@ -2345,6 +2411,12 @@ function HomePage() {
     const residenceMatch = backendResidenceOptions.find((residence) =>
       recordMatchesRouteKey(residence, routeKey, [
         getResidenceRouteKey(residence, residence.id),
+        getKnownResidenceRouteLabel(
+          residence.id,
+          residence.slug,
+          residence.title,
+          residence.name,
+        ),
         residence.location,
         residence.address,
       ]),
@@ -2355,6 +2427,11 @@ function HomePage() {
     const sectionMatch = backendListingSections.find((section) =>
       recordMatchesRouteKey(section, routeKey, [
         getResidenceRouteKey(section, section.residenceId || section.id),
+        getKnownResidenceRouteLabel(
+          section.residenceId,
+          section.id,
+          section.title,
+        ),
         section.residenceId,
         section.title,
         section.location,
@@ -2750,7 +2827,19 @@ function HomePage() {
       setSelectedFoodItem(null);
       setSelectedResidenceId("");
       setApartmentReturnPage("home");
+      setIsAuthModalOpen(false);
       return true;
+    }
+
+    if (route.page === "auth") {
+      setAuthEntry(route.authEntry || "login");
+      setAuthModalKey((current) => current + 1);
+      setIsAuthModalOpen(true);
+      return true;
+    }
+
+    if (route.page !== "profile") {
+      setIsAuthModalOpen(false);
     }
 
     if (route.page === "residence") {
@@ -2865,6 +2954,7 @@ function HomePage() {
       setProfileInitialView(route.profileView || "profile");
 
       if (currentUser && getAuthToken()) {
+        setIsAuthModalOpen(false);
         setActivePage("profile");
       } else {
         openLogin();
@@ -2948,6 +3038,8 @@ function HomePage() {
     writeBrowserRoute(
       buildAppPath({
         activePage,
+        isAuthModalOpen,
+        authEntry,
         selectedResidence: selectedResidenceForRoute,
         selectedResidenceId,
         selectedApartment,
@@ -2959,7 +3051,9 @@ function HomePage() {
     );
   }, [
     activePage,
+    authEntry,
     profileInitialView,
+    isAuthModalOpen,
     selectedApartment,
     selectedFoodItem,
     selectedLegalDocumentId,

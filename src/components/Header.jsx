@@ -6,6 +6,54 @@ import ProfileMenu from "./ProfileMenu";
 import { shopCategories as defaultShopCategories } from "../data/shopCategories";
 import "../styles/header.css";
 
+const RESIDENCE_DISPLAY_NAMES = [
+  { key: "bateye", label: "Bateye" },
+  { key: "opebi", label: "Opebi Residence" },
+  { key: "community", label: "Community Residence" },
+  { key: "oduduwa", label: "Oduduwa Residence" },
+  { key: "obeds-court", label: "Obed's Court" },
+  { key: "patricks-court", label: "Patrick's Court" },
+  { key: "ikate", label: "Ikate Residence" },
+];
+
+function slugifyResidenceText(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function getResidenceDisplayName(residence) {
+  const lookupValue = slugifyResidenceText(
+    [
+      residence?.id,
+      residence?.slug,
+      residence?.title,
+      residence?.name,
+      residence?.raw?.title,
+      residence?.raw?.name,
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
+  const knownResidence = RESIDENCE_DISPLAY_NAMES.find((item) =>
+    lookupValue.includes(item.key),
+  );
+
+  if (knownResidence) return knownResidence.label;
+
+  return String(residence?.title || residence?.name || "Residence")
+    .replace(/\bApartments?\b/gi, "Residence")
+    .replace(/\bIkeja\b/gi, "")
+    .replace(/\bGRA\b/gi, "")
+    .replace(/\bYaba\b/gi, "")
+    .replace(/\bIkoyi\b/gi, "")
+    .replace(/\bLekki\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function ResidenceThumbnail({ src, alt }) {
   const [hasImage, setHasImage] = useState(Boolean(src));
 
@@ -140,10 +188,10 @@ function Dropdown({
                 >
                   <ResidenceThumbnail
                     src={item.image}
-                    alt={`${item.title} residence`}
+                    alt={`${getResidenceDisplayName(item)} residence`}
                   />
                   <span>
-                    <strong>{item.title}</strong>
+                    <strong>{getResidenceDisplayName(item)}</strong>
                     <em>{item.location}</em>
                   </span>
                 </button>
@@ -154,7 +202,7 @@ function Dropdown({
           <div className="nav-mega__column nav-mega__column--types">
             <h3>
               {selectedResidence
-                ? `Apartment at ${selectedResidence.title.replace(" Apartments", "")}`
+                ? `Apartment at ${getResidenceDisplayName(selectedResidence)}`
                 : "Select a residence"}
             </h3>
 

@@ -24,24 +24,20 @@ const defaultLegalLinks = [
 
 const fallbackResidenceLinks = [
   { label: "Bateye", type: "residence", value: "bateye" },
-  { label: "Opebi", type: "residence", value: "opebi" },
-  { label: "Community", type: "residence", value: "community" },
-  { label: "Oduduwa", type: "residence", value: "oduduwa" },
-  {
-    label: "Obed's Court",
-    type: "residence",
-    value: "obeds-court-ikoyi",
-  },
-  {
-    label: "Patrick's Court",
-    type: "residence",
-    value: "patricks-court-ikoyi",
-  },
-  {
-    label: "Ikate",
-    type: "residence",
-    value: "ikate-residence-lekki",
-  },
+  { label: "Opebi Residence", type: "residence", value: "opebi" },
+  { label: "Community Residence", type: "residence", value: "community" },
+  { label: "Oduduwa Residence", type: "residence", value: "oduduwa" },
+  { label: "Obed's Court", type: "residence", value: "obeds-court" },
+  { label: "Patrick's Court", type: "residence", value: "patricks-court" },
+];
+const residenceDisplayNames = [
+  { key: "bateye", label: "Bateye" },
+  { key: "opebi", label: "Opebi Residence" },
+  { key: "community", label: "Community Residence" },
+  { key: "oduduwa", label: "Oduduwa Residence" },
+  { key: "obeds-court", label: "Obed's Court" },
+  { key: "patricks-court", label: "Patrick's Court" },
+  { key: "ikate", label: "Ikate Residence" },
 ];
 
 const baseFooterColumns = [
@@ -138,12 +134,29 @@ function normalizeFooterResidenceKey(label, value) {
 
   return String(value || label || "")
     .toLowerCase()
+    .replace(/['’]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
 
+function slugifyFooterResidenceLabel(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function getKnownFooterResidence(label, key) {
+  return residenceDisplayNames.find((item) =>
+    String(`${key} ${label}`).toLowerCase().includes(item.key),
+  );
+}
+
 function getFooterResidenceLabel(label, key) {
-  if (key === "opebi") return "Opebi";
+  const knownResidence = getKnownFooterResidence(label, key);
+
+  if (knownResidence) return knownResidence.label;
 
   return String(label || "")
     .replace(/\bResidence\b/gi, "")
@@ -155,6 +168,14 @@ function getFooterResidenceLabel(label, key) {
     .replace(/\bLekki\b/gi, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function getFooterResidenceValue(label, key) {
+  const knownResidence = getKnownFooterResidence(label, key);
+
+  return knownResidence
+    ? slugifyFooterResidenceLabel(knownResidence.label)
+    : key;
 }
 
 function getFooterResidenceLinks(residences = []) {
@@ -176,7 +197,7 @@ function getFooterResidenceLinks(residences = []) {
     links.push({
       label: getFooterResidenceLabel(label, key),
       type: "residence",
-      value: key === "opebi" ? "opebi" : value,
+      value: getFooterResidenceValue(label, key || value),
     });
   });
 
