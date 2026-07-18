@@ -4,8 +4,11 @@ import Header from "../../components/Header";
 import SearchBar from "../../components/SearchBar";
 import ListingSection from "../../components/ListingSection";
 import AppImage from "../../components/AppImage";
+import BrandLoader from "../../components/BrandLoader";
+import PromoBanner from "../../components/PromoBanner";
 import ToastHost from "../../components/ToastHost";
 import { shopCategories } from "../../data/shopCategories";
+import { homePromotions } from "../../data/promotions";
 import Footer from "../../components/Footer";
 import AuthModal from "../../components/AuthModal";
 import ProfilePage from "../Profile/ProfilePage";
@@ -1323,6 +1326,7 @@ function HomePage() {
   });
   const [activePage, setActivePage] = useState("home");
   const [selectedLegalDocumentId, setSelectedLegalDocumentId] = useState("");
+  const [legalReturnPage, setLegalReturnPage] = useState("home");
   const [profileInitialView, setProfileInitialView] = useState("profile");
   const [selectedResidenceId, setSelectedResidenceId] = useState("opebi");
   const [apartmentFilters, setApartmentFilters] = useState(
@@ -2796,7 +2800,51 @@ function HomePage() {
     setActivePage("profile");
   }
 
-  function showLegal(documentId = "") {
+  function getLegalReturnLabel() {
+    if (
+      ["apartment", "payment", "pending", "confirmed"].includes(
+        legalReturnPage,
+      )
+    ) {
+      return "Back to booking";
+    }
+
+    if (
+      ["foodDetail", "foodReview", "foodPayment", "foodStatus"].includes(
+        legalReturnPage,
+      )
+    ) {
+      return "Back to order";
+    }
+
+    if (legalReturnPage === "residence") return "Back to residence";
+    if (["shopDirectory", "shopFood"].includes(legalReturnPage)) {
+      return "Back to shop";
+    }
+    if (legalReturnPage === "profile") return "Back to account";
+
+    return "Back to home";
+  }
+
+  function returnFromLegal() {
+    const returnPage =
+      legalReturnPage && legalReturnPage !== "legal" ? legalReturnPage : "home";
+
+    setSelectedLegalDocumentId("");
+    setActivePage(returnPage);
+
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      });
+    }
+  }
+
+  function showLegal(documentId = "", returnPage = activePage) {
+    const nextReturnPage =
+      returnPage && returnPage !== "legal" ? returnPage : "home";
+
+    setLegalReturnPage(nextReturnPage);
     setSelectedLegalDocumentId(documentId);
     setActivePage("legal");
 
@@ -2964,6 +3012,7 @@ function HomePage() {
     }
 
     if (route.page === "legal") {
+      setLegalReturnPage("home");
       setSelectedLegalDocumentId(route.documentId || "");
       setActivePage("legal");
       return true;
@@ -4745,12 +4794,18 @@ function HomePage() {
               />
             )}
 
+            {activePage === "home" && (
+              <PromoBanner promotions={homePromotions} />
+            )}
+
             {activePage === "legal" ? (
               <LegalPage
                 key={selectedLegalDocumentId || "legal-index"}
                 legalDocuments={profileResources.legalDocuments}
                 initialDocumentId={selectedLegalDocumentId}
-                onBack={showHome}
+                onBack={legalReturnPage === "home" ? showHome : returnFromLegal}
+                backLabel={getLegalReturnLabel()}
+                returnToSourceOnDetail={legalReturnPage !== "home"}
               />
             ) : activePage === "residence" ? (
               <ResidencePage
@@ -4904,11 +4959,17 @@ function HomePage() {
                 onFinishOrder={finishFoodOrderFlow}
               />
             ) : (
-              <section className="home-page__listings">
+              <section
+                className={`home-page__listings ${
+                  isApartmentsLoading ? "home-page__listings--loading" : ""
+                }`.trim()}
+              >
                 {isApartmentsLoading ? (
                   <div className="home-page__empty home-page__empty--loading">
-                    <h2>Loading apartments</h2>
-                    <p>Getting the latest apartments from Bedrock.</p>
+                    <BrandLoader
+                      title="Loading apartments"
+                      message="Getting the latest apartments from Bedrock."
+                    />
                   </div>
                 ) : filteredListingSections.length > 0 ? (
                   filteredListingSections.map((section) => (

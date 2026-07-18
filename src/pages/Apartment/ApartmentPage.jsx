@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FiArrowLeft,
   FiCalendar,
@@ -17,6 +17,10 @@ import {
 import { FaUniversity } from "react-icons/fa";
 import { LuBedSingle } from "react-icons/lu";
 import AppImage from "../../components/AppImage";
+import {
+  BOOKING_TOUR_EVENT,
+  startBookingTour,
+} from "../../services/bookingTour";
 import {
   addDays,
   calculateBookingTotals,
@@ -382,6 +386,32 @@ function ApartmentPage({
     }
   }
 
+  useEffect(() => {
+    if (mode !== "payment") return undefined;
+
+    const timer = window.setTimeout(() => {
+      startBookingTour({ force: false });
+    }, 650);
+
+    return () => window.clearTimeout(timer);
+  }, [apartment?.id, mode]);
+
+  useEffect(() => {
+    function handleTourRequest(event) {
+      const force = event.detail?.force !== false;
+
+      window.setTimeout(() => {
+        startBookingTour({ force });
+      }, 120);
+    }
+
+    window.addEventListener(BOOKING_TOUR_EVENT, handleTourRequest);
+
+    return () => {
+      window.removeEventListener(BOOKING_TOUR_EVENT, handleTourRequest);
+    };
+  }, []);
+
   if (!apartment) return null;
 
   const amenityItems = getAmenityItems(apartment);
@@ -423,8 +453,21 @@ function ApartmentPage({
     }
   }
 
-  function handleMobileBookClick() {
+  function handleBookClick() {
     runPendingAction("book", onOpenPayment);
+  }
+
+  function handleMobileTourHelpClick() {
+    runPendingAction("book", async () => {
+      await onOpenPayment?.();
+      window.setTimeout(() => {
+        startBookingTour({ force: true });
+      }, 450);
+    });
+  }
+
+  function handleTourHelpClick() {
+    startBookingTour({ force: true });
   }
 
   async function handleShareApartment() {
@@ -542,6 +585,17 @@ function ApartmentPage({
                 </strong>
               </div>
 
+              <div className="apartment-booking-card__header">
+                <span>Booking details</span>
+                <button
+                  type="button"
+                  className="apartment-tour-help"
+                  onClick={handleTourHelpClick}
+                >
+                  Help
+                </button>
+              </div>
+
               <div className="apartment-form-group">
                 <label>Guest Name</label>
                 <input
@@ -582,7 +636,10 @@ function ApartmentPage({
                 <span>Use my name</span>
               </label>
 
-              <div className="apartment-form-group">
+              <div
+                className="apartment-form-group"
+                data-booking-tour="check-in"
+              >
                 <label>Check-in-Date</label>
                 <div
                   className="apartment-select apartment-select--compact"
@@ -602,7 +659,10 @@ function ApartmentPage({
                 </div>
               </div>
 
-              <div className="apartment-form-group">
+              <div
+                className="apartment-form-group"
+                data-booking-tour="check-out"
+              >
                 <label>Check-out-Date</label>
                 <div
                   className="apartment-select apartment-select--compact"
@@ -622,7 +682,10 @@ function ApartmentPage({
                 </div>
               </div>
 
-              <div className="apartment-form-group">
+              <div
+                className="apartment-form-group"
+                data-booking-tour="guests"
+              >
                 <label>Number of Guests</label>
                 <div className="apartment-guest-input apartment-guest-input--compact">
                   <span>Number of guests</span>
@@ -748,7 +811,10 @@ function ApartmentPage({
                 </div>
               )}
 
-              <div className="apartment-policy-row apartment-policy-row--compact">
+              <div
+                className="apartment-policy-row apartment-policy-row--compact"
+                data-booking-tour="policy"
+              >
                 <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
                 <Toggle
                   checked={bookingDetails.agreedToPolicy}
@@ -764,6 +830,7 @@ function ApartmentPage({
               <button
                 type="button"
                 className="apartment-primary-button"
+                data-booking-tour="book-button"
                 onClick={() => runPendingAction("payment", onPaymentContinue)}
                 disabled={
                   !canSubmitBooking ||
@@ -914,6 +981,7 @@ function ApartmentPage({
                   loading="eager"
                   draggable={false}
                 />
+                <span className="apartment-gallery__loader" aria-hidden="true" />
               </div>
 
               <div className="apartment-gallery__grid">
@@ -938,6 +1006,7 @@ function ApartmentPage({
                       fallbackSrc=""
                       alt={`${apartment.title} ${index + 2}`}
                     />
+                    <span className="apartment-gallery__loader" aria-hidden="true" />
                   </button>
                 ))}
               </div>
@@ -1080,7 +1149,18 @@ function ApartmentPage({
           </div>
 
           <aside className="apartment-booking-card" ref={bookingCardRef}>
-            <div className="apartment-form-group">
+            <div className="apartment-booking-card__header">
+              <span>Booking details</span>
+              <button
+                type="button"
+                className="apartment-tour-help"
+                onClick={handleTourHelpClick}
+              >
+                Help
+              </button>
+            </div>
+
+            <div className="apartment-form-group" data-booking-tour="check-in">
               <label>Check-in-Date</label>
               <div
                 className="apartment-select"
@@ -1100,7 +1180,7 @@ function ApartmentPage({
               </div>
             </div>
 
-            <div className="apartment-form-group">
+            <div className="apartment-form-group" data-booking-tour="check-out">
               <label>Check-out-Date</label>
               <div
                 className="apartment-select"
@@ -1120,7 +1200,7 @@ function ApartmentPage({
               </div>
             </div>
 
-            <div className="apartment-form-group">
+            <div className="apartment-form-group" data-booking-tour="guests">
               <label>Number of Guests</label>
               <div className="apartment-guest-input">
                 <span>Number of guests</span>
@@ -1150,7 +1230,7 @@ function ApartmentPage({
               )}
             </div>
 
-            <div className="apartment-policy-row">
+            <div className="apartment-policy-row" data-booking-tour="policy">
               <PolicyAgreementText onOpenPolicy={onOpenPolicy} />
               <Toggle
                 checked={bookingDetails.agreedToPolicy}
@@ -1172,7 +1252,8 @@ function ApartmentPage({
             <button
               type="button"
               className="apartment-primary-button"
-              onClick={() => runPendingAction("book", onOpenPayment)}
+              data-booking-tour="book-button"
+              onClick={handleBookClick}
               disabled={
                 !canContinueBooking ||
                 isCheckingQuote ||
@@ -1204,8 +1285,17 @@ function ApartmentPage({
 
           <button
             type="button"
+            className="apartment-tour-help apartment-tour-help--mobile"
+            onClick={handleMobileTourHelpClick}
+            disabled={pendingAction === "book"}
+          >
+            Help
+          </button>
+
+          <button
+            type="button"
             className="apartment-primary-button"
-            onClick={handleMobileBookClick}
+            onClick={handleBookClick}
             disabled={pendingAction === "book"}
           >
             {pendingAction === "book" ? "Checking..." : "Book Apartment"}

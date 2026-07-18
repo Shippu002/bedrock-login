@@ -13,6 +13,7 @@ import {
 } from "react-icons/fi";
 import { FaUniversity } from "react-icons/fa";
 import AppImage from "../../components/AppImage";
+import BrandLoader from "../../components/BrandLoader";
 import {
   calculateFoodOrderTotals,
   formatFoodDeliveryTime,
@@ -657,12 +658,19 @@ export default function ShopFoodPage({
       <section className="shop-food-flow">
         <div className="shop-food-panel">
           <div className="shop-food-empty">
-            <strong>{isLoading ? "Loading item" : "Item unavailable"}</strong>
-            <p>
-              {isLoading
-                ? "Getting the latest item details from Bedrock."
-                : loadError || "Please go back and choose an available item."}
-            </p>
+            {isLoading ? (
+              <BrandLoader
+                title="Loading item"
+                message="Getting the latest item details from Bedrock."
+              />
+            ) : (
+              <>
+                <strong>Item unavailable</strong>
+                <p>
+                  {loadError || "Please go back and choose an available item."}
+                </p>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -1154,8 +1162,10 @@ export default function ShopFoodPage({
 
         {isLoading ? (
           <div className="shop-food-empty">
-            <strong>Loading {pageContent.title.toLowerCase()}</strong>
-            <p>Getting the latest items from Bedrock.</p>
+            <BrandLoader
+              title={`Loading ${pageContent.title.toLowerCase()}`}
+              message="Getting the latest items from Bedrock."
+            />
           </div>
         ) : visibleItems.length > 0 ? (
           <div className="shop-food-grid">

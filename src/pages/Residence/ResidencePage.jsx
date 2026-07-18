@@ -1,5 +1,6 @@
 import { FiChevronLeft, FiMapPin, FiStar, FiUsers } from "react-icons/fi";
 import AppImage from "../../components/AppImage";
+import BrandLoader from "../../components/BrandLoader";
 import ListingSection from "../../components/ListingSection";
 import { filterListingSections } from "../../utils/apartmentFilters";
 import "./ResidencePage.css";
@@ -151,8 +152,10 @@ function ResidencePage({
       <div className="residence-page__sections">
         {isLoading ? (
           <div className="residence-page__empty">
-            <h2>Loading apartments</h2>
-            <p>Getting the latest apartments for this residence.</p>
+            <BrandLoader
+              title="Loading apartments"
+              message="Getting the latest apartments for this residence."
+            />
           </div>
         ) : filteredSections.length > 0 ? (
           filteredSections.map((section) => (
@@ -176,8 +179,10 @@ function ResidencePage({
       <div className="residence-mobile-list">
         {isLoading ? (
           <div className="residence-mobile-empty">
-            <h2>Loading apartments</h2>
-            <p>Getting the latest apartments for this residence.</p>
+            <BrandLoader
+              title="Loading apartments"
+              message="Getting the latest apartments for this residence."
+            />
           </div>
         ) : mobileApartments.length > 0 ? (
           mobileApartments.map((item) => (

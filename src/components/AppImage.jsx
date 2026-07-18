@@ -7,11 +7,18 @@ export default function AppImage({
   loading = "lazy",
   decoding = "async",
   onError,
+  onLoad,
+  className = "",
   ...imageProps
 }) {
   const requestedSrc = src || fallbackSrc;
   const [failedSrc, setFailedSrc] = useState("");
+  const [loadedSrc, setLoadedSrc] = useState("");
   const currentSrc = failedSrc === requestedSrc ? fallbackSrc : requestedSrc;
+  const isLoaded = currentSrc && loadedSrc === currentSrc;
+  const imageClassName = `${className} ${
+    isLoaded ? "is-loaded" : "is-loading"
+  }`.trim();
 
   function handleImageError(event) {
     onError?.(event);
@@ -21,10 +28,16 @@ export default function AppImage({
     }
   }
 
+  function handleImageLoad(event) {
+    setLoadedSrc(currentSrc);
+    onLoad?.(event);
+  }
+
   if (!currentSrc) {
     return (
       <span
         {...imageProps}
+        className={imageClassName}
         role={alt ? "img" : undefined}
         aria-label={alt || undefined}
       />
@@ -34,11 +47,13 @@ export default function AppImage({
   return (
     <img
       {...imageProps}
+      className={imageClassName}
       src={currentSrc}
       alt={alt}
       loading={loading}
       decoding={decoding}
       onError={handleImageError}
+      onLoad={handleImageLoad}
     />
   );
 }

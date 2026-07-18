@@ -1,6 +1,7 @@
 import { FiMapPin, FiStar, FiUsers, FiWifi } from "react-icons/fi";
 import { LuBedSingle } from "react-icons/lu";
 import AppImage from "./AppImage";
+import { requestBookingTour } from "../services/bookingTour";
 import "../styles/listing-card.css";
 
 function ListingCard({
@@ -13,6 +14,9 @@ function ListingCard({
 
   function handleSelect() {
     onApartmentSelect?.(item);
+    window.setTimeout(() => {
+      requestBookingTour({ force: false });
+    }, 700);
   }
 
   function handleKeyDown(event) {
@@ -40,6 +44,7 @@ function ListingCard({
           alt={item.title}
           className="listing-card__image"
         />
+        <span className="listing-card__image-loader" aria-hidden="true" />
 
         {showAvailableBadge && (
           <span className="listing-card__badge">Available</span>

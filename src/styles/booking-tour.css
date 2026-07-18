@@ -1,0 +1,54 @@
+.bedrock-driver-popover.driver-popover {
+  max-width: min(360px, calc(100vw - 28px));
+  border-radius: 16px;
+  padding: 18px;
+  color: #101928;
+  font-family: "Urbanist", Arial, sans-serif;
+  box-shadow: 0 22px 48px rgba(16, 25, 40, 0.22);
+}
+
+.bedrock-driver-popover .driver-popover-title {
+  color: #202a45;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.bedrock-driver-popover .driver-popover-description {
+  color: #667085;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.bedrock-driver-popover .driver-popover-progress-text {
+  color: #98a2b3;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.bedrock-driver-popover .driver-popover-footer button {
+  border-radius: 999px;
+  padding: 8px 14px;
+  border: 1px solid #ece8e1;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-weight: 800;
+  text-shadow: none;
+}
+
+.bedrock-driver-popover .driver-popover-next-btn,
+.bedrock-driver-popover .driver-popover-done-btn {
+  background: #202a45;
+  color: #ffffff;
+  border-color: #202a45;
+}
+
+.bedrock-driver-popover .driver-popover-prev-btn {
+  background: #ffffff;
+  color: #202a45;
+}
+
+@media (max-width: 640px) {
+  .bedrock-driver-popover.driver-popover {
+    padding: 16px;
+  }
+}

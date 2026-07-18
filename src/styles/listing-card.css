@@ -20,6 +20,8 @@
 }
 
 .listing-card__image {
+  position: relative;
+  z-index: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -27,26 +29,85 @@
   background:
     linear-gradient(135deg, rgba(197, 138, 104, 0.16), rgba(32, 42, 69, 0.08)),
     #f7f4f1;
+  transition: opacity 180ms ease;
 }
 
-.listing-card__image:not(img)::before {
+.listing-card__image.is-loading {
+  opacity: 0;
+}
+
+.listing-card__image.is-loaded {
+  opacity: 1;
+}
+
+.listing-card__image-loader {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0) 28%,
+      rgba(255, 255, 255, 0.34) 42%,
+      rgba(255, 255, 255, 0) 56%
+    ),
+    linear-gradient(135deg, rgba(197, 138, 104, 0.14), rgba(32, 42, 69, 0.07)),
+    #f7f4f1;
+  background-size: 220% 100%, 100% 100%, 100% 100%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  transition:
+    opacity 180ms ease,
+    visibility 180ms ease;
+  animation: listing-card-loader-shimmer 1.55s ease-in-out infinite;
+}
+
+.listing-card__image-loader::before {
   content: "";
-  width: 42px;
-  height: 42px;
-  border-radius: 14px 14px 10px 10px;
-  background: #202a45;
-  box-shadow: 0 -14px 0 -6px #c58a68;
+  width: clamp(58px, 22%, 78px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background:
+    url("/favicon.svg") center / 58% no-repeat,
+    rgba(255, 255, 255, 0.82);
+  box-shadow: 0 16px 30px rgba(16, 25, 40, 0.08);
   display: block;
+  opacity: 0.86;
+  animation: listing-card-placeholder-pulse 1.8s ease-in-out infinite;
 }
 
-.listing-card__image:not(img) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.listing-card__image.is-loaded + .listing-card__image-loader {
+  opacity: 0;
+  visibility: hidden;
+}
+
+@keyframes listing-card-placeholder-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.78;
+  }
+
+  50% {
+    transform: scale(1.04);
+    opacity: 0.96;
+  }
+}
+
+@keyframes listing-card-loader-shimmer {
+  0% {
+    background-position: 180% 0, 0 0, 0 0;
+  }
+
+  100% {
+    background-position: -60% 0, 0 0, 0 0;
+  }
 }
 
 .listing-card__badge {
   position: absolute;
+  z-index: 2;
   top: 12px;
   left: 12px;
   display: inline-flex;

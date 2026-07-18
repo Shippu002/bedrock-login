@@ -18,7 +18,7 @@ function scrollLegalPageToTop() {
   });
 }
 
-function LegalDetail({ document, onBack }) {
+function LegalDetail({ document, onBack, backLabel }) {
   const paragraphs = String(document?.body || "")
     .split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())
@@ -29,7 +29,7 @@ function LegalDetail({ document, onBack }) {
     <section className="public-legal-card public-legal-detail">
       <button type="button" className="public-legal-back" onClick={onBack}>
         <FiArrowLeft />
-        <span>Back to legal documents</span>
+        <span>{backLabel}</span>
       </button>
 
       <div className="public-legal-icon">
@@ -70,6 +70,8 @@ export default function LegalPage({
   legalDocuments = [],
   initialDocumentId = "",
   onBack,
+  backLabel = "Back to home",
+  returnToSourceOnDetail = false,
 }) {
   const documents = useMemo(
     () => mergeLegalDocuments(legalDocuments),
@@ -102,13 +104,16 @@ export default function LegalPage({
         {selectedDocument ? (
           <LegalDetail
             document={selectedDocument}
-            onBack={handleBackToIndex}
+            onBack={returnToSourceOnDetail ? onBack : handleBackToIndex}
+            backLabel={
+              returnToSourceOnDetail ? backLabel : "Back to legal documents"
+            }
           />
         ) : (
           <section className="public-legal-card public-legal-index">
             <button type="button" className="public-legal-back" onClick={onBack}>
               <FiArrowLeft />
-              <span>Back to home</span>
+              <span>{backLabel}</span>
             </button>
 
             <div className="public-legal-index__heading">

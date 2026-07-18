@@ -34,6 +34,14 @@
   border: 1px solid rgba(197, 138, 104, 0.08);
 }
 
+.home-page__listings--loading {
+  min-height: 360px;
+  background: transparent;
+  border-color: transparent;
+  border-radius: 0;
+  padding: 82px 24px 64px;
+}
+
 .home-page__empty {
   min-height: 260px;
   display: flex;
@@ -42,6 +50,10 @@
   justify-content: center;
   gap: 12px;
   text-align: center;
+}
+
+.home-page__listings--loading .home-page__empty {
+  min-height: 0;
 }
 
 .home-page__empty h2 {
