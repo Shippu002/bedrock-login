@@ -206,6 +206,25 @@ function getNumberValue(value, fallback = 0) {
   return Number.isFinite(parsedValue) ? parsedValue : fallback;
 }
 
+// Returns the first argument that is a finite number (a real backend 0 counts),
+// falling back to the trailing default only when every field is missing/blank.
+// Unlike getPositiveNumber this does not treat 0 as "unset", so a genuine
+// backend caution fee of 0 is respected instead of collapsing to the default.
+function getDefinedNumber(...values) {
+  const fallback = values.length > 0 ? values[values.length - 1] : 0;
+  const candidates = values.slice(0, -1);
+
+  for (const value of candidates) {
+    if (value === undefined || value === null || value === "") continue;
+
+    const parsed = getNumberValue(value, NaN);
+
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return getNumberValue(fallback, 0);
+}
+
 function normalizeResidenceId(value, name = "") {
   const source = String(name || value || "").toLowerCase();
 
@@ -366,7 +385,7 @@ export function normalizeBackendApartment(item = {}, index = 0) {
         item.amount ||
         0,
     ),
-    cautionFee: getPositiveNumber(
+    cautionFee: getDefinedNumber(
       item.caution_fee,
       item.cautionFee,
       item.refundable_caution_fee,
@@ -488,6 +507,29 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
     booking.amount ??
     fallback.totalAmount ??
     0;
+  const couponDiscount =
+    getPositiveNumber(
+      booking.coupon_discount,
+      booking.couponDiscount,
+      booking.discount_amount,
+      booking.discountAmount,
+      booking.discount,
+      booking.coupon?.discount_amount,
+      booking.coupon?.discountAmount,
+      booking.coupon?.discount,
+      booking.coupon?.amount,
+      booking.applied_coupon?.discount_amount,
+      booking.applied_coupon?.discountAmount,
+      booking.appliedCoupon?.discount_amount,
+      fallback.couponDiscount,
+    ) || 0;
+  const couponCode =
+    booking.coupon_code ||
+    booking.couponCode ||
+    booking.coupon?.code ||
+    booking.applied_coupon?.code ||
+    fallback.couponCode ||
+    "";
 
   return {
     ...fallback,
@@ -576,6 +618,8 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
         fallback.rockPointValue ||
         0,
     ),
+    couponCode,
+    couponDiscount,
     totalAmount: Number(totalAmount),
     status,
     createdAt:
@@ -780,11 +824,13 @@ export function normalizeBackendReview(item = {}, index = 0) {
 
 export function normalizeBackendPricing(response, fallback = {}) {
   const payload = extractObject(response);
+  const isPlainObject = (value) =>
+    value && typeof value === "object" && !Array.isArray(value);
+  // Only descend into a nested object. The API includes a `breakdown` ARRAY,
+  // so selecting it here would make every `pricing.*` lookup read undefined and
+  // silently drop the coupon discount to 0.
   const pricing =
-    payload.pricing ||
-    payload.summary ||
-    payload.quote ||
-    payload.breakdown ||
+    [payload.pricing, payload.summary, payload.quote].find(isPlainObject) ||
     payload;
   const subtotal = getPositiveNumber(
     pricing.subtotal,
@@ -793,7 +839,7 @@ export function normalizeBackendPricing(response, fallback = {}) {
     fallback.subtotal,
   );
   const taxesAndFees = 0;
-  const cautionFee = getPositiveNumber(
+  const cautionFee = getDefinedNumber(
     pricing.caution_fee,
     pricing.cautionFee,
     pricing.refundable_caution_fee,

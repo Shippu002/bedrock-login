@@ -165,6 +165,7 @@ function ApartmentPage({
   onBackToPayment,
   onMoveToConfirmed,
   onFinishBooking,
+  onApplyCoupon,
   quote,
   isInitiallySaved = false,
   onToggleFavorite,
@@ -717,15 +718,36 @@ function ApartmentPage({
 
               <div className="apartment-form-group">
                 <label>Enter Promo</label>
-                <input
-                  type="text"
-                  className="apartment-text-input"
-                  placeholder="Type promo code"
-                  value={bookingDetails.promo}
-                  onChange={(event) =>
-                    onBookingChange("promo", event.target.value.toUpperCase())
-                  }
-                />
+                <div className="apartment-coupon-input-row">
+                  <input
+                    type="text"
+                    className="apartment-text-input"
+                    placeholder="Type promo code"
+                    value={bookingDetails.promo}
+                    onChange={(event) =>
+                      onBookingChange("promo", event.target.value.toUpperCase())
+                    }
+                  />
+                  {onApplyCoupon && (
+                    <button
+                      type="button"
+                      className="apartment-coupon-apply"
+                      onClick={() => runPendingAction("coupon", onApplyCoupon)}
+                      disabled={
+                        !promoCode ||
+                        !canSubmitBooking ||
+                        isCheckingQuote ||
+                        pendingAction === "coupon"
+                      }
+                    >
+                      {pendingAction === "coupon" || quote?.loading
+                        ? "Applying..."
+                        : hasCouponDiscount
+                          ? "Applied"
+                          : "Apply"}
+                    </button>
+                  )}
+                </div>
                 {couponFeedback && (
                   <p
                     className={`apartment-coupon-feedback ${

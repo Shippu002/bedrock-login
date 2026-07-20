@@ -1870,57 +1870,62 @@ function HomePage() {
     let ignoreQuoteResponse = false;
     const couponCode = String(bookingDetails.promo || "").trim();
 
-    Promise.allSettled([
-      apartmentsApi.checkAvailability({
-        apartmentId: selectedApartment.backendId,
-        checkIn: bookingDetails.checkIn,
-        checkOut: bookingDetails.checkOut,
-      }),
-      apartmentsApi.calculatePricing({
-        apartmentId: selectedApartment.backendId,
-        checkIn: bookingDetails.checkIn,
-        checkOut: bookingDetails.checkOut,
-        guests: bookingDetails.guests,
-        couponCode,
-      }),
-    ]).then(([availabilityResult, pricingResult]) => {
-      if (ignoreQuoteResponse) return;
+    // Debounce so typing a promo code (or nudging guests) fires a single
+    // calculate-pricing request once input settles instead of one per keystroke.
+    const quoteTimerId = setTimeout(() => {
+      Promise.allSettled([
+        apartmentsApi.checkAvailability({
+          apartmentId: selectedApartment.backendId,
+          checkIn: bookingDetails.checkIn,
+          checkOut: bookingDetails.checkOut,
+        }),
+        apartmentsApi.calculatePricing({
+          apartmentId: selectedApartment.backendId,
+          checkIn: bookingDetails.checkIn,
+          checkOut: bookingDetails.checkOut,
+          guests: bookingDetails.guests,
+          couponCode,
+        }),
+      ]).then(([availabilityResult, pricingResult]) => {
+        if (ignoreQuoteResponse) return;
 
-      const fallbackPricing = calculateBookingTotals(
-        selectedApartmentPrice,
-        bookingDetails.checkIn,
-        bookingDetails.checkOut,
-        shouldUseBookingRockPoints,
-        {
-          cautionFee: selectedApartmentCautionFee,
-          availableRockPointValue,
-          rockPointValue: availableRockPointValue,
-          useRockPoints: shouldUseBookingRockPoints,
-        },
-      );
+        const fallbackPricing = calculateBookingTotals(
+          selectedApartmentPrice,
+          bookingDetails.checkIn,
+          bookingDetails.checkOut,
+          shouldUseBookingRockPoints,
+          {
+            cautionFee: selectedApartmentCautionFee,
+            availableRockPointValue,
+            rockPointValue: availableRockPointValue,
+            useRockPoints: shouldUseBookingRockPoints,
+          },
+        );
 
-      setApartmentQuote({
-        loading: false,
-        available:
-          availabilityResult.status === "fulfilled"
-            ? normalizeBackendAvailability(availabilityResult.value)
-            : true,
-        pricing:
-          pricingResult.status === "fulfilled"
-            ? normalizeBackendPricing(pricingResult.value, fallbackPricing)
-            : fallbackPricing,
-        error:
-          pricingResult.status === "rejected" && couponCode
-            ? "This coupon could not be applied. Please check the code or continue without it."
-            : availabilityResult.status === "rejected" &&
-                pricingResult.status === "rejected"
-            ? "Could not refresh live availability and pricing."
-            : "",
+        setApartmentQuote({
+          loading: false,
+          available:
+            availabilityResult.status === "fulfilled"
+              ? normalizeBackendAvailability(availabilityResult.value)
+              : true,
+          pricing:
+            pricingResult.status === "fulfilled"
+              ? normalizeBackendPricing(pricingResult.value, fallbackPricing)
+              : fallbackPricing,
+          error:
+            pricingResult.status === "rejected" && couponCode
+              ? "This coupon could not be applied. Please check the code or continue without it."
+              : availabilityResult.status === "rejected" &&
+                  pricingResult.status === "rejected"
+              ? "Could not refresh live availability and pricing."
+              : "",
+        });
       });
-    });
+    }, 450);
 
     return () => {
       ignoreQuoteResponse = true;
+      clearTimeout(quoteTimerId);
     };
   }, [
     selectedApartment?.backendId,
@@ -4096,6 +4101,16 @@ function HomePage() {
       setApartmentQuote(null);
     }
 
+    // A coupon-applied booking captures the totals at apply time. If the stay
+    // details or the code change, drop that draft so payment re-creates it with
+    // the fresh coupon and dates instead of charging a stale discounted total.
+    if (
+      ["checkIn", "checkOut", "guests", "promo"].includes(field) &&
+      pendingBooking?.isIncomplete
+    ) {
+      setPendingBooking(null);
+    }
+
     setBookingDetails(nextBookingDetails);
   }
 
@@ -4119,6 +4134,134 @@ function HomePage() {
 
   function openPaymentStep() {
     setActivePage("payment");
+  }
+
+  // The live calculate-pricing endpoint ignores coupon codes, so the only way
+  // to get the real discounted total before payment is to create the booking
+  // (POST /bookings applies the coupon server-side) and read the totals back.
+  // We reuse that booking for payment so no duplicate booking is created.
+  async function applyCouponToBooking() {
+    const couponCode = String(bookingDetails.promo || "").trim();
+
+    if (!couponCode) {
+      showToast("Enter a promo code first.", "error");
+      return;
+    }
+
+    if (!selectedApartment?.backendId) {
+      showToast("This apartment is not available for coupons yet.", "error");
+      return;
+    }
+
+    if (!currentUser || !getAuthToken()) {
+      showToast("Please log in to apply a coupon.", "error");
+      openLogin();
+      return;
+    }
+
+    if (!bookingDetails.checkIn || !bookingDetails.checkOut) {
+      showToast("Choose your check-in and check-out dates first.", "error");
+      return;
+    }
+
+    if (bookingDetails.guests <= 0) {
+      showToast("Add the number of guests first.", "error");
+      return;
+    }
+
+    if (!String(bookingDetails.guestName || "").trim()) {
+      showToast("Add the guest name before applying a coupon.", "error");
+      return;
+    }
+
+    if (getPhoneDigitCount(bookingDetails.guestPhone) < 7) {
+      showToast("Add a valid guest phone number before applying a coupon.", "error");
+      return;
+    }
+
+    setApartmentQuote((currentQuote) => ({
+      ...(currentQuote || {}),
+      loading: true,
+      error: "",
+    }));
+
+    try {
+      const localDraft = createBookingFromCurrentSelection();
+      const createResponse = await bookingsApi.createBooking({
+        apartmentId: selectedApartment.backendId,
+        checkIn: bookingDetails.checkIn,
+        checkOut: bookingDetails.checkOut,
+        guests: bookingDetails.guests,
+        guestName: bookingDetails.guestName,
+        guestPhone: bookingDetails.guestPhone,
+        couponCode,
+        useRockPoints: shouldUseBookingRockPoints,
+        agreeToPolicies: bookingDetails.agreedToPolicy,
+      });
+
+      const booking = {
+        ...normalizeBackendBooking(createResponse, localDraft),
+        status: "payment_pending",
+        isIncomplete: true,
+      };
+      const couponDiscount = Number(booking.couponDiscount || 0);
+      const payable = Number(
+        booking.totalAmount || localDraft.totalAmount || 0,
+      );
+
+      setPendingBooking(booking);
+      saveBookingToProfile(booking);
+      setApartmentQuote((currentQuote) => {
+        const basePricing = currentQuote?.pricing || {};
+        const total = Number(
+          booking.subtotal || basePricing.total || payable + couponDiscount,
+        );
+
+        return {
+          loading: false,
+          available: currentQuote?.available ?? true,
+          error: "",
+          pricing: {
+            ...basePricing,
+            couponCode,
+            couponDiscount,
+            discountAmount: couponDiscount,
+            isCouponValid: couponDiscount > 0,
+            couponMessage:
+              couponDiscount > 0
+                ? `Coupon applied: -NGN${couponDiscount.toLocaleString()}`
+                : "This coupon did not reduce your total.",
+            total: total || basePricing.total,
+            payable: payable || basePricing.payable,
+          },
+        };
+      });
+
+      if (couponDiscount > 0) {
+        showToast(
+          `Coupon applied. You saved NGN${couponDiscount.toLocaleString()}.`,
+          "success",
+        );
+      } else {
+        showToast(
+          "That coupon did not reduce your total. It may be invalid or expired.",
+          "error",
+        );
+      }
+    } catch (error) {
+      logFrontendError("Coupon application failed", error);
+      setApartmentQuote((currentQuote) => ({
+        ...(currentQuote || {}),
+        loading: false,
+        error:
+          error.message ||
+          "This coupon could not be applied. Please check the code and try again.",
+      }));
+      showToast(
+        error.message || "This coupon could not be applied.",
+        "error",
+      );
+    }
   }
 
   function createBookingFromCurrentSelection(overrides = {}) {
@@ -4846,6 +4989,7 @@ function HomePage() {
                 isInitiallySaved={isApartmentSaved(selectedApartment)}
                 onToggleFavorite={handleFavoriteToggle}
                 onBookingChange={handleBookingChange}
+                onApplyCoupon={applyCouponToBooking}
                 onPaymentContinue={openPendingStep}
                 onBackToApartment={() => setActivePage("apartment")}
                 onOpenPolicy={() => showLegal("cancellation")}
