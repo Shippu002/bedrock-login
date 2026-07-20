@@ -1,0 +1,232 @@
+.payment-success {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+  padding: 24px 16px 48px;
+}
+
+.payment-success__card {
+  width: 100%;
+  max-width: 520px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  box-shadow: var(--shadow-soft);
+  padding: 32px 24px 28px;
+  text-align: center;
+}
+
+.payment-success__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  margin-bottom: 20px;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #12b76a;
+  box-shadow: 0 8px 20px rgba(18, 183, 106, 0.32);
+  animation: payment-success-pop 0.42s ease-out both;
+}
+
+.payment-success__badge svg {
+  stroke-dasharray: 32;
+  stroke-dashoffset: 32;
+  animation: payment-success-check 0.5s ease-out 0.22s forwards;
+}
+
+.payment-success__title {
+  margin: 0 0 8px;
+  font-family: "Urbanist", "Inter", sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.payment-success__subtitle {
+  margin: 0 auto 24px;
+  max-width: 34ch;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.payment-success__summary {
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.payment-success__summary-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.payment-success__thumb {
+  flex: 0 0 auto;
+  width: 60px;
+  height: 60px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: var(--line-soft);
+}
+
+.payment-success__summary-title {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.payment-success__summary-meta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.payment-success__facts {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.payment-success__fact {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.payment-success__fact dt {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.payment-success__fact dd {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.payment-success__fact--total {
+  padding-top: 10px;
+  margin-top: 2px;
+  border-top: 1px dashed var(--line);
+}
+
+.payment-success__fact--total dt,
+.payment-success__fact--total dd {
+  font-size: 1rem;
+}
+
+.payment-success__fact--total dd {
+  color: var(--accent-strong);
+}
+
+.payment-success__reference {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  word-break: break-all;
+}
+
+.payment-success__actions {
+  display: grid;
+  gap: 10px;
+}
+
+.payment-success__btn {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.15s ease, opacity 0.15s ease;
+}
+
+.payment-success__btn:active {
+  transform: scale(0.99);
+}
+
+.payment-success__btn--primary {
+  border: none;
+  color: #ffffff;
+  background: var(--navy);
+}
+
+.payment-success__btn--primary:hover {
+  background: var(--navy-strong);
+}
+
+.payment-success__btn--ghost {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.payment-success__btn--ghost:hover {
+  background: var(--surface-soft);
+}
+
+.payment-success__note {
+  margin: 18px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+@keyframes payment-success-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes payment-success-check {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .payment-success {
+    padding: 16px 12px 40px;
+  }
+
+  .payment-success__card {
+    padding: 28px 18px 24px;
+    border-radius: 18px;
+  }
+
+  .payment-success__title {
+    font-size: 1.35rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .payment-success__badge,
+  .payment-success__badge svg {
+    animation: none;
+  }
+
+  .payment-success__badge svg {
+    stroke-dashoffset: 0;
+  }
+}

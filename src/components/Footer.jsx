@@ -1,4 +1,5 @@
 import bedrockLogo from "../assets/bedrock-logo.svg";
+import dunsRegistered from "../assets/duns-registered.png";
 import {
   getLegalDocumentKey,
   mergeLegalDocuments,
@@ -283,6 +284,14 @@ function Footer({
             className="site-footer__logo"
           />
           <p>© 2026 Bedsoft. All rights reserved.</p>
+          <img
+            src={dunsRegistered}
+            alt="Dun & Bradstreet D-U-N-S Registered"
+            className="site-footer__badge"
+            loading="lazy"
+            width="96"
+            height="67"
+          />
         </div>
       </div>
     </footer>

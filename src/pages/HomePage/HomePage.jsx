@@ -15,6 +15,7 @@ import ProfilePage from "../Profile/ProfilePage";
 import ResidencePage from "../Residence/ResidencePage";
 import ApartmentPage from "../Apartment/ApartmentPage";
 import LegalPage from "../Legal/LegalPage";
+import PaymentSuccessPage from "../Payment/PaymentSuccessPage";
 import ShopFoodPage from "../ShopFood/ShopFoodPage";
 import { decorateApartmentWithMedia } from "../../utils/apartmentMedia";
 import {
@@ -83,6 +84,7 @@ import {
   track,
   trackPageView,
 } from "../../services/mixpanel";
+import { trackPixel } from "../../services/metaPixel";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
 const CANCELLED_ORDERS_STORAGE_KEY = "bedrockCancelledOrders";
@@ -795,6 +797,57 @@ function clearPaymentReturnParams() {
   );
 }
 
+// Pull the amount the backend/Paystack actually charged out of the verify
+// response so the Meta Pixel Purchase value reflects reality (e.g. after a
+// server-side coupon or fee recalculation) instead of the price the frontend
+// estimated. Falls back to the frontend total when the response has no usable
+// amount, so this can never regress the previous behaviour.
+function resolveVerifiedChargeAmount(verifyResponse, fallbackAmount) {
+  const raw = extractObject(verifyResponse);
+  const nested =
+    raw.data ||
+    raw.payment ||
+    raw.transaction ||
+    raw.paystack ||
+    raw.data?.payment ||
+    {};
+  const fallback = Number(fallbackAmount) || 0;
+
+  const candidates = [
+    raw.amount_paid,
+    raw.amountPaid,
+    raw.total_amount,
+    raw.totalAmount,
+    raw.payable_amount,
+    raw.amount,
+    nested.amount_paid,
+    nested.amountPaid,
+    nested.total_amount,
+    nested.amount,
+  ]
+    .map(Number)
+    .filter((value) => Number.isFinite(value) && value > 0);
+
+  if (candidates.length === 0) {
+    return fallback;
+  }
+
+  const value = candidates[0];
+
+  // Paystack returns amounts in kobo (naira * 100). When we have the frontend
+  // estimate, decide kobo vs naira by whichever interpretation is closer to it.
+  if (fallback > 0) {
+    const looksLikeKobo =
+      Math.abs(value - fallback * 100) < Math.abs(value - fallback);
+
+    return looksLikeKobo ? value / 100 : value;
+  }
+
+  // No estimate to compare against: Paystack always settles in kobo, so treat a
+  // whole-number value as kobo.
+  return Number.isInteger(value) ? value / 100 : value;
+}
+
 async function verifyPaymentReference(context, reference) {
   const orderType = getPaymentOrderType(context?.type);
 
@@ -1311,6 +1364,7 @@ function ShopDirectoryPage({ categories = [], onBack, onShopSelect }) {
 
 function HomePage() {
   const lastIdentifiedAnalyticsIdRef = useRef("");
+  const trackedPurchaseReferenceRef = useRef("");
   const routeSyncReadyRef = useRef(false);
   const isApplyingBrowserRouteRef = useRef(false);
   const pendingBrowserRouteRef = useRef(null);
@@ -1328,6 +1382,7 @@ function HomePage() {
   const [selectedLegalDocumentId, setSelectedLegalDocumentId] = useState("");
   const [legalReturnPage, setLegalReturnPage] = useState("home");
   const [profileInitialView, setProfileInitialView] = useState("profile");
+  const [paymentConfirmation, setPaymentConfirmation] = useState(null);
   const [selectedResidenceId, setSelectedResidenceId] = useState("opebi");
   const [apartmentFilters, setApartmentFilters] = useState(
     defaultApartmentFilters,
@@ -2095,9 +2150,36 @@ function HomePage() {
       const paymentContext = readPendingPaymentContext();
 
       try {
-        await verifyPaymentReference(paymentContext, returnedReference);
+        const verifyResponse = await verifyPaymentReference(
+          paymentContext,
+          returnedReference,
+        );
 
         if (ignorePaymentResponse) return;
+
+        // Prefer the amount the backend actually charged; fall back to the
+        // frontend estimate stored in the payment context.
+        const amountPaid = resolveVerifiedChargeAmount(
+          verifyResponse,
+          paymentContext?.amount,
+        );
+        const isBooking = paymentContext?.type === "booking";
+
+        // Fire Purchase exactly once, only after backend verification has
+        // succeeded. The ref guard blocks React StrictMode double-invoke and
+        // any duplicate return callback for the same reference; the context is
+        // cleared below so a page refresh can never refire it.
+        if (trackedPurchaseReferenceRef.current !== returnedReference) {
+          trackedPurchaseReferenceRef.current = returnedReference;
+
+          if (typeof fbq === "function") {
+            fbq("track", "Purchase", {
+              value: amountPaid,
+              currency: "NGN",
+              transaction_id: returnedReference,
+            });
+          }
+        }
 
         clearPendingPaymentContext();
         clearPaymentReturnParams();
@@ -2111,11 +2193,27 @@ function HomePage() {
           "Payment verified",
           "Your payment was verified successfully and your profile has been refreshed.",
         );
-        setProfileInitialView(
-          paymentContext?.type === "booking" ? "bookings" : "orders",
-        );
-        setActivePage("profile");
+        setProfileInitialView(isBooking ? "bookings" : "orders");
         showToast("Payment verified successfully.", "success");
+
+        // Bookings land on a dedicated success screen (built from the payment
+        // context, since the Paystack return is a full reload). Orders keep the
+        // existing profile-list behaviour.
+        if (isBooking) {
+          setPaymentConfirmation({
+            amount: amountPaid,
+            reference: returnedReference,
+            title: paymentContext?.title || "",
+            image: paymentContext?.image || "",
+            location: paymentContext?.location || "",
+            checkIn: paymentContext?.checkIn || "",
+            checkOut: paymentContext?.checkOut || "",
+            guests: Number(paymentContext?.guests || 0),
+          });
+          setActivePage("paymentSuccess");
+        } else {
+          setActivePage("profile");
+        }
       } catch (error) {
         if (ignorePaymentResponse) return;
 
@@ -2158,7 +2256,7 @@ function HomePage() {
     setIsAuthModalOpen(false);
   }
 
-  async function handleAuthComplete(authenticatedUser) {
+  async function handleAuthComplete(authenticatedUser, options = {}) {
     const serverCheckedUser =
       await resolveBackendAgentVerification(authenticatedUser);
 
@@ -2174,6 +2272,11 @@ function HomePage() {
     }
 
     identifyAnalyticsUser(serverCheckedUser, "auth_complete");
+
+    if (options.isRegistration) {
+      trackPixel("CompleteRegistration", { status: true });
+    }
+
     updateCurrentUser(serverCheckedUser);
     setActivePage("home");
     setIsAuthModalOpen(false);
@@ -2597,6 +2700,14 @@ function HomePage() {
     setActivePage("apartment");
     setProfileInitialView("profile");
 
+    trackPixel("ViewContent", {
+      content_type: "product",
+      content_ids: [String(fallbackApartment.backendId || fallbackApartment.id || "")],
+      content_name: fallbackApartment.title || "",
+      value: Number(fallbackApartment.price || 0),
+      currency: "NGN",
+    });
+
     if (!apartment.backendId) {
       return;
     }
@@ -2710,6 +2821,10 @@ function HomePage() {
 
   async function handleApartmentSearch(nextFilters) {
     const query = String(nextFilters.query || "").trim();
+
+    trackPixel("Search", {
+      search_string: query || nextFilters.apartmentTitle || "",
+    });
     const bedroomCount = getBedroomCountFromText(query);
     const apartmentTitle = bedroomCount
       ? `${bedroomCount} Bedroom Apartment`
@@ -4133,6 +4248,13 @@ function HomePage() {
   }
 
   function openPaymentStep() {
+    trackPixel("InitiateCheckout", {
+      content_type: "product",
+      content_ids: [String(selectedApartment?.backendId || selectedApartment?.id || "")],
+      content_name: selectedApartment?.title || "",
+      value: Number(apartmentQuote?.pricing?.payable ?? selectedApartment?.price ?? 0),
+      currency: "NGN",
+    });
     setActivePage("payment");
   }
 
@@ -4317,6 +4439,17 @@ function HomePage() {
           type: "booking",
           recordId: bookingId,
           reference: nextPendingBooking.paymentReference || "",
+          amount: Number(nextPendingBooking.totalAmount || 0),
+          // Display fields for the post-payment success screen. The Paystack
+          // return is a full page reload, so component state (selectedApartment,
+          // bookingDetails) is gone by then — the screen renders from here.
+          title: nextPendingBooking.title || selectedApartment?.title || "",
+          image: nextPendingBooking.image || selectedApartment?.image || "",
+          location:
+            selectedApartment?.location || selectedApartment?.address || "",
+          checkIn: bookingDetails.checkIn || "",
+          checkOut: bookingDetails.checkOut || "",
+          guests: Number(bookingDetails.guests || 0),
         });
 
         if (payment.authorizationUrl && typeof window !== "undefined") {
@@ -4577,6 +4710,7 @@ function HomePage() {
             type: orderType,
             recordId: orderId,
             reference: paymentReference,
+            amount: Number(order.totalAmount || 0),
           });
 
           if (payment.authorizationUrl && typeof window !== "undefined") {
@@ -4813,7 +4947,19 @@ function HomePage() {
               <PromoBanner promotions={homePromotions} />
             )}
 
-            {activePage === "legal" ? (
+            {activePage === "paymentSuccess" ? (
+              <PaymentSuccessPage
+                confirmation={paymentConfirmation}
+                onViewBooking={() => {
+                  setPaymentConfirmation(null);
+                  showProfile("bookings");
+                }}
+                onGoHome={() => {
+                  setPaymentConfirmation(null);
+                  showHome();
+                }}
+              />
+            ) : activePage === "legal" ? (
               <LegalPage
                 key={selectedLegalDocumentId || "legal-index"}
                 legalDocuments={profileResources.legalDocuments}

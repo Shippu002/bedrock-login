@@ -14,7 +14,11 @@ export default defineConfig([
       reactRefresh.configs.vite,
     ],
     languageOptions: {
-      globals: globals.browser,
+      globals: {
+        ...globals.browser,
+        // Meta Pixel global, initialized once in index.html.
+        fbq: 'readonly',
+      },
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },

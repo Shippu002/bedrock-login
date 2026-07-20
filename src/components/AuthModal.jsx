@@ -888,7 +888,7 @@ export default function AuthModal({
     resetModalState();
 
     if (onAuthComplete) {
-      onAuthComplete(registeredUser);
+      onAuthComplete(registeredUser, { isRegistration: true });
     }
   }
 
