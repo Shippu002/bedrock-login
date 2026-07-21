@@ -116,6 +116,15 @@ export function withQuery(path, params = {}) {
   return queryString ? `${path}?${queryString}` : path;
 }
 
+// The URL Paystack should redirect the user back to after payment. Using the
+// live origin keeps localhost/dev and the deployed domain correct, while the
+// success path gives the React app a reliable route for verification.
+export function getPaymentCallbackUrl() {
+  if (typeof window === "undefined" || !window.location) return "";
+
+  return `${window.location.origin || ""}/payment-success`;
+}
+
 async function parseResponse(response) {
   const contentType = response.headers.get("content-type") || "";
 

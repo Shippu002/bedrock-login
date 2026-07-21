@@ -1,4 +1,4 @@
-import { apiClient, withQuery } from "./client";
+import { apiClient, getPaymentCallbackUrl, withQuery } from "./client";
 
 export function getServiceCategories() {
   return apiClient.get("/services/categories", { skipAuth: true });
@@ -55,9 +55,13 @@ export function getServiceOrderDetails(serviceOrderId) {
 }
 
 export function payServiceOrder(serviceOrderId, data = {}) {
+  const callbackUrl =
+    data.callbackUrl || data.callback_url || getPaymentCallbackUrl();
+
   return apiClient.post(`/services/orders/${serviceOrderId}/pay`, {
     payment_method: data.paymentMethod || data.payment_method || "paystack",
     reference: data.reference,
+    ...(callbackUrl ? { callback_url: callbackUrl } : {}),
   });
 }
 

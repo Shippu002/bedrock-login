@@ -1,4 +1,4 @@
-import { apiClient, withQuery } from "./client";
+import { apiClient, getPaymentCallbackUrl, withQuery } from "./client";
 
 export function getMenu(params = {}) {
   return apiClient.get(
@@ -50,9 +50,13 @@ export function getFoodOrderDetails(foodOrderId) {
 }
 
 export function payFoodOrder(foodOrderId, data = {}) {
+  const callbackUrl =
+    data.callbackUrl || data.callback_url || getPaymentCallbackUrl();
+
   return apiClient.post(`/food/orders/${foodOrderId}/pay`, {
     payment_method: data.paymentMethod || data.payment_method || "paystack",
     reference: data.reference,
+    ...(callbackUrl ? { callback_url: callbackUrl } : {}),
   });
 }
 

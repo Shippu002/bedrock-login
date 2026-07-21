@@ -1,4 +1,4 @@
-import { apiClient, withQuery } from "./client";
+import { apiClient, getPaymentCallbackUrl, withQuery } from "./client";
 
 export function createBooking(data = {}) {
   return apiClient.post("/bookings", {
@@ -78,8 +78,11 @@ export function cancelBooking(bookingId, reason) {
 }
 
 export function initiatePayment(bookingId, paymentMethod = "paystack") {
+  const callbackUrl = getPaymentCallbackUrl();
+
   return apiClient.post(`/bookings/${bookingId}/initiate-payment`, {
     payment_method: paymentMethod,
+    ...(callbackUrl ? { callback_url: callbackUrl } : {}),
   });
 }
 

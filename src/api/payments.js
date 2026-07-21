@@ -1,14 +1,18 @@
-import { apiClient, withQuery } from "./client";
+import { apiClient, getPaymentCallbackUrl, withQuery } from "./client";
 
 export function getPaymentMethods() {
   return apiClient.get("/payments/methods");
 }
 
 export function initializePayment(data = {}) {
+  const callbackUrl =
+    data.callbackUrl || data.callback_url || getPaymentCallbackUrl();
+
   return apiClient.post("/payments/initialize", {
     order_type: data.orderType || data.order_type || data.type,
     order_id: data.orderId || data.order_id || data.id,
     payment_method: data.paymentMethod || data.payment_method || "paystack",
+    ...(callbackUrl ? { callback_url: callbackUrl } : {}),
   });
 }
 

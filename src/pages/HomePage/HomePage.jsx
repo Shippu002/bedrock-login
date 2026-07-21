@@ -89,6 +89,10 @@ import { trackPixel } from "../../services/metaPixel";
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
 const CANCELLED_ORDERS_STORAGE_KEY = "bedrockCancelledOrders";
 const PAYMENT_CONTEXT_STORAGE_KEY = "bedrockPendingPaymentContext";
+const PAYMENT_CONFIRMATION_STORAGE_KEY = "bedrockPaymentConfirmation";
+const TRACKED_PURCHASE_REFERENCES_STORAGE_KEY =
+  "bedrockTrackedPurchaseReferences";
+const PAYMENT_SUCCESS_PATH = "/payment-success";
 const DATE_UNAVAILABLE_MESSAGE =
   "This date is not available for booking. Please choose another check-in or check-out date.";
 const PAYMENT_REFERENCE_QUERY_KEYS = [
@@ -377,6 +381,14 @@ function parseAppRoute(pathname = "/") {
 
   if (!root) return { page: "home" };
 
+  if (
+    root === "payment-success" ||
+    root === "booking-success" ||
+    root === "thank-you"
+  ) {
+    return { page: "paymentSuccess" };
+  }
+
   if (AUTH_ENTRY_BY_ROUTE[root]) {
     return {
       page: "auth",
@@ -469,6 +481,10 @@ function buildAppPath({
     return stage
       ? `/apartments/${apartmentSegment}/${stage}`
       : `/apartments/${apartmentSegment}`;
+  }
+
+  if (activePage === "paymentSuccess") {
+    return PAYMENT_SUCCESS_PATH;
   }
 
   if (activePage === "shopDirectory") {
@@ -768,6 +784,85 @@ function clearPendingPaymentContext() {
   if (typeof window === "undefined") return;
 
   window.localStorage.removeItem(PAYMENT_CONTEXT_STORAGE_KEY);
+}
+
+function readPaymentConfirmation() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    return JSON.parse(
+      window.sessionStorage.getItem(PAYMENT_CONFIRMATION_STORAGE_KEY) ||
+        "null",
+    );
+  } catch {
+    return null;
+  }
+}
+
+function savePaymentConfirmation(confirmation) {
+  if (typeof window === "undefined") return;
+
+  window.sessionStorage.setItem(
+    PAYMENT_CONFIRMATION_STORAGE_KEY,
+    JSON.stringify({
+      ...confirmation,
+      createdAt: new Date().toISOString(),
+    }),
+  );
+}
+
+function clearPaymentConfirmation() {
+  if (typeof window === "undefined") return;
+
+  window.sessionStorage.removeItem(PAYMENT_CONFIRMATION_STORAGE_KEY);
+}
+
+function getTrackedPurchaseReferences() {
+  if (typeof window === "undefined") return [];
+
+  try {
+    const references = JSON.parse(
+      window.localStorage.getItem(TRACKED_PURCHASE_REFERENCES_STORAGE_KEY) ||
+        "[]",
+    );
+
+    return Array.isArray(references) ? references.filter(Boolean) : [];
+  } catch {
+    return [];
+  }
+}
+
+function hasTrackedPurchaseReference(reference) {
+  if (!reference) return false;
+
+  return getTrackedPurchaseReferences().includes(reference);
+}
+
+function rememberTrackedPurchaseReference(reference) {
+  if (typeof window === "undefined" || !reference) return;
+
+  const references = [
+    reference,
+    ...getTrackedPurchaseReferences().filter((item) => item !== reference),
+  ].slice(0, 50);
+
+  window.localStorage.setItem(
+    TRACKED_PURCHASE_REFERENCES_STORAGE_KEY,
+    JSON.stringify(references),
+  );
+}
+
+function trackPurchaseOnce(reference, amountPaid) {
+  if (!reference || hasTrackedPurchaseReference(reference)) return false;
+
+  trackPixel("Purchase", {
+    value: Number(amountPaid || 0),
+    currency: "NGN",
+    transaction_id: reference,
+  });
+  rememberTrackedPurchaseReference(reference);
+
+  return true;
 }
 
 function getReturnedPaymentReference() {
@@ -1382,7 +1477,9 @@ function HomePage() {
   const [selectedLegalDocumentId, setSelectedLegalDocumentId] = useState("");
   const [legalReturnPage, setLegalReturnPage] = useState("home");
   const [profileInitialView, setProfileInitialView] = useState("profile");
-  const [paymentConfirmation, setPaymentConfirmation] = useState(null);
+  const [paymentConfirmation, setPaymentConfirmation] = useState(() =>
+    readPaymentConfirmation(),
+  );
   const [selectedResidenceId, setSelectedResidenceId] = useState("opebi");
   const [apartmentFilters, setApartmentFilters] = useState(
     defaultApartmentFilters,
@@ -2167,18 +2264,11 @@ function HomePage() {
 
         // Fire Purchase exactly once, only after backend verification has
         // succeeded. The ref guard blocks React StrictMode double-invoke and
-        // any duplicate return callback for the same reference; the context is
-        // cleared below so a page refresh can never refire it.
+        // localStorage blocks duplicate Paystack callbacks for the same
+        // reference after a refresh or copied return link.
         if (trackedPurchaseReferenceRef.current !== returnedReference) {
           trackedPurchaseReferenceRef.current = returnedReference;
-
-          if (typeof fbq === "function") {
-            fbq("track", "Purchase", {
-              value: amountPaid,
-              currency: "NGN",
-              transaction_id: returnedReference,
-            });
-          }
+          trackPurchaseOnce(returnedReference, amountPaid);
         }
 
         clearPendingPaymentContext();
@@ -2200,7 +2290,7 @@ function HomePage() {
         // context, since the Paystack return is a full reload). Orders keep the
         // existing profile-list behaviour.
         if (isBooking) {
-          setPaymentConfirmation({
+          const confirmation = {
             amount: amountPaid,
             reference: returnedReference,
             title: paymentContext?.title || "",
@@ -2209,8 +2299,12 @@ function HomePage() {
             checkIn: paymentContext?.checkIn || "",
             checkOut: paymentContext?.checkOut || "",
             guests: Number(paymentContext?.guests || 0),
-          });
+          };
+
+          savePaymentConfirmation(confirmation);
+          setPaymentConfirmation(confirmation);
           setActivePage("paymentSuccess");
+          writeBrowserRoute(PAYMENT_SUCCESS_PATH, { replace: true });
         } else {
           setActivePage("profile");
         }
@@ -3135,6 +3229,13 @@ function HomePage() {
       setLegalReturnPage("home");
       setSelectedLegalDocumentId(route.documentId || "");
       setActivePage("legal");
+      return true;
+    }
+
+    if (route.page === "paymentSuccess") {
+      setPaymentConfirmation(readPaymentConfirmation());
+      setActivePage("paymentSuccess");
+      setProfileInitialView("bookings");
       return true;
     }
 
@@ -4951,10 +5052,12 @@ function HomePage() {
               <PaymentSuccessPage
                 confirmation={paymentConfirmation}
                 onViewBooking={() => {
+                  clearPaymentConfirmation();
                   setPaymentConfirmation(null);
                   showProfile("bookings");
                 }}
                 onGoHome={() => {
+                  clearPaymentConfirmation();
                   setPaymentConfirmation(null);
                   showHome();
                 }}

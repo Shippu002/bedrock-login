@@ -289,8 +289,8 @@ function Footer({
             alt="Dun & Bradstreet D-U-N-S Registered"
             className="site-footer__badge"
             loading="lazy"
-            width="96"
-            height="67"
+            width="220"
+            height="155"
           />
         </div>
       </div>

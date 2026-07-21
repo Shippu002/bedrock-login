@@ -58,10 +58,11 @@ export default function PaymentSuccessPage({
         </span>
 
         <h1 id="payment-success-title" className="payment-success__title">
-          Booking confirmed
+          Thank you for your booking
         </h1>
         <p className="payment-success__subtitle">
-          Your payment went through and your reservation is locked in.
+          Your payment was verified successfully and your reservation is locked
+          in.
         </p>
 
         <div className="payment-success__summary">
@@ -70,6 +71,7 @@ export default function PaymentSuccessPage({
               <AppImage
                 className="payment-success__thumb"
                 src={details.image}
+                fallbackSrc=""
                 alt={details.title}
               />
               <div className="payment-success__summary-text">
@@ -123,7 +125,7 @@ export default function PaymentSuccessPage({
             className="payment-success__btn payment-success__btn--primary"
             onClick={onViewBooking}
           >
-            View my booking
+            View my bookings
           </button>
           <button
             type="button"
@@ -135,7 +137,7 @@ export default function PaymentSuccessPage({
         </div>
 
         <p className="payment-success__note">
-          A confirmation has been saved to your activity feed.
+          A confirmation has been saved to your Bedrock account.
         </p>
       </div>
     </section>
