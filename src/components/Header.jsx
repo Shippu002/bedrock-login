@@ -247,7 +247,7 @@ function Dropdown({
                   className="nav-mega__item-image"
                   src={item.image}
                   fallbackSrc=""
-                  alt=""
+                  alt={`${item.title} shop category`}
                 />
                 <span>
                   <strong>{item.title}</strong>
@@ -404,10 +404,13 @@ export default function Header({
   return (
     <header className="site-header" ref={headerRef}>
       <div className="site-inner">
-        <button
-          type="button"
+        <a
+          href="/"
           className="brand-button"
-          onClick={handleHome}
+          onClick={(event) => {
+            event.preventDefault();
+            handleHome();
+          }}
           aria-label="Go to home"
         >
           <img
@@ -417,7 +420,7 @@ export default function Header({
             loading="eager"
             decoding="async"
           />
-        </button>
+        </a>
 
         <nav className="nav-links">
           <Dropdown

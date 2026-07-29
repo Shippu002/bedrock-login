@@ -1,0 +1,33 @@
+# Bedrock Residences - https://stay.bedrockgroup.ng
+# Public marketing/booking-discovery pages are open to crawlers.
+# Private account areas and multi-step checkout/payment flows are excluded.
+
+User-agent: *
+Allow: /
+
+# Authenticated account area
+Disallow: /profile
+Disallow: /profile/
+
+# Authentication entry points (no indexable content)
+Disallow: /login
+Disallow: /signup
+Disallow: /agent-signup
+Disallow: /agent-verification
+
+# Checkout / payment steps (transient, user-specific)
+Disallow: /apartments/*/payment
+Disallow: /apartments/*/pending
+Disallow: /apartments/*/confirmed
+Disallow: /shops/*/*/review
+Disallow: /shops/*/*/payment
+Disallow: /shops/*/*/status
+Disallow: /payment-success
+
+# Never index payment-provider return URLs carrying transaction references
+Disallow: /*?reference=
+Disallow: /*?trxref=
+Disallow: /*?payment_reference=
+Disallow: /*?paymentReference=
+
+Sitemap: https://stay.bedrockgroup.ng/sitemap.xml

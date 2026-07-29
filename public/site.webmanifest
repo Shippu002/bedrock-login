@@ -1,7 +1,7 @@
 {
   "name": "Bedrock Residences",
   "short_name": "Bedrock",
-  "description": "Bedrock Residences web app",
+  "description": "Book luxury serviced apartments and short-stay residences in Lagos with Bedrock Residences.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

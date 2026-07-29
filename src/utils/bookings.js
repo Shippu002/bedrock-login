@@ -21,12 +21,32 @@ function toCurrencyNumber(value) {
 function createDateFromValue(dateValue) {
   if (!dateValue) return null;
 
-  const [year, month, day] = String(dateValue)
-    .split("-")
-    .map(Number);
+  if (dateValue instanceof Date) {
+    if (Number.isNaN(dateValue.getTime())) return null;
+
+    return new Date(
+      dateValue.getFullYear(),
+      dateValue.getMonth(),
+      dateValue.getDate(),
+    );
+  }
+
+  const value = String(dateValue).trim();
+  const isoDateParts = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  const [year, month, day] = isoDateParts
+    ? isoDateParts.slice(1).map(Number)
+    : value.split("-").map(Number);
 
   if (!year || !month || !day) {
-    return null;
+    const parsedDate = new Date(value);
+
+    if (Number.isNaN(parsedDate.getTime())) return null;
+
+    return new Date(
+      parsedDate.getFullYear(),
+      parsedDate.getMonth(),
+      parsedDate.getDate(),
+    );
   }
 
   return new Date(year, month - 1, day);

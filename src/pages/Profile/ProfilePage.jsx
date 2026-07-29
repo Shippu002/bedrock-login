@@ -606,11 +606,15 @@ function getProfileCurrency(user) {
 function formatOrderDate(value) {
   if (!value) return "Pending";
 
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "";
+
   return new Intl.DateTimeFormat("en", {
     month: "short",
     day: "numeric",
     year: "numeric",
-  }).format(new Date(value));
+  }).format(date);
 }
 
 function normalizeOrderStatus(status) {
@@ -621,6 +625,118 @@ function formatOrderStatus(status) {
   return normalizeOrderStatus(status)
     .replace(/[-_]+/g, " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function statusHasAnyToken(value, tokens = []) {
+  const normalizedValue = String(value || "")
+    .toLowerCase()
+    .replace(/[-_]+/g, " ");
+
+  return tokens.some((token) => normalizedValue.includes(token));
+}
+
+function isBookingPaymentComplete(booking = {}) {
+  return statusHasAnyToken(
+    [
+      booking.paymentStatus,
+      booking.payment_status,
+      booking.status,
+      booking.bookingStatus,
+      booking.booking_status,
+    ].join(" "),
+    [
+      "paid",
+      "success",
+      "successful",
+      "verified",
+      "confirmed",
+      "complete",
+      "completed",
+      "settled",
+    ],
+  );
+}
+
+function isBookingPendingPayment(booking = {}) {
+  return statusHasAnyToken(
+    [
+      booking.paymentStatus,
+      booking.payment_status,
+      booking.status,
+      booking.bookingStatus,
+      booking.booking_status,
+    ].join(" "),
+    ["payment pending", "pending payment", "unpaid", "draft"],
+  );
+}
+
+function getTimelineDate(timeline = [], titleTokens = []) {
+  const match = timeline.find((item) => {
+    const label = `${item.title || ""} ${item.status || ""}`.toLowerCase();
+
+    return titleTokens.some((token) => label.includes(token));
+  });
+
+  return (
+    match?.createdAt ||
+    match?.created_at ||
+    match?.completedAt ||
+    match?.completed_at ||
+    match?.date ||
+    ""
+  );
+}
+
+function getBookingTimelineRows(booking = {}, isIncomplete = false) {
+  const timeline = Array.isArray(booking.timeline) ? booking.timeline : [];
+  const createdAt =
+    booking.createdAt ||
+    booking.created_at ||
+    getTimelineDate(timeline, ["order", "received", "created"]);
+  const paidAt =
+    booking.paidAt ||
+    booking.paid_at ||
+    booking.paymentReceivedAt ||
+    booking.payment_received_at ||
+    getTimelineDate(timeline, ["payment", "paid"]);
+  const confirmedAt =
+    booking.confirmedAt ||
+    booking.confirmed_at ||
+    booking.bookingConfirmedAt ||
+    booking.booking_confirmed_at ||
+    getTimelineDate(timeline, ["confirm"]);
+  const paymentComplete = isBookingPaymentComplete(booking);
+  const bookingConfirmed =
+    paymentComplete &&
+    !isIncomplete &&
+    !isBookingPendingPayment(booking);
+
+  return [
+    {
+      title: "Order Received",
+      createdAt,
+      completed: Boolean(createdAt || booking.id || booking.backendId),
+    },
+    {
+      title: "Payment Received",
+      createdAt: paidAt || (paymentComplete ? booking.updatedAt : ""),
+      completed: paymentComplete,
+    },
+    {
+      title: "Booking Confirmed",
+      createdAt:
+        confirmedAt || (bookingConfirmed ? booking.updatedAt || paidAt : ""),
+      completed: bookingConfirmed,
+    },
+  ];
+}
+
+function formatBookingTimelineValue(item) {
+  const formattedDate = formatOrderDate(item.createdAt || item.created_at);
+
+  if (formattedDate) return formattedDate;
+
+  return item.completed ? "Done" : "Pending";
 }
 
 function isOrderCancelable(order) {
@@ -1458,11 +1574,14 @@ function BookingCard({
   const [actionMessage, setActionMessage] = useState(null);
   const bookingStatus = String(booking.status || "").toLowerCase();
   const isCancelled = bookingStatus === "cancelled" || bookingStatus === "canceled";
+  const paymentComplete = isBookingPaymentComplete(booking);
   const isIncomplete =
-    booking.isIncomplete ||
-    ["payment_pending", "pending_payment", "pending", "unpaid", "draft"].some(
+    !paymentComplete &&
+    (booking.isIncomplete ||
+      ["payment_pending", "pending_payment", "pending", "unpaid", "draft"].some(
       (status) => bookingStatus.includes(status),
-    );
+      ));
+  const timelineRows = getBookingTimelineRows(booking, isIncomplete);
   const hasSubmittedReview = Boolean(booking.reviewed || booking.review);
   const completedStatus = [
     "completed",
@@ -1667,12 +1786,12 @@ function BookingCard({
           </div>
         </div>
 
-        {booking.timeline?.length > 0 && (
+        {timelineRows.length > 0 && (
           <div className="extend-stay-summary">
-            {booking.timeline.slice(0, 3).map((item, index) => (
+            {timelineRows.map((item, index) => (
               <div key={item.id || item.title || index}>
                 <span>{item.title || item.status || "Timeline update"}</span>
-                <strong>{formatOrderDate(item.createdAt || item.created_at)}</strong>
+                <strong>{formatBookingTimelineValue(item)}</strong>
               </div>
             ))}
           </div>

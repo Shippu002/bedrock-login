@@ -7,6 +7,11 @@ import AppImage from "../../components/AppImage";
 import BrandLoader from "../../components/BrandLoader";
 import PromoBanner from "../../components/PromoBanner";
 import ToastHost from "../../components/ToastHost";
+import { bedrockFaqItems } from "../../data/bedrockFaq";
+import {
+  getLegalDocumentKey,
+  mergeLegalDocuments,
+} from "../../data/legalDocuments";
 import { shopCategories } from "../../data/shopCategories";
 import { homePromotions } from "../../data/promotions";
 import Footer from "../../components/Footer";
@@ -85,6 +90,7 @@ import {
   trackPageView,
 } from "../../services/mixpanel";
 import { trackPixel } from "../../services/metaPixel";
+import { applySeoMetadata, buildSeoMetadata } from "../../services/seo";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
 const CANCELLED_ORDERS_STORAGE_KEY = "bedrockCancelledOrders";
@@ -1434,7 +1440,7 @@ function ShopDirectoryPage({ categories = [], onBack, onShopSelect }) {
                 className="shop-directory-card__image"
                 src={item.image}
                 fallbackSrc=""
-                alt=""
+                alt={`${item.title} shop category`}
               />
 
               <span>
@@ -1636,6 +1642,59 @@ function HomePage() {
     selectedApartmentAnalyticsId,
     selectedApartmentAnalyticsName,
     selectedLegalDocumentId,
+    selectedResidenceId,
+    shopVariant,
+  ]);
+
+  useEffect(() => {
+    const legalDocuments = mergeLegalDocuments(profileResources.legalDocuments);
+    const selectedLegalDocument = legalDocuments.find(
+      (document) => getLegalDocumentKey(document) === selectedLegalDocumentId,
+    );
+    const path = buildAppPath({
+      activePage,
+      isAuthModalOpen,
+      authEntry,
+      selectedResidence: selectedResidenceForRoute,
+      selectedResidenceId,
+      selectedApartment,
+      profileInitialView,
+      selectedLegalDocumentId,
+      shopVariant,
+      selectedFoodItem,
+    });
+
+    applySeoMetadata(
+      buildSeoMetadata({
+        path,
+        activePage,
+        isAuthModalOpen,
+        authEntry,
+        selectedApartment,
+        selectedResidence: selectedResidenceForRoute,
+        selectedLegalDocument,
+        selectedFoodItem,
+        shopVariant,
+        profileInitialView,
+        paymentConfirmation,
+        faqItems:
+          activePage === "home" ||
+          (activePage === "profile" && profileInitialView === "help")
+            ? bedrockFaqItems
+            : [],
+      }),
+    );
+  }, [
+    activePage,
+    authEntry,
+    isAuthModalOpen,
+    paymentConfirmation,
+    profileInitialView,
+    profileResources.legalDocuments,
+    selectedApartment,
+    selectedFoodItem,
+    selectedLegalDocumentId,
+    selectedResidenceForRoute,
     selectedResidenceId,
     shopVariant,
   ]);
@@ -2275,10 +2334,41 @@ function HomePage() {
         clearPaymentReturnParams();
 
         const hydratedUser = await fetchBackendUserCollections(currentUser);
+        const paidBookingOverride =
+          isBooking && paymentContext?.recordId
+            ? {
+                backendId: paymentContext.recordId,
+                id: paymentContext.reference || returnedReference,
+                paymentReference: returnedReference,
+                title: paymentContext?.title || "",
+                image: paymentContext?.image || "",
+                location: paymentContext?.location || "",
+                checkIn: paymentContext?.checkIn || "",
+                checkOut: paymentContext?.checkOut || "",
+                guests: Number(paymentContext?.guests || 0) || 1,
+                totalAmount: amountPaid,
+                status: "confirmed",
+                bookingStatus: "confirmed",
+                paymentStatus: "paid",
+                paidAt: new Date().toISOString(),
+                confirmedAt: new Date().toISOString(),
+                isIncomplete: false,
+              }
+            : null;
 
         if (ignorePaymentResponse) return;
 
-        updateCurrentUser(hydratedUser);
+        updateCurrentUser(
+          paidBookingOverride
+            ? {
+                ...hydratedUser,
+                bookings: upsertBooking(
+                  hydratedUser.bookings || currentUser.bookings || [],
+                  paidBookingOverride,
+                ),
+              }
+            : hydratedUser,
+        );
         addActivityMessage(
           "Payment verified",
           "Your payment was verified successfully and your profile has been refreshed.",
@@ -3324,6 +3414,59 @@ function HomePage() {
     authEntry,
     profileInitialView,
     isAuthModalOpen,
+    selectedApartment,
+    selectedFoodItem,
+    selectedLegalDocumentId,
+    selectedResidenceForRoute,
+    selectedResidenceId,
+    shopVariant,
+  ]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const selectedLegalDocument =
+      activePage === "legal" && selectedLegalDocumentId
+        ? mergeLegalDocuments(profileResources.legalDocuments).find(
+            (legalDocument) => legalDocument.id === selectedLegalDocumentId,
+          ) || null
+        : null;
+
+    const seoPath = buildAppPath({
+      activePage,
+      isAuthModalOpen,
+      authEntry,
+      selectedResidence: selectedResidenceForRoute,
+      selectedResidenceId,
+      selectedApartment,
+      profileInitialView,
+      selectedLegalDocumentId,
+      shopVariant,
+      selectedFoodItem,
+    });
+
+    applySeoMetadata(
+      buildSeoMetadata({
+        path: seoPath,
+        activePage,
+        isAuthModalOpen,
+        authEntry,
+        selectedApartment,
+        selectedResidence: selectedResidenceForRoute,
+        selectedResidenceId,
+        selectedLegalDocument,
+        selectedFoodItem,
+        shopVariant,
+        profileInitialView,
+        faqItems: activePage === "home" ? bedrockFaqItems : undefined,
+      }),
+    );
+  }, [
+    activePage,
+    authEntry,
+    isAuthModalOpen,
+    profileInitialView,
+    profileResources.legalDocuments,
     selectedApartment,
     selectedFoodItem,
     selectedLegalDocumentId,

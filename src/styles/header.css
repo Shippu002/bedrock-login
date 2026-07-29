@@ -25,6 +25,7 @@
   display: inline-flex;
   align-items: center;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .brand-logo {

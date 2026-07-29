@@ -25,9 +25,17 @@ const defaultLegalLinks = [
 
 const fallbackResidenceLinks = [
   { label: "Bateye", type: "residence", value: "bateye" },
-  { label: "Opebi Residence", type: "residence", value: "opebi" },
-  { label: "Community Residence", type: "residence", value: "community" },
-  { label: "Oduduwa Residence", type: "residence", value: "oduduwa" },
+  { label: "Opebi Residence", type: "residence", value: "opebi-residence" },
+  {
+    label: "Community Residence",
+    type: "residence",
+    value: "community-residence",
+  },
+  {
+    label: "Oduduwa Residence",
+    type: "residence",
+    value: "oduduwa-residence",
+  },
   { label: "Obed's Court", type: "residence", value: "obeds-court" },
   { label: "Patrick's Court", type: "residence", value: "patricks-court" },
 ];
@@ -179,6 +187,24 @@ function getFooterResidenceValue(label, key) {
     : key;
 }
 
+function getFooterActionHref(link) {
+  if (link.href) return link.href;
+
+  if (link.type === "residence") {
+    return `/residences/${slugifyFooterResidenceLabel(link.value || link.label)}`;
+  }
+
+  if (link.type === "profile") {
+    return `/profile/${slugifyFooterResidenceLabel(link.value || link.label)}`;
+  }
+
+  if (link.type === "legal") {
+    return `/legal/${slugifyFooterResidenceLabel(link.value || link.label)}`;
+  }
+
+  return "/";
+}
+
 function getFooterResidenceLinks(residences = []) {
   if (!Array.isArray(residences) || residences.length === 0) {
     return fallbackResidenceLinks;
@@ -253,8 +279,10 @@ function Footer({
             <div className="site-footer__column" key={column.title}>
               <h3>{column.title}</h3>
 
-              {column.links.map((link) =>
-                link.href ? (
+              {column.links.map((link) => {
+                const href = getFooterActionHref(link);
+
+                return link.href ? (
                   <a
                     href={link.href}
                     target="_blank"
@@ -264,15 +292,18 @@ function Footer({
                     {link.label}
                   </a>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => handleFooterAction(link)}
+                  <a
+                    href={href}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      handleFooterAction(link);
+                    }}
                     key={link.label}
                   >
                     {link.label}
-                  </button>
-                ),
-              )}
+                  </a>
+                );
+              })}
             </div>
           ))}
         </div>

@@ -225,6 +225,103 @@ function getDefinedNumber(...values) {
   return getNumberValue(fallback, 0);
 }
 
+function normalizeDateValue(value) {
+  if (!value) return "";
+
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return "";
+
+    return value.toISOString().slice(0, 10);
+  }
+
+  const rawValue = String(value).trim();
+  const isoDateMatch = rawValue.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+
+  if (isoDateMatch) {
+    const [, year, month, day] = isoDateMatch;
+
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  const parsedDate = new Date(rawValue);
+
+  if (!Number.isNaN(parsedDate.getTime())) {
+    return parsedDate.toISOString().slice(0, 10);
+  }
+
+  return rawValue;
+}
+
+function getStatusText(...values) {
+  return values
+    .map((value) => String(value || "").trim())
+    .find(Boolean) || "";
+}
+
+function statusHasAnyToken(value, tokens = []) {
+  const normalizedValue = String(value || "")
+    .toLowerCase()
+    .replace(/[-_]+/g, " ");
+
+  return tokens.some((token) => normalizedValue.includes(token));
+}
+
+function isBackendPaymentComplete(status) {
+  return statusHasAnyToken(status, [
+    "paid",
+    "success",
+    "successful",
+    "verified",
+    "confirmed",
+    "complete",
+    "completed",
+    "settled",
+  ]);
+}
+
+function isBackendStatusPending(status) {
+  return statusHasAnyToken(status, [
+    "pending",
+    "unpaid",
+    "draft",
+    "initiated",
+    "processing",
+  ]);
+}
+
+function normalizeBackendTimelineItem(item = {}, fallbackTitle = "") {
+  const timelineItem = extractObject(item);
+  const title =
+    timelineItem.title ||
+    timelineItem.label ||
+    timelineItem.name ||
+    timelineItem.event ||
+    fallbackTitle ||
+    "";
+
+  return {
+    id: timelineItem.id || timelineItem.uuid || title,
+    title,
+    status: timelineItem.status || timelineItem.state || "",
+    createdAt: normalizeDateValue(
+      timelineItem.created_at ||
+        timelineItem.createdAt ||
+        timelineItem.completed_at ||
+        timelineItem.completedAt ||
+        timelineItem.paid_at ||
+        timelineItem.paidAt ||
+        timelineItem.confirmed_at ||
+        timelineItem.confirmedAt ||
+        timelineItem.updated_at ||
+        timelineItem.updatedAt ||
+        timelineItem.date ||
+        timelineItem.timestamp ||
+        "",
+    ),
+    raw: timelineItem,
+  };
+}
+
 function normalizeResidenceId(value, name = "") {
   const source = String(name || value || "").toLowerCase();
 
@@ -449,12 +546,35 @@ export function buildListingSectionsFromApartments(apartments = []) {
 }
 
 export function normalizeBackendBooking(item = {}, fallback = {}) {
-  const booking = extractObject(item);
-  const apartment = booking.apartment || booking.apartment_details || {};
+  const source = extractObject(item);
+  const booking =
+    source.booking ||
+    source.reservation ||
+    source.booking_details ||
+    source.data?.booking ||
+    source.data?.reservation ||
+    source;
+  const apartment =
+    booking.apartment ||
+    booking.apartment_details ||
+    booking.unit ||
+    booking.room ||
+    booking.property ||
+    {};
+  const payment =
+    booking.payment ||
+    booking.payment_details ||
+    booking.transaction ||
+    booking.paystack ||
+    source.payment ||
+    source.transaction ||
+    {};
   const bookingBackendId =
     booking.id ||
     booking.booking_id ||
     booking.bookingId ||
+    booking.reservation_id ||
+    booking.reservationId ||
     booking.uuid ||
     fallback.backendId;
   const title =
@@ -464,47 +584,81 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
     apartment.name ||
     fallback.title ||
     "Apartment booking";
-  const checkIn =
+  const checkIn = normalizeDateValue(
     booking.check_in ||
-    booking.checkin ||
-    booking.checkIn ||
-    booking.start_date ||
-    booking.startDate ||
-    booking.arrival_date ||
-    booking.arrivalDate ||
-    booking.from_date ||
-    booking.fromDate ||
-    booking.date_from ||
-    booking.dateFrom ||
-    fallback.checkIn ||
-    "";
-  const checkOut =
+      booking.check_in_date ||
+      booking.checkin ||
+      booking.checkIn ||
+      booking.checkInDate ||
+      booking.start_date ||
+      booking.startDate ||
+      booking.arrival_date ||
+      booking.arrivalDate ||
+      booking.from_date ||
+      booking.fromDate ||
+      booking.date_from ||
+      booking.dateFrom ||
+      booking.stay?.check_in ||
+      booking.stay?.checkIn ||
+      booking.details?.check_in ||
+      booking.details?.checkIn ||
+      fallback.checkIn ||
+      "",
+  );
+  const checkOut = normalizeDateValue(
     booking.check_out ||
-    booking.checkout ||
-    booking.checkOut ||
-    booking.end_date ||
-    booking.endDate ||
-    booking.departure_date ||
-    booking.departureDate ||
-    booking.to_date ||
-    booking.toDate ||
-    booking.date_to ||
-    booking.dateTo ||
-    fallback.checkOut ||
-    "";
-  const status =
+      booking.check_out_date ||
+      booking.checkout ||
+      booking.checkOut ||
+      booking.checkOutDate ||
+      booking.end_date ||
+      booking.endDate ||
+      booking.departure_date ||
+      booking.departureDate ||
+      booking.to_date ||
+      booking.toDate ||
+      booking.date_to ||
+      booking.dateTo ||
+      booking.stay?.check_out ||
+      booking.stay?.checkOut ||
+      booking.details?.check_out ||
+      booking.details?.checkOut ||
+      fallback.checkOut ||
+      "",
+  );
+  const bookingStatus = getStatusText(
     booking.status ||
     booking.booking_status ||
     booking.bookingStatus ||
+      booking.reservation_status ||
+      booking.reservationStatus ||
+      fallback.bookingStatus,
+  );
+  const paymentStatus = getStatusText(
     booking.payment_status ||
     booking.paymentStatus ||
-    fallback.status ||
-    "upcoming";
+      payment.status ||
+      payment.payment_status ||
+      payment.paymentStatus ||
+      source.payment_status ||
+      source.paymentStatus ||
+      fallback.paymentStatus,
+  );
+  const status =
+    isBackendPaymentComplete(paymentStatus) && isBackendStatusPending(bookingStatus)
+      ? "confirmed"
+      : bookingStatus || paymentStatus || fallback.status || "upcoming";
   const totalAmount =
     booking.total_amount ??
     booking.totalAmount ??
     booking.payable_amount ??
+    booking.payableAmount ??
+    booking.amount_paid ??
+    booking.amountPaid ??
     booking.amount ??
+    payment.amount_paid ??
+    payment.amountPaid ??
+    payment.amount ??
     fallback.totalAmount ??
     0;
   const couponDiscount =
@@ -514,6 +668,8 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
       booking.discount_amount,
       booking.discountAmount,
       booking.discount,
+      booking.promo_discount,
+      booking.promoDiscount,
       booking.coupon?.discount_amount,
       booking.coupon?.discountAmount,
       booking.coupon?.discount,
@@ -553,7 +709,11 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
     id: String(
         booking.reference ||
         booking.booking_reference ||
-        booking.booking_no ||
+      booking.booking_no ||
+        booking.booking_number ||
+        booking.bookingNumber ||
+        booking.reservation_reference ||
+        booking.reservationReference ||
         booking.booking_id ||
         bookingBackendId ||
         fallback.id ||
@@ -569,6 +729,8 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
     location:
       booking.location ||
       booking.address ||
+      apartment.residence?.location ||
+      apartment.residence?.address ||
       apartment.location ||
       apartment.address ||
       fallback.location ||
@@ -577,7 +739,13 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
     checkIn,
     checkOut,
     guests: Number(
-      booking.guests || booking.guest_count || fallback.guests || 1,
+      booking.guests ||
+        booking.guest_count ||
+        booking.number_of_guests ||
+        booking.numberOfGuests ||
+        booking.no_of_guests ||
+        fallback.guests ||
+        1,
     ),
     guestName:
       booking.guest_name ||
@@ -594,7 +762,9 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
       booking.guest?.phone_number ||
       fallback.guestPhone ||
       "",
-    nights: Number(booking.nights || fallback.nights || 1),
+    nights: Number(
+      booking.nights || booking.no_of_nights || booking.number_of_nights || fallback.nights || 1,
+    ),
     nightlyRate: Number(
       booking.nightly_rate ||
         booking.price_per_night ||
@@ -622,11 +792,46 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
     couponDiscount,
     totalAmount: Number(totalAmount),
     status,
+    bookingStatus: bookingStatus || status,
+    paymentStatus,
     createdAt:
-      booking.created_at || booking.createdAt || fallback.createdAt || "",
+      normalizeDateValue(
+        booking.created_at ||
+          booking.createdAt ||
+          booking.order_received_at ||
+          booking.orderReceivedAt ||
+          fallback.createdAt ||
+          "",
+      ),
+    updatedAt: normalizeDateValue(
+      booking.updated_at || booking.updatedAt || source.updated_at || source.updatedAt || "",
+    ),
+    paidAt: normalizeDateValue(
+      booking.paid_at ||
+        booking.paidAt ||
+        booking.payment_received_at ||
+        booking.paymentReceivedAt ||
+        payment.paid_at ||
+        payment.paidAt ||
+        payment.created_at ||
+        payment.createdAt ||
+        fallback.paidAt ||
+        "",
+    ),
+    confirmedAt: normalizeDateValue(
+      booking.confirmed_at ||
+        booking.confirmedAt ||
+        booking.booking_confirmed_at ||
+        booking.bookingConfirmedAt ||
+        fallback.confirmedAt ||
+        "",
+    ),
     paymentReference:
       booking.payment_reference ||
       booking.paymentReference ||
+      payment.reference ||
+      payment.payment_reference ||
+      payment.paymentReference ||
       booking.reference ||
       fallback.paymentReference ||
       "",
@@ -639,8 +844,15 @@ export function normalizeBackendBooking(item = {}, fallback = {}) {
     ),
     review: booking.review || booking.user_review || fallback.review || null,
     timeline: Array.isArray(booking.timeline)
-      ? booking.timeline
+      ? booking.timeline.map((timelineItem) =>
+          normalizeBackendTimelineItem(timelineItem),
+        )
+      : Array.isArray(source.timeline)
+        ? source.timeline.map((timelineItem) =>
+            normalizeBackendTimelineItem(timelineItem),
+          )
       : fallback.timeline,
+    raw: booking,
   };
 }
 

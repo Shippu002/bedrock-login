@@ -142,7 +142,9 @@ function ResidencePage({
         </button>
 
         <div>
-          <h1>{selectedApartmentTitle || "Apartments"}</h1>
+          <p className="residence-mobile-head__title">
+            {selectedApartmentTitle || "Apartments"}
+          </p>
           <p>{residenceTitle}</p>
         </div>
       </div>

@@ -191,7 +191,7 @@
     height: 18px;
   }
 
-  .residence-mobile-head h1 {
+  .residence-mobile-head__title {
     margin: 0;
     color: #101928;
     font-family: "Urbanist", Arial, sans-serif;
