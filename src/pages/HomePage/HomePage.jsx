@@ -141,13 +141,29 @@ const SHOP_VARIANT_ALIASES = {
   request: "requests",
 };
 const RESIDENCE_ROUTE_NAMES = [
-  { key: "bateye", label: "Bateye" },
-  { key: "opebi", label: "Opebi Residence" },
-  { key: "community", label: "Community Residence" },
-  { key: "oduduwa", label: "Oduduwa Residence" },
-  { key: "obeds-court", label: "Obed's Court" },
-  { key: "patricks-court", label: "Patrick's Court" },
-  { key: "ikate", label: "Ikate Residence" },
+  { key: "bateye", label: "Bateye", aliases: ["bateye-residence"] },
+  { key: "opebi", label: "Opebi Residence", aliases: ["opebi-residence"] },
+  {
+    key: "community",
+    label: "Community Residence",
+    aliases: ["community-residence", "community-residence-yaba"],
+  },
+  {
+    key: "oduduwa",
+    label: "Oduduwa Residence",
+    aliases: ["oduduwa-residence", "oduduwa-residence-ikeja"],
+  },
+  {
+    key: "obeds-court",
+    label: "Obed's Court",
+    aliases: ["obed-court", "obeds-court-ikoyi", "obeds-court-residence"],
+  },
+  {
+    key: "patricks-court",
+    label: "Patrick's Court",
+    aliases: ["patrick-court", "patricks-court-ikoyi", "patricks-court-residence"],
+  },
+  { key: "ikate", label: "Ikate Residence", aliases: ["ikate-residence", "ikate-residence-lekki"] },
 ];
 const AUTH_ROUTE_BY_ENTRY = {
   login: "/login",
@@ -236,9 +252,21 @@ function getKnownResidenceRouteLabel(...values) {
   if (!normalizedText) return "";
 
   return (
-    RESIDENCE_ROUTE_NAMES.find((item) => normalizedText.includes(item.key))
-      ?.label || ""
+    RESIDENCE_ROUTE_NAMES.find((item) =>
+      [item.key, ...(item.aliases || [])].some((key) => normalizedText.includes(key)),
+    )?.label || ""
   );
+}
+
+function getResidenceRouteAliases(routeKey = "") {
+  const slug = slugifyRouteSegment(routeKey);
+  const knownResidence = RESIDENCE_ROUTE_NAMES.find((item) =>
+    [item.key, ...(item.aliases || [])].includes(slug),
+  );
+
+  return knownResidence
+    ? [knownResidence.key, knownResidence.label, ...(knownResidence.aliases || [])]
+    : [];
 }
 
 function getResidenceRouteKey(residence, fallbackId = "") {
@@ -362,14 +390,17 @@ function getRouteMatchKeys(record, extraValues = []) {
 }
 
 function recordMatchesRouteKey(record, routeKey, extraValues = []) {
-  const normalizedRouteKey = normalizeRouteLookup(routeKey);
-  const sluggedRouteKey = slugifyRouteSegment(routeKey);
-  const candidateKeys = getRouteMatchKeys(record, extraValues);
-
-  return (
-    candidateKeys.has(normalizedRouteKey) ||
-    candidateKeys.has(sluggedRouteKey)
+  const routeAliases = getResidenceRouteAliases(routeKey);
+  const candidateKeys = getRouteMatchKeys(record, [
+    ...extraValues,
+    ...routeAliases,
+  ]);
+  const routeKeys = getRouteMatchKeys(
+    {},
+    [routeKey, ...routeAliases],
   );
+
+  return [...routeKeys].some((key) => candidateKeys.has(key));
 }
 
 function normalizeShopRouteVariant(value = "") {
@@ -3207,6 +3238,11 @@ function HomePage() {
       setApartmentFilters({
         ...defaultApartmentFilters,
         residenceId,
+        apartmentTitle: "",
+        checkIn: "",
+        checkOut: "",
+        guests: 0,
+        query: "",
       });
       setActivePage("residence");
       setProfileInitialView("profile");

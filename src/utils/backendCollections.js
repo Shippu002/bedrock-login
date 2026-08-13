@@ -329,6 +329,9 @@ function normalizeResidenceId(value, name = "") {
   if (source.includes("oduduwa")) return "oduduwa";
   if (source.includes("bateye")) return "bateye";
   if (source.includes("community")) return "community";
+  if (source.includes("obed")) return "obeds-court";
+  if (source.includes("patrick")) return "patricks-court";
+  if (source.includes("ikate")) return "ikate";
 
   return String(value || name || "residence")
     .toLowerCase()

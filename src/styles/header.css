@@ -1221,3 +1221,118 @@
     gap: 6px;
   }
 }
+
+/* Compact live dropdown sizing: keeps the residence menu usable without blocking page scroll. */
+.nav-mega--residences {
+  width: min(760px, calc(100vw - 40px));
+  min-height: 0;
+  max-height: min(520px, calc(100vh - 150px));
+  grid-template-columns: minmax(260px, 0.95fr) minmax(260px, 1fr);
+  border-radius: 0 0 22px 22px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.nav-mega__column {
+  padding: 24px 28px 28px;
+}
+
+.nav-mega__list {
+  gap: 10px;
+}
+
+.nav-mega__item {
+  min-height: 64px;
+  padding: 10px 12px;
+  grid-template-columns: 48px 1fr;
+  gap: 14px;
+}
+
+.nav-mega__item img,
+.nav-mega__item-image {
+  width: 48px;
+  height: 48px;
+}
+
+.nav-mega__types {
+  gap: 10px;
+}
+
+.nav-mega__types button {
+  min-height: 58px;
+  padding: 12px 14px;
+}
+
+@media (max-width: 910px) {
+  .site-header {
+    position: relative;
+    z-index: 80;
+  }
+
+  .nav-dropdown {
+    position: static;
+  }
+
+  .nav-mega--residences {
+    left: 50%;
+    top: calc(100% + 8px);
+    width: min(340px, calc(100vw - 28px));
+    max-height: min(420px, calc(100dvh - 150px));
+    min-height: 0;
+    display: block;
+    border-radius: 18px;
+    transform: translateX(-50%);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav-mega--residences .nav-mega__column {
+    padding: 14px;
+  }
+
+  .nav-mega--residences .nav-mega__column--types {
+    display: none;
+  }
+
+  .nav-mega--residences h3 {
+    margin-bottom: 10px;
+    font-size: 18px;
+    line-height: 24px;
+  }
+
+  .nav-mega--residences .nav-mega__list {
+    gap: 8px;
+  }
+
+  .nav-mega--residences .nav-mega__item {
+    min-height: 58px;
+    padding: 8px 10px;
+    grid-template-columns: 42px 1fr;
+    gap: 10px;
+    border-radius: 12px;
+  }
+
+  .nav-mega--residences .nav-mega__item img,
+  .nav-mega--residences .nav-mega__item-image {
+    width: 42px;
+    height: 42px;
+  }
+
+  .nav-mega--residences .nav-mega__item strong {
+    font-size: 15px;
+    line-height: 19px;
+  }
+
+  .nav-mega--residences .nav-mega__item em {
+    font-size: 12px;
+    line-height: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-mega--residences {
+    width: min(320px, calc(100vw - 24px));
+    max-height: min(380px, calc(100dvh - 132px));
+  }
+}
+

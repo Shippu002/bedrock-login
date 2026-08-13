@@ -5,7 +5,7 @@ import {
   toAbsoluteSeoUrl,
 } from "./seoRoutes";
 
-const DEFAULT_TITLE = "Luxury Apartments in Lagos | Bedrock Residences";
+const DEFAULT_TITLE = "Bedrock Residences";
 const DEFAULT_DESCRIPTION =
   "Book luxury serviced apartments in Lagos with Bedrock Residences. Find secure short-stay apartments, flexible booking, support, and premium comfort.";
 const DEFAULT_IMAGE = "/android-chrome-512x512.png";
