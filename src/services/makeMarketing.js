@@ -1,4 +1,5 @@
-const WEBHOOK_ENDPOINT = "/api/marketing-track";
+const WEBHOOK_ENDPOINT =
+  import.meta.env.VITE_MAKE_MARKETING_ENDPOINT || "/api/marketing-track";
 const WEBHOOK_ENABLED = import.meta.env.VITE_ENABLE_MAKE_WEBHOOK !== "false";
 
 function cleanObject(value = {}) {
@@ -160,6 +161,20 @@ function postWebhook(payload) {
   }
 }
 
+function flattenPayload(payload = {}) {
+  return cleanObject({
+    ...payload.user,
+    ...payload.properties,
+    source: payload.source,
+    event: payload.event,
+    timestamp: payload.timestamp,
+    pageUrl: payload.page?.url,
+    pagePath: payload.page?.path,
+    pageTitle: payload.page?.title,
+    pageReferrer: payload.page?.referrer,
+  });
+}
+
 export function trackMarketingEvent(eventName, properties = {}, user = {}) {
   if (!eventName) return;
 
@@ -172,13 +187,18 @@ export function trackMarketingEvent(eventName, properties = {}, user = {}) {
     ...properties,
   });
 
-  postWebhook({
+  const payload = {
     source: "bedrock-web",
     event: eventName,
     timestamp: new Date().toISOString(),
     page: getPagePayload(),
     user: userPayload,
     properties: eventProperties,
+  };
+
+  postWebhook({
+    ...payload,
+    flat: flattenPayload(payload),
   });
 }
 

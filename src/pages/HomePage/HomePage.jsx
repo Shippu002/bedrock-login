@@ -618,6 +618,104 @@ function getAnalyticsUserEmail(user) {
   return user.email || "";
 }
 
+function getAnalyticsUserPhone(user) {
+  if (!user) return "";
+
+  return (
+    user.phone ||
+    user.phoneNumber ||
+    user.phone_number ||
+    user.mobile ||
+    user.telephone ||
+    ""
+  );
+}
+
+function cleanMarketingPayload(payload = {}) {
+  return Object.fromEntries(
+    Object.entries(payload).filter(
+      ([, value]) => value !== undefined && value !== null && value !== "",
+    ),
+  );
+}
+
+function isCompletedMarketingBooking(booking = {}) {
+  const statusText = String(
+    booking.status ||
+      booking.bookingStatus ||
+      booking.booking_status ||
+      booking.paymentStatus ||
+      booking.payment_status ||
+      "",
+  ).toLowerCase();
+  const paymentStatusText = String(
+    booking.paymentStatus || booking.payment_status || "",
+  ).toLowerCase();
+
+  return (
+    statusText.includes("confirmed") ||
+    statusText.includes("completed") ||
+    paymentStatusText.includes("paid")
+  );
+}
+
+function getCompletedBookingsCount(bookings = []) {
+  return Array.isArray(bookings)
+    ? bookings.filter(isCompletedMarketingBooking).length
+    : 0;
+}
+
+function getCustomerBookingStats(user = {}, extraCompletedBookings = 0) {
+  const completedBookingsCount =
+    getCompletedBookingsCount(user?.bookings || []) + extraCompletedBookings;
+
+  return {
+    completedBookingsCount,
+    isReturningCustomer: completedBookingsCount > 1,
+    returningCustomerCount: Math.max(completedBookingsCount - 1, 0),
+    customerType:
+      completedBookingsCount > 1
+        ? "Returning Customer"
+        : completedBookingsCount === 1
+          ? "First Completed Booking Customer"
+          : "Lead - No Completed Booking",
+  };
+}
+
+function getCustomerMarketingPayload(user = {}, overrides = {}) {
+  const name = overrides.name || getAnalyticsUserName(user);
+  const nameParts = splitProfileName(name);
+  const bookingStats = getCustomerBookingStats(
+    user,
+    Number(overrides.extraCompletedBookings || 0),
+  );
+
+  return cleanMarketingPayload({
+    customerId: overrides.customerId || getAnalyticsUserId(user),
+    firstName:
+      overrides.firstName || user.firstName || user.first_name || nameParts.firstName,
+    lastName:
+      overrides.lastName || user.lastName || user.last_name || nameParts.lastName,
+    name,
+    email: overrides.email || getAnalyticsUserEmail(user),
+    phone: overrides.phone || getAnalyticsUserPhone(user),
+    accountType:
+      overrides.accountType ||
+      user.accountType ||
+      user.account_type ||
+      user.role ||
+      "",
+    isAgent: user.isAgent,
+    agentStatus: user.agentStatus,
+    source: overrides.source || "Website",
+    status: overrides.status || "",
+    funnelList: overrides.funnelList || "",
+    timeStamp: new Date().toISOString(),
+    ...bookingStats,
+    ...overrides,
+  });
+}
+
 const fallbackRequestItems = [
   {
     id: "quick-request",
@@ -913,6 +1011,74 @@ function trackPurchaseOnce(reference, amountPaid, user) {
   rememberTrackedPurchaseReference(reference);
 
   return true;
+}
+
+function buildBookingMarketingPayload(booking = {}, user = {}, overrides = {}) {
+  const guestName =
+    overrides.guestName ||
+    booking.guestName ||
+    booking.guest_name ||
+    getAnalyticsUserName(user);
+  const nameParts = splitProfileName(guestName);
+  const amountPaid = Number(
+    overrides.amountPaid ??
+      booking.amountPaid ??
+      booking.totalAmount ??
+      booking.payable ??
+      booking.total ??
+      0,
+  );
+  const customerStats =
+    overrides.customerStats ||
+    getCustomerBookingStats(user, Number(overrides.extraCompletedBookings || 0));
+
+  return cleanMarketingPayload({
+    bookingId:
+      overrides.bookingId ||
+      booking.backendId ||
+      booking.bookingId ||
+      booking.id ||
+      booking.reference ||
+      "",
+    customerId: overrides.customerId || getAnalyticsUserId(user),
+    firstName: overrides.firstName || user.firstName || nameParts.firstName,
+    lastName: overrides.lastName || user.lastName || nameParts.lastName,
+    name: guestName,
+    email: overrides.email || getAnalyticsUserEmail(user),
+    phone:
+      overrides.phone ||
+      booking.guestPhone ||
+      booking.guest_phone ||
+      getAnalyticsUserPhone(user),
+    apartment:
+      overrides.apartment ||
+      booking.title ||
+      booking.apartment ||
+      booking.apartmentName ||
+      "",
+    residence: overrides.residence || booking.residenceName || "",
+    checkIn: overrides.checkIn || booking.checkIn || booking.check_in || "",
+    checkOut: overrides.checkOut || booking.checkOut || booking.check_out || "",
+    numberOfGuests: Number(
+      overrides.numberOfGuests || booking.guests || booking.numberOfGuests || 0,
+    ),
+    nights: Number(overrides.nights || booking.nights || 0),
+    source: overrides.source || "Website",
+    status: overrides.status || booking.status || "",
+    funnelList: overrides.funnelList || "",
+    balance: overrides.balance ?? booking.balance ?? 0,
+    amountPaid,
+    totalAmount: Number(overrides.totalAmount ?? booking.totalAmount ?? amountPaid),
+    paymentReference:
+      overrides.paymentReference ||
+      booking.paymentReference ||
+      booking.payment_reference ||
+      "",
+    couponCode: overrides.couponCode || booking.couponCode || "",
+    couponDiscount: Number(overrides.couponDiscount ?? booking.couponDiscount ?? 0),
+    timeStamp: new Date().toISOString(),
+    ...customerStats,
+  });
 }
 
 function getReturnedPaymentReference() {
@@ -2391,6 +2557,7 @@ function HomePage() {
           paymentContext?.amount,
         );
         const isBooking = paymentContext?.type === "booking";
+        let didTrackPurchase = false;
 
         // Fire Purchase exactly once, only after backend verification has
         // succeeded. The ref guard blocks React StrictMode double-invoke and
@@ -2398,7 +2565,11 @@ function HomePage() {
         // reference after a refresh or copied return link.
         if (trackedPurchaseReferenceRef.current !== returnedReference) {
           trackedPurchaseReferenceRef.current = returnedReference;
-          trackPurchaseOnce(returnedReference, amountPaid, currentUser);
+          didTrackPurchase = trackPurchaseOnce(
+            returnedReference,
+            amountPaid,
+            currentUser,
+          );
         }
 
         clearPendingPaymentContext();
@@ -2417,6 +2588,8 @@ function HomePage() {
                 checkIn: paymentContext?.checkIn || "",
                 checkOut: paymentContext?.checkOut || "",
                 guests: Number(paymentContext?.guests || 0) || 1,
+                guestName: paymentContext?.guestName || "",
+                guestPhone: paymentContext?.guestPhone || "",
                 totalAmount: amountPaid,
                 status: "confirmed",
                 bookingStatus: "confirmed",
@@ -2428,6 +2601,42 @@ function HomePage() {
             : null;
 
         if (ignorePaymentResponse) return;
+
+        if (isBooking && paidBookingOverride && didTrackPurchase) {
+          const completedBookingsCount = Math.max(
+            getCompletedBookingsCount(hydratedUser?.bookings || []),
+            getCompletedBookingsCount(currentUser?.bookings || []) + 1,
+          );
+          const completedStats = {
+            completedBookingsCount,
+            isReturningCustomer: completedBookingsCount > 1,
+            returningCustomerCount: Math.max(completedBookingsCount - 1, 0),
+            customerType:
+              completedBookingsCount > 1
+                ? "Returning Customer"
+                : "First Completed Booking Customer",
+          };
+
+          trackMarketingEvent(
+            "Completed Booking Customer",
+            buildBookingMarketingPayload(paidBookingOverride, hydratedUser, {
+              bookingId: paymentContext.recordId,
+              guestName: paymentContext?.guestName || "",
+              phone: paymentContext?.guestPhone || "",
+              checkIn: paymentContext?.checkIn || "",
+              checkOut: paymentContext?.checkOut || "",
+              numberOfGuests: Number(paymentContext?.guests || 0) || 1,
+              amountPaid,
+              totalAmount: amountPaid,
+              balance: 0,
+              paymentReference: returnedReference,
+              status: "Payment Successful - Booking Confirmed",
+              funnelList: "Completed Booking Customers",
+              customerStats: completedStats,
+            }),
+            hydratedUser,
+          );
+        }
 
         updateCurrentUser(
           paidBookingOverride
@@ -2460,6 +2669,8 @@ function HomePage() {
             checkIn: paymentContext?.checkIn || "",
             checkOut: paymentContext?.checkOut || "",
             guests: Number(paymentContext?.guests || 0),
+            guestName: paymentContext?.guestName || "",
+            guestPhone: paymentContext?.guestPhone || "",
           };
 
           savePaymentConfirmation(confirmation);
@@ -2536,6 +2747,7 @@ function HomePage() {
           status: true,
           userId: getAnalyticsUserId(serverCheckedUser),
           email: getAnalyticsUserEmail(serverCheckedUser),
+          phone: getAnalyticsUserPhone(serverCheckedUser),
         },
         serverCheckedUser,
       );
@@ -2551,6 +2763,27 @@ function HomePage() {
     );
 
     const hydratedUser = await fetchBackendUserCollections(serverCheckedUser);
+    const marketingUser =
+      hydratedUser && hydratedUser !== serverCheckedUser
+        ? hydratedUser
+        : serverCheckedUser;
+    const customerStats = getCustomerBookingStats(marketingUser);
+    const customerEventName = options.isRegistration
+      ? "Customer Signed Up"
+      : "Customer Logged In";
+    const customerFunnelList =
+      customerStats.completedBookingsCount > 0
+        ? "Completed Booking Customers"
+        : "Uncompleted Booking Leads";
+
+    trackMarketingEvent(
+      customerEventName,
+      getCustomerMarketingPayload(marketingUser, {
+        status: options.isRegistration ? "Signed Up" : "Logged In",
+        funnelList: customerFunnelList,
+      }),
+      marketingUser,
+    );
 
     if (hydratedUser !== serverCheckedUser) {
       updateCurrentUser(hydratedUser);
@@ -4786,6 +5019,22 @@ function HomePage() {
 
           setPendingBooking(booking);
           saveBookingToProfile(booking);
+          trackMarketingEvent(
+            "Incomplete Booking Created",
+            buildBookingMarketingPayload(booking, currentUser, {
+              bookingId,
+              guestName: bookingDetails.guestName,
+              phone: bookingDetails.guestPhone,
+              checkIn: bookingDetails.checkIn,
+              checkOut: bookingDetails.checkOut,
+              numberOfGuests: Number(bookingDetails.guests || 0),
+              status: "Booking Created - Payment Not Completed",
+              funnelList: "Uncompleted Booking Leads",
+              balance: Number(booking.totalAmount || 0),
+              source: "Website",
+            }),
+            currentUser,
+          );
         }
 
         const paymentResponse = await bookingsApi.initiatePayment(
@@ -4807,6 +5056,23 @@ function HomePage() {
           "Booking payment started",
           `${nextPendingBooking.title || selectedApartment.title} is waiting for payment confirmation.`,
         );
+        trackMarketingEvent(
+          "Booking Payment Started",
+          buildBookingMarketingPayload(nextPendingBooking, currentUser, {
+            bookingId,
+            guestName: bookingDetails.guestName,
+            phone: bookingDetails.guestPhone,
+            checkIn: bookingDetails.checkIn,
+            checkOut: bookingDetails.checkOut,
+            numberOfGuests: Number(bookingDetails.guests || 0),
+            status: "Payment Started - Awaiting Completion",
+            funnelList: "Uncompleted Booking Leads",
+            balance: Number(nextPendingBooking.totalAmount || 0),
+            paymentReference: nextPendingBooking.paymentReference || "",
+            source: "Website",
+          }),
+          currentUser,
+        );
 
         savePendingPaymentContext({
           type: "booking",
@@ -4823,6 +5089,8 @@ function HomePage() {
           checkIn: bookingDetails.checkIn || "",
           checkOut: bookingDetails.checkOut || "",
           guests: Number(bookingDetails.guests || 0),
+          guestName: String(bookingDetails.guestName || "").trim(),
+          guestPhone: String(bookingDetails.guestPhone || "").trim(),
         });
 
         if (payment.authorizationUrl && typeof window !== "undefined") {

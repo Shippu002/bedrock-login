@@ -24,6 +24,12 @@ export default async function handler(req, res) {
   }
 
   const payload = parseBody(req);
+  const forwardedPayload = {
+    ...payload,
+    ...(payload?.flat || {}),
+    ...(payload?.properties || {}),
+    ...(payload?.user || {}),
+  };
 
   try {
     await fetch(MAKE_WEBHOOK_URL, {
@@ -31,7 +37,7 @@ export default async function handler(req, res) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(forwardedPayload),
     });
   } catch {
     // Marketing tracking must never block the user experience.
