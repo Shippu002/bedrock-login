@@ -168,15 +168,22 @@ function postWebhook(payload) {
 }
 
 function flattenPayload(payload = {}) {
+  const mergedPayload = cleanObject({
+    ...(payload.user || {}),
+    ...(payload.properties || {}),
+  });
+
   return cleanObject({
     contactKey: getContactKey({
       ...(payload.user || {}),
       ...(payload.properties || {}),
     }),
-    ...payload.user,
-    ...payload.properties,
+    ...mergedPayload,
     source: payload.source,
     event: payload.event,
+    event_type: payload.event,
+    first_name: mergedPayload.first_name || mergedPayload.firstName,
+    last_name: mergedPayload.last_name || mergedPayload.lastName,
     timestamp: payload.timestamp,
     pageUrl: payload.page?.url,
     pagePath: payload.page?.path,
@@ -201,6 +208,7 @@ export function trackMarketingEvent(eventName, properties = {}, user = {}) {
   const payload = {
     source: "bedrock-web",
     event: eventName,
+    event_type: eventName,
     timestamp: new Date().toISOString(),
     page: getPagePayload(),
     user: userPayload,
