@@ -16,6 +16,12 @@ function pickNonEmpty(...values) {
   );
 }
 
+function getContactKey({ id, email, phone } = {}) {
+  return String(email || phone || id || "")
+    .trim()
+    .toLowerCase();
+}
+
 function getUserPayload(user = {}) {
   if (!user || typeof user !== "object") return {};
 
@@ -163,6 +169,10 @@ function postWebhook(payload) {
 
 function flattenPayload(payload = {}) {
   return cleanObject({
+    contactKey: getContactKey({
+      ...(payload.user || {}),
+      ...(payload.properties || {}),
+    }),
     ...payload.user,
     ...payload.properties,
     source: payload.source,
@@ -180,6 +190,7 @@ export function trackMarketingEvent(eventName, properties = {}, user = {}) {
 
   const userPayload = getUserPayload(user);
   const eventProperties = cleanObject({
+    contactKey: getContactKey(userPayload),
     email: userPayload.email,
     phone: userPayload.phone,
     phoneNumber: userPayload.phone,

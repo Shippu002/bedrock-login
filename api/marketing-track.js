@@ -26,9 +26,9 @@ export default async function handler(req, res) {
   const payload = parseBody(req);
   const forwardedPayload = {
     ...payload,
+    ...(payload?.user || {}),
     ...(payload?.flat || {}),
     ...(payload?.properties || {}),
-    ...(payload?.user || {}),
   };
 
   try {

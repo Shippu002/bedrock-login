@@ -639,6 +639,96 @@ function cleanMarketingPayload(payload = {}) {
   );
 }
 
+const BREVO_MARKETING_LISTS = {
+  master: "BRS-Master List",
+  newGuests: "BRS-New Guests",
+  returningGuests: "BRS-Returning Guests",
+  abandonedCheckouts: "BRS-Abandoned Checkouts",
+};
+
+function getUniqueListNames(listNames = []) {
+  return [...new Set(listNames.filter(Boolean))];
+}
+
+function getBrevoRoutingPayload(stage = "lead", completedBookingsCount = 0) {
+  const completedCount = Number(completedBookingsCount || 0);
+  const isCompletedBooking = stage === "completed_booking";
+  const isReturningGuest = isCompletedBooking && completedCount > 1;
+  const isNewGuest = isCompletedBooking && !isReturningGuest;
+  const isAbandonedCheckout =
+    stage === "booking_created" || stage === "payment_started";
+
+  let targetList = BREVO_MARKETING_LISTS.master;
+  let funnelList = "Uncompleted Booking Leads";
+  let listAction = "add_to_uncompleted_leads";
+  let leadStatus = "Logged in - No Booking Completed";
+
+  if (isCompletedBooking) {
+    targetList = isReturningGuest
+      ? BREVO_MARKETING_LISTS.returningGuests
+      : BREVO_MARKETING_LISTS.newGuests;
+    funnelList = targetList;
+    listAction = isReturningGuest
+      ? "move_to_returning_guests"
+      : "move_to_new_guests";
+    leadStatus = "Payment Successful - Booking Confirmed";
+  } else if (isAbandonedCheckout) {
+    targetList = BREVO_MARKETING_LISTS.abandonedCheckouts;
+    funnelList = targetList;
+    listAction = "add_to_abandoned_checkouts";
+    leadStatus =
+      stage === "payment_started"
+        ? "Payment Started - Awaiting Completion"
+        : "Booking Created - Payment Not Completed";
+  } else if (completedCount > 0) {
+    targetList =
+      completedCount > 1
+        ? BREVO_MARKETING_LISTS.returningGuests
+        : BREVO_MARKETING_LISTS.newGuests;
+    funnelList = targetList;
+    listAction =
+      completedCount > 1 ? "refresh_returning_guest" : "refresh_new_guest";
+    leadStatus = "Existing Booking Customer";
+  }
+
+  const addToLists = getUniqueListNames([BREVO_MARKETING_LISTS.master, targetList]);
+  const removeFromLists = isCompletedBooking
+    ? getUniqueListNames([
+        BREVO_MARKETING_LISTS.abandonedCheckouts,
+        isReturningGuest
+          ? BREVO_MARKETING_LISTS.newGuests
+          : BREVO_MARKETING_LISTS.returningGuests,
+      ])
+    : [];
+
+  return cleanMarketingPayload({
+    bookingStage: stage,
+    automationAction: listAction,
+    brevoList: targetList,
+    brevoListName: targetList,
+    targetList,
+    targetListName: targetList,
+    addToList: targetList,
+    addToLists,
+    addToListsText: addToLists.join(", "),
+    removeFromLists,
+    removeFromListsText: removeFromLists.join(", "),
+    removeFromAbandonedList: isCompletedBooking,
+    removeFromAbandonedCheckouts: isCompletedBooking,
+    removeFromGuestLists: isCompletedBooking && isReturningGuest,
+    shouldRemoveFromAbandoned: isCompletedBooking,
+    isNewGuest,
+    isReturningGuest,
+    isAbandonedCheckout,
+    hasCompletedBooking: isCompletedBooking || completedCount > 0,
+    hasIncompleteBooking: !isCompletedBooking,
+    completedBookingsCount: completedCount,
+    returningCustomerCount: Math.max(completedCount - 1, 0),
+    leadStatus,
+    funnelList,
+  });
+}
+
 function isCompletedMarketingBooking(booking = {}) {
   const statusText = String(
     booking.status ||
@@ -689,6 +779,10 @@ function getCustomerMarketingPayload(user = {}, overrides = {}) {
     user,
     Number(overrides.extraCompletedBookings || 0),
   );
+  const routingPayload = getBrevoRoutingPayload(
+    overrides.bookingStage || "lead",
+    bookingStats.completedBookingsCount,
+  );
 
   return cleanMarketingPayload({
     customerId: overrides.customerId || getAnalyticsUserId(user),
@@ -712,6 +806,7 @@ function getCustomerMarketingPayload(user = {}, overrides = {}) {
     funnelList: overrides.funnelList || "",
     timeStamp: new Date().toISOString(),
     ...bookingStats,
+    ...routingPayload,
     ...overrides,
   });
 }
@@ -1014,14 +1109,19 @@ function trackPurchaseOnce(reference, amountPaid, user) {
 }
 
 function buildBookingMarketingPayload(booking = {}, user = {}, overrides = {}) {
+  const {
+    customerStats: overrideCustomerStats,
+    extraCompletedBookings,
+    ...payloadOverrides
+  } = overrides;
   const guestName =
-    overrides.guestName ||
+    payloadOverrides.guestName ||
     booking.guestName ||
     booking.guest_name ||
     getAnalyticsUserName(user);
   const nameParts = splitProfileName(guestName);
   const amountPaid = Number(
-    overrides.amountPaid ??
+    payloadOverrides.amountPaid ??
       booking.amountPaid ??
       booking.totalAmount ??
       booking.payable ??
@@ -1029,55 +1129,68 @@ function buildBookingMarketingPayload(booking = {}, user = {}, overrides = {}) {
       0,
   );
   const customerStats =
-    overrides.customerStats ||
-    getCustomerBookingStats(user, Number(overrides.extraCompletedBookings || 0));
+    overrideCustomerStats ||
+    getCustomerBookingStats(user, Number(extraCompletedBookings || 0));
+  const routingPayload = getBrevoRoutingPayload(
+    payloadOverrides.bookingStage || "booking_created",
+    customerStats.completedBookingsCount,
+  );
 
   return cleanMarketingPayload({
     bookingId:
-      overrides.bookingId ||
+      payloadOverrides.bookingId ||
       booking.backendId ||
       booking.bookingId ||
       booking.id ||
       booking.reference ||
       "",
-    customerId: overrides.customerId || getAnalyticsUserId(user),
-    firstName: overrides.firstName || user.firstName || nameParts.firstName,
-    lastName: overrides.lastName || user.lastName || nameParts.lastName,
+    customerId: payloadOverrides.customerId || getAnalyticsUserId(user),
+    firstName: payloadOverrides.firstName || user.firstName || nameParts.firstName,
+    lastName: payloadOverrides.lastName || user.lastName || nameParts.lastName,
     name: guestName,
-    email: overrides.email || getAnalyticsUserEmail(user),
+    email: payloadOverrides.email || getAnalyticsUserEmail(user),
     phone:
-      overrides.phone ||
+      payloadOverrides.phone ||
       booking.guestPhone ||
       booking.guest_phone ||
       getAnalyticsUserPhone(user),
     apartment:
-      overrides.apartment ||
+      payloadOverrides.apartment ||
       booking.title ||
       booking.apartment ||
       booking.apartmentName ||
       "",
-    residence: overrides.residence || booking.residenceName || "",
-    checkIn: overrides.checkIn || booking.checkIn || booking.check_in || "",
-    checkOut: overrides.checkOut || booking.checkOut || booking.check_out || "",
+    residence: payloadOverrides.residence || booking.residenceName || "",
+    checkIn: payloadOverrides.checkIn || booking.checkIn || booking.check_in || "",
+    checkOut: payloadOverrides.checkOut || booking.checkOut || booking.check_out || "",
     numberOfGuests: Number(
-      overrides.numberOfGuests || booking.guests || booking.numberOfGuests || 0,
+      payloadOverrides.numberOfGuests ||
+        booking.guests ||
+        booking.numberOfGuests ||
+        0,
     ),
-    nights: Number(overrides.nights || booking.nights || 0),
-    source: overrides.source || "Website",
-    status: overrides.status || booking.status || "",
-    funnelList: overrides.funnelList || "",
-    balance: overrides.balance ?? booking.balance ?? 0,
+    nights: Number(payloadOverrides.nights || booking.nights || 0),
+    source: payloadOverrides.source || "Website",
+    status: payloadOverrides.status || booking.status || "",
+    funnelList: payloadOverrides.funnelList || "",
+    balance: payloadOverrides.balance ?? booking.balance ?? 0,
     amountPaid,
-    totalAmount: Number(overrides.totalAmount ?? booking.totalAmount ?? amountPaid),
+    totalAmount: Number(
+      payloadOverrides.totalAmount ?? booking.totalAmount ?? amountPaid,
+    ),
     paymentReference:
-      overrides.paymentReference ||
+      payloadOverrides.paymentReference ||
       booking.paymentReference ||
       booking.payment_reference ||
       "",
-    couponCode: overrides.couponCode || booking.couponCode || "",
-    couponDiscount: Number(overrides.couponDiscount ?? booking.couponDiscount ?? 0),
+    couponCode: payloadOverrides.couponCode || booking.couponCode || "",
+    couponDiscount: Number(
+      payloadOverrides.couponDiscount ?? booking.couponDiscount ?? 0,
+    ),
     timeStamp: new Date().toISOString(),
     ...customerStats,
+    ...routingPayload,
+    ...payloadOverrides,
   });
 }
 
@@ -2631,7 +2744,7 @@ function HomePage() {
               balance: 0,
               paymentReference: returnedReference,
               status: "Payment Successful - Booking Confirmed",
-              funnelList: "Completed Booking Customers",
+              bookingStage: "completed_booking",
               customerStats: completedStats,
             }),
             hydratedUser,
@@ -2773,7 +2886,9 @@ function HomePage() {
       : "Customer Logged In";
     const customerFunnelList =
       customerStats.completedBookingsCount > 0
-        ? "Completed Booking Customers"
+        ? customerStats.completedBookingsCount > 1
+          ? BREVO_MARKETING_LISTS.returningGuests
+          : BREVO_MARKETING_LISTS.newGuests
         : "Uncompleted Booking Leads";
 
     trackMarketingEvent(
@@ -2781,6 +2896,7 @@ function HomePage() {
       getCustomerMarketingPayload(marketingUser, {
         status: options.isRegistration ? "Signed Up" : "Logged In",
         funnelList: customerFunnelList,
+        bookingStage: options.isRegistration ? "signup" : "login",
       }),
       marketingUser,
     );
@@ -5029,7 +5145,7 @@ function HomePage() {
               checkOut: bookingDetails.checkOut,
               numberOfGuests: Number(bookingDetails.guests || 0),
               status: "Booking Created - Payment Not Completed",
-              funnelList: "Uncompleted Booking Leads",
+              bookingStage: "booking_created",
               balance: Number(booking.totalAmount || 0),
               source: "Website",
             }),
@@ -5066,7 +5182,7 @@ function HomePage() {
             checkOut: bookingDetails.checkOut,
             numberOfGuests: Number(bookingDetails.guests || 0),
             status: "Payment Started - Awaiting Completion",
-            funnelList: "Uncompleted Booking Leads",
+            bookingStage: "payment_started",
             balance: Number(nextPendingBooking.totalAmount || 0),
             paymentReference: nextPendingBooking.paymentReference || "",
             source: "Website",

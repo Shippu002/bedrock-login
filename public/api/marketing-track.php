@@ -22,9 +22,9 @@ if (!is_array($payload)) {
 
 $forwardedPayload = array_merge(
     $payload,
+    isset($payload['user']) && is_array($payload['user']) ? $payload['user'] : [],
     isset($payload['flat']) && is_array($payload['flat']) ? $payload['flat'] : [],
-    isset($payload['properties']) && is_array($payload['properties']) ? $payload['properties'] : [],
-    isset($payload['user']) && is_array($payload['user']) ? $payload['user'] : []
+    isset($payload['properties']) && is_array($payload['properties']) ? $payload['properties'] : []
 );
 
 $ch = curl_init($webhookUrl);
