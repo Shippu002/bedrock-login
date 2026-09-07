@@ -1,5 +1,4 @@
-const WEBHOOK_ENDPOINT =
-  import.meta.env.VITE_MAKE_MARKETING_ENDPOINT || "/api/marketing-track";
+const WEBHOOK_URL = import.meta.env.VITE_MAKE_MARKETING_WEBHOOK_URL || "";
 const WEBHOOK_ENABLED = import.meta.env.VITE_ENABLE_MAKE_WEBHOOK !== "false";
 
 function cleanObject(value = {}) {
@@ -10,120 +9,20 @@ function cleanObject(value = {}) {
   );
 }
 
-function pickNonEmpty(...values) {
-  return values.find(
-    (value) => value !== undefined && value !== null && String(value).trim() !== "",
-  );
-}
-
-function getContactKey({ id, email, phone } = {}) {
-  return String(email || phone || id || "")
-    .trim()
-    .toLowerCase();
-}
-
 function getUserPayload(user = {}) {
   if (!user || typeof user !== "object") return {};
 
-  const nestedUser = user.user || user.data?.user || user.data || {};
-  const profile = user.profile || nestedUser.profile || {};
-  const customer = user.customer || nestedUser.customer || {};
-  const metadata = user.metadata || nestedUser.metadata || {};
-  const firstName = pickNonEmpty(
-    user.firstName,
-    user.first_name,
-    nestedUser.firstName,
-    nestedUser.first_name,
-    profile.firstName,
-    profile.first_name,
-    customer.firstName,
-    customer.first_name,
-  );
-  const lastName = pickNonEmpty(
-    user.lastName,
-    user.last_name,
-    nestedUser.lastName,
-    nestedUser.last_name,
-    profile.lastName,
-    profile.last_name,
-    customer.lastName,
-    customer.last_name,
-  );
-  const email = pickNonEmpty(
-    user.email,
-    user.emailAddress,
-    user.email_address,
-    nestedUser.email,
-    nestedUser.emailAddress,
-    nestedUser.email_address,
-    profile.email,
-    profile.emailAddress,
-    customer.email,
-    customer.emailAddress,
-    metadata.email,
-  );
-  const phone = pickNonEmpty(
-    user.phone,
-    user.phoneNumber,
-    user.phone_number,
-    user.mobile,
-    user.telephone,
-    user.whatsapp,
-    nestedUser.phone,
-    nestedUser.phoneNumber,
-    nestedUser.phone_number,
-    nestedUser.mobile,
-    nestedUser.telephone,
-    profile.phone,
-    profile.phoneNumber,
-    profile.phone_number,
-    profile.mobile,
-    customer.phone,
-    customer.phoneNumber,
-    customer.phone_number,
-    customer.mobile,
-    metadata.phone,
-    metadata.phoneNumber,
-    metadata.phone_number,
-  );
-  const name =
-    pickNonEmpty(
-      user.name,
-      user.fullName,
-      user.full_name,
-      user.displayName,
-      nestedUser.name,
-      nestedUser.fullName,
-      nestedUser.full_name,
-      nestedUser.displayName,
-      profile.name,
-      profile.fullName,
-      customer.name,
-      customer.fullName,
-    ) ||
-    [firstName, lastName].filter(Boolean).join(" ") ||
-    pickNonEmpty(user.username, nestedUser.username, profile.username);
-
   return cleanObject({
-    id:
-      user.backendId ||
-      user.id ||
-      user.uuid ||
-      user.firebaseUid ||
-      nestedUser.backendId ||
-      nestedUser.id ||
-      nestedUser.uuid,
-    name,
-    email,
-    phone,
-    phoneNumber: phone,
-    phone_number: phone,
-    isAgent: user.isAgent ?? user.is_agent ?? nestedUser.isAgent ?? nestedUser.is_agent,
-    agentStatus:
-      user.agentStatus ||
-      user.agent_status ||
-      nestedUser.agentStatus ||
-      nestedUser.agent_status,
+    id: user.backendId || user.id || user.uuid || user.firebaseUid,
+    name:
+      user.name ||
+      user.fullName ||
+      [user.firstName, user.lastName].filter(Boolean).join(" ") ||
+      user.username,
+    email: user.email,
+    phone: user.phone || user.phoneNumber || user.phone_number || user.mobile,
+    isAgent: user.isAgent,
+    agentStatus: user.agentStatus,
   });
 }
 
@@ -141,7 +40,7 @@ function getPagePayload() {
 }
 
 function postWebhook(payload) {
-  if (!WEBHOOK_ENABLED || typeof window === "undefined") {
+  if (!WEBHOOK_ENABLED || !WEBHOOK_URL || typeof window === "undefined") {
     return;
   }
 
@@ -151,14 +50,15 @@ function postWebhook(payload) {
     if (navigator.sendBeacon) {
       const blob = new Blob([body], { type: "text/plain;charset=UTF-8" });
 
-      if (navigator.sendBeacon(WEBHOOK_ENDPOINT, blob)) return;
+      if (navigator.sendBeacon(WEBHOOK_URL, blob)) return;
     }
 
-    fetch(WEBHOOK_ENDPOINT, {
+    fetch(WEBHOOK_URL, {
       method: "POST",
+      mode: "no-cors",
       keepalive: true,
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": "text/plain;charset=UTF-8",
       },
       body,
     }).catch(() => {});
@@ -167,57 +67,16 @@ function postWebhook(payload) {
   }
 }
 
-function flattenPayload(payload = {}) {
-  const mergedPayload = cleanObject({
-    ...(payload.user || {}),
-    ...(payload.properties || {}),
-  });
-
-  return cleanObject({
-    contactKey: getContactKey({
-      ...(payload.user || {}),
-      ...(payload.properties || {}),
-    }),
-    ...mergedPayload,
-    source: payload.source,
-    event: payload.event,
-    event_type: payload.event,
-    first_name: mergedPayload.first_name || mergedPayload.firstName,
-    last_name: mergedPayload.last_name || mergedPayload.lastName,
-    timestamp: payload.timestamp,
-    pageUrl: payload.page?.url,
-    pagePath: payload.page?.path,
-    pageTitle: payload.page?.title,
-    pageReferrer: payload.page?.referrer,
-  });
-}
-
 export function trackMarketingEvent(eventName, properties = {}, user = {}) {
   if (!eventName) return;
 
-  const userPayload = getUserPayload(user);
-  const eventProperties = cleanObject({
-    contactKey: getContactKey(userPayload),
-    email: userPayload.email,
-    phone: userPayload.phone,
-    phoneNumber: userPayload.phone,
-    phone_number: userPayload.phone,
-    ...properties,
-  });
-
-  const payload = {
+  postWebhook({
     source: "bedrock-web",
     event: eventName,
-    event_type: eventName,
     timestamp: new Date().toISOString(),
     page: getPagePayload(),
-    user: userPayload,
-    properties: eventProperties,
-  };
-
-  postWebhook({
-    ...payload,
-    flat: flattenPayload(payload),
+    user: getUserPayload(user),
+    properties: cleanObject(properties),
   });
 }
 
@@ -232,9 +91,6 @@ export function trackMarketingUser(user = {}, properties = {}) {
       ...properties,
       userId: userPayload.id,
       email: userPayload.email,
-      phone: userPayload.phone,
-      phoneNumber: userPayload.phone,
-      phone_number: userPayload.phone,
       name: userPayload.name,
     }),
     user,
