@@ -90,10 +90,7 @@ import {
   trackPageView,
 } from "../../services/mixpanel";
 import { trackPixel } from "../../services/metaPixel";
-import {
-  trackMarketingEvent,
-  trackMarketingUser,
-} from "../../services/makeMarketing";
+import { trackMarketingEvent } from "../../services/makeMarketing";
 import { applySeoMetadata, buildSeoMetadata } from "../../services/seo";
 
 const ACCOUNT_STORAGE_KEY = "bedrockRegisteredUser";
@@ -893,7 +890,7 @@ function rememberTrackedPurchaseReference(reference) {
   );
 }
 
-function trackPurchaseOnce(reference, amountPaid, user) {
+function trackPurchaseOnce(reference, amountPaid) {
   if (!reference || hasTrackedPurchaseReference(reference)) return false;
 
   trackPixel("Purchase", {
@@ -901,15 +898,6 @@ function trackPurchaseOnce(reference, amountPaid, user) {
     currency: "NGN",
     transaction_id: reference,
   });
-  trackMarketingEvent(
-    "Purchase",
-    {
-      value: Number(amountPaid || 0),
-      currency: "NGN",
-      transactionId: reference,
-    },
-    user,
-  );
   rememberTrackedPurchaseReference(reference);
 
   return true;
@@ -1509,7 +1497,6 @@ function ShopDirectoryPage({ categories = [], onBack, onShopSelect }) {
 
 function HomePage() {
   const lastIdentifiedAnalyticsIdRef = useRef("");
-  const lastMarketingPageViewRef = useRef("");
   const trackedPurchaseReferenceRef = useRef("");
   const routeSyncReadyRef = useRef(false);
   const isApplyingBrowserRouteRef = useRef(false);
@@ -1653,9 +1640,6 @@ function HomePage() {
         source,
         userId,
       });
-      trackMarketingUser(user, {
-        source,
-      });
       lastIdentifiedAnalyticsIdRef.current = userId;
     }
   }, []);
@@ -1687,24 +1671,6 @@ function HomePage() {
 
     trackPageView(activePage, pageProperties);
 
-    const pageViewKey = JSON.stringify({
-      page: activePage,
-      path: typeof window !== "undefined" ? window.location.pathname : "",
-      userId: currentUserAnalyticsId,
-      ...pageProperties,
-    });
-
-    if (lastMarketingPageViewRef.current !== pageViewKey) {
-      lastMarketingPageViewRef.current = pageViewKey;
-      trackMarketingEvent(
-        "PageView",
-        {
-          page: activePage,
-          ...pageProperties,
-        },
-        currentUser,
-      );
-    }
   }, [
     activePage,
     currentUser,
@@ -2398,7 +2364,7 @@ function HomePage() {
         // reference after a refresh or copied return link.
         if (trackedPurchaseReferenceRef.current !== returnedReference) {
           trackedPurchaseReferenceRef.current = returnedReference;
-          trackPurchaseOnce(returnedReference, amountPaid, currentUser);
+          trackPurchaseOnce(returnedReference, amountPaid);
         }
 
         clearPendingPaymentContext();
@@ -2531,12 +2497,16 @@ function HomePage() {
     if (options.isRegistration) {
       trackPixel("CompleteRegistration", { status: true });
       trackMarketingEvent(
-        "CompleteRegistration",
-        {
-          status: true,
-          userId: getAnalyticsUserId(serverCheckedUser),
-          email: getAnalyticsUserEmail(serverCheckedUser),
-        },
+        "customer_signed_up",
+        { status: "signed_up" },
+        serverCheckedUser,
+      );
+    }
+
+    if (!options.isRegistration) {
+      trackMarketingEvent(
+        "customer_logged_in",
+        { status: "logged_in" },
         serverCheckedUser,
       );
     }
@@ -2971,19 +2941,6 @@ function HomePage() {
       value: Number(fallbackApartment.price || 0),
       currency: "NGN",
     });
-    trackMarketingEvent(
-      "ViewContent",
-      {
-        contentType: "apartment",
-        apartmentId: String(fallbackApartment.backendId || fallbackApartment.id || ""),
-        apartmentName: fallbackApartment.title || "",
-        residenceName: fallbackApartment.residenceName || "",
-        location: fallbackApartment.location || "",
-        value: Number(fallbackApartment.price || 0),
-        currency: "NGN",
-      },
-      currentUser,
-    );
 
     if (!apartment.backendId) {
       return;
@@ -3102,18 +3059,6 @@ function HomePage() {
     trackPixel("Search", {
       search_string: query || nextFilters.apartmentTitle || "",
     });
-    trackMarketingEvent(
-      "Search",
-      {
-        searchString: query || nextFilters.apartmentTitle || "",
-        residenceId: nextFilters.residenceId || "",
-        apartmentTitle: nextFilters.apartmentTitle || "",
-        checkIn: nextFilters.checkIn || "",
-        checkOut: nextFilters.checkOut || "",
-        guests: Number(nextFilters.guests || 0),
-      },
-      currentUser,
-    );
     const bedroomCount = getBedroomCountFromText(query);
     const apartmentTitle = bedroomCount
       ? `${bedroomCount} Bedroom Apartment`
@@ -4613,21 +4558,6 @@ function HomePage() {
       value: checkoutValue,
       currency: "NGN",
     });
-    trackMarketingEvent(
-      "InitiateCheckout",
-      {
-        contentType: "apartment",
-        apartmentId: String(selectedApartment?.backendId || selectedApartment?.id || ""),
-        apartmentName: selectedApartment?.title || "",
-        residenceName: selectedApartment?.residenceName || "",
-        checkIn: bookingDetails.checkIn || "",
-        checkOut: bookingDetails.checkOut || "",
-        guests: Number(bookingDetails.guests || 0),
-        value: checkoutValue,
-        currency: "NGN",
-      },
-      currentUser,
-    );
     setActivePage("payment");
   }
 

@@ -1,4 +1,5 @@
-const WEBHOOK_URL = import.meta.env.VITE_MAKE_MARKETING_WEBHOOK_URL || "";
+const WEBHOOK_ENDPOINT =
+  import.meta.env.VITE_MAKE_MARKETING_ENDPOINT || "/api/marketing-track";
 const WEBHOOK_ENABLED = import.meta.env.VITE_ENABLE_MAKE_WEBHOOK !== "false";
 
 function cleanObject(value = {}) {
@@ -12,87 +13,58 @@ function cleanObject(value = {}) {
 function getUserPayload(user = {}) {
   if (!user || typeof user !== "object") return {};
 
+  const firstName = user.firstName || user.first_name || "";
+  const lastName = user.lastName || user.last_name || "";
+
   return cleanObject({
-    id: user.backendId || user.id || user.uuid || user.firebaseUid,
+    userId: user.backendId || user.id || user.uuid || user.firebaseUid,
+    firstName,
+    lastName,
     name:
       user.name ||
       user.fullName ||
-      [user.firstName, user.lastName].filter(Boolean).join(" ") ||
+      [firstName, lastName].filter(Boolean).join(" ") ||
       user.username,
-    email: user.email,
-    phone: user.phone || user.phoneNumber || user.phone_number || user.mobile,
-    isAgent: user.isAgent,
-    agentStatus: user.agentStatus,
+    email: user.email || user.emailAddress || user.email_address,
+    phone:
+      user.phone ||
+      user.phoneNumber ||
+      user.phone_number ||
+      user.mobile ||
+      user.telephone,
   });
 }
 
-function getPagePayload() {
-  if (typeof window === "undefined") return {};
-
-  return cleanObject({
-    url: window.location.href,
-    path: window.location.pathname,
-    search: window.location.search,
-    title: typeof document !== "undefined" ? document.title : "",
-    referrer: typeof document !== "undefined" ? document.referrer : "",
-    userAgent: window.navigator?.userAgent,
-  });
-}
-
-function postWebhook(payload) {
-  if (!WEBHOOK_ENABLED || !WEBHOOK_URL || typeof window === "undefined") {
-    return;
-  }
+function sendWebhook(payload) {
+  if (!WEBHOOK_ENABLED || typeof window === "undefined") return;
 
   const body = JSON.stringify(payload);
 
   try {
-    if (navigator.sendBeacon) {
-      const blob = new Blob([body], { type: "text/plain;charset=UTF-8" });
-
-      if (navigator.sendBeacon(WEBHOOK_URL, blob)) return;
-    }
-
-    fetch(WEBHOOK_URL, {
+    fetch(WEBHOOK_ENDPOINT, {
       method: "POST",
-      mode: "no-cors",
       keepalive: true,
       headers: {
-        "Content-Type": "text/plain;charset=UTF-8",
+        "Content-Type": "application/json",
       },
       body,
     }).catch(() => {});
   } catch {
-    // Marketing tracking must never block the user experience.
+    // Marketing tracking must never interrupt authentication or booking.
   }
 }
 
-export function trackMarketingEvent(eventName, properties = {}, user = {}) {
-  if (!eventName) return;
+export function trackMarketingEvent(eventType, properties = {}, user = {}) {
+  if (!eventType) return;
 
-  postWebhook({
-    source: "bedrock-web",
-    event: eventName,
-    timestamp: new Date().toISOString(),
-    page: getPagePayload(),
-    user: getUserPayload(user),
-    properties: cleanObject(properties),
-  });
-}
-
-export function trackMarketingUser(user = {}, properties = {}) {
   const userPayload = getUserPayload(user);
+  const payload = cleanObject({
+    event_type: eventType,
+    timestamp: new Date().toISOString(),
+    source: "bedrock-web",
+    ...userPayload,
+    ...properties,
+  });
 
-  if (!userPayload.id && !userPayload.email) return;
-
-  trackMarketingEvent(
-    "User Identified",
-    cleanObject({
-      ...properties,
-      userId: userPayload.id,
-      email: userPayload.email,
-      name: userPayload.name,
-    }),
-    user,
-  );
+  sendWebhook(payload);
 }
