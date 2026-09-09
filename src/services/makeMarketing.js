@@ -13,18 +13,18 @@ function cleanObject(value = {}) {
 function getUserPayload(user = {}) {
   if (!user || typeof user !== "object") return {};
 
-  const firstName = user.firstName || user.first_name || "";
-  const lastName = user.lastName || user.last_name || "";
+  const fullName = user.name || user.fullName || user.username || "";
+  const nameParts = String(fullName).trim().split(/\s+/).filter(Boolean);
+  const firstName =
+    user.firstName || user.first_name || nameParts[0] || "";
+  const lastName =
+    user.lastName || user.last_name || nameParts.slice(1).join(" ") || "";
 
   return cleanObject({
     userId: user.backendId || user.id || user.uuid || user.firebaseUid,
     firstName,
     lastName,
-    name:
-      user.name ||
-      user.fullName ||
-      [firstName, lastName].filter(Boolean).join(" ") ||
-      user.username,
+    name: fullName || [firstName, lastName].filter(Boolean).join(" "),
     email: user.email || user.emailAddress || user.email_address,
     phone:
       user.phone ||

@@ -1160,6 +1160,43 @@ function getBackendRecordId(record) {
   return record?.backendId || record?.id || "";
 }
 
+function isCompletedBooking(booking = {}) {
+  const status = String(
+    booking.status || booking.bookingStatus || booking.paymentStatus || "",
+  ).toLowerCase();
+
+  return ["confirmed", "completed", "paid", "successful", "success"].includes(
+    status,
+  );
+}
+
+function getMarketingBookingProperties(booking = {}, payment = {}) {
+  return {
+    bookingStage: payment.bookingStage || "booking_created",
+    targetList: payment.targetList || "BRS-Abandoned Checkouts",
+    bookingId: getBackendRecordId(booking),
+    apartment:
+      booking.title || booking.apartment || booking.apartmentName || "",
+    residence: booking.residenceName || booking.residence || "",
+    checkIn: booking.checkIn || booking.check_in || "",
+    checkOut: booking.checkOut || booking.check_out || "",
+    numberOfGuests: Number(booking.guests || booking.numberOfGuests || 0) || 0,
+    amountPaid:
+      Number(
+        payment.amountPaid || booking.amountPaid || booking.totalAmount || 0,
+      ) || 0,
+    paymentReference:
+      payment.paymentReference || booking.paymentReference || "",
+    customerType: payment.customerType || "new",
+    isNewGuest: Boolean(payment.isNewGuest),
+    isReturningGuest: Boolean(payment.isReturningGuest),
+    removeFromAbandonedCheckouts: Boolean(
+      payment.removeFromAbandonedCheckouts,
+    ),
+    removeFromListsText: payment.removeFromListsText || "",
+  };
+}
+
 function getApartmentGuestCapacity(apartment) {
   return Number(
     apartment?.guests ||
@@ -2406,6 +2443,35 @@ function HomePage() {
               }
             : hydratedUser,
         );
+
+        if (paidBookingOverride) {
+          const completedBookings = (currentUser.bookings || []).filter(
+            isCompletedBooking,
+          ).length;
+          const isReturningGuest = completedBookings > 0;
+          const completedBooking = {
+            ...paidBookingOverride,
+            amountPaid,
+          };
+
+          trackMarketingEvent(
+            "completed_booking",
+            getMarketingBookingProperties(completedBooking, {
+              bookingStage: "completed_booking",
+              targetList: isReturningGuest
+                ? "BRS-Returning Guests"
+                : "BRS-New Guests",
+              amountPaid,
+              paymentReference: returnedReference,
+              customerType: isReturningGuest ? "returning" : "new",
+              isNewGuest: !isReturningGuest,
+              isReturningGuest,
+              removeFromAbandonedCheckouts: true,
+              removeFromListsText: "BRS-Abandoned Checkouts",
+            }),
+            hydratedUser,
+          );
+        }
         addActivityMessage(
           "Payment verified",
           "Your payment was verified successfully and your profile has been refreshed.",
@@ -4716,6 +4782,12 @@ function HomePage() {
 
           setPendingBooking(booking);
           saveBookingToProfile(booking);
+
+          trackMarketingEvent(
+            "booking_created",
+            getMarketingBookingProperties(booking),
+            currentUser,
+          );
         }
 
         const paymentResponse = await bookingsApi.initiatePayment(
@@ -4733,6 +4805,15 @@ function HomePage() {
 
         setPendingBooking(nextPendingBooking);
         saveBookingToProfile(nextPendingBooking);
+        trackMarketingEvent(
+          "payment_started",
+          getMarketingBookingProperties(nextPendingBooking, {
+            bookingStage: "payment_started",
+            targetList: "BRS-Abandoned Checkouts",
+            paymentReference: nextPendingBooking.paymentReference,
+          }),
+          currentUser,
+        );
         addActivityMessage(
           "Booking payment started",
           `${nextPendingBooking.title || selectedApartment.title} is waiting for payment confirmation.`,
