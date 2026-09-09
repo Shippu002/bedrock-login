@@ -1,6 +1,12 @@
 <?php
 
-$webhookUrl = getenv('MAKE_MARKETING_WEBHOOK_URL') ?: '';
+// On cPanel, keep the Make URL outside public_html so it cannot be downloaded.
+$privateConfigPath = dirname(__DIR__, 2) . '/make-webhook-config.php';
+$privateConfig = is_readable($privateConfigPath)
+    ? include $privateConfigPath
+    : [];
+$privateConfig = is_array($privateConfig) ? $privateConfig : [];
+$webhookUrl = getenv('MAKE_MARKETING_WEBHOOK_URL') ?: ($privateConfig['url'] ?? '');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
