@@ -1171,8 +1171,14 @@ function isCompletedBooking(booking = {}) {
 }
 
 function getMarketingBookingProperties(booking = {}, payment = {}) {
+  const bookingStage = payment.bookingStage || "booking_created";
+  const amountPaid =
+    bookingStage === "completed_booking"
+      ? Number(payment.amountPaid || booking.amountPaid || 0) || 0
+      : 0;
+
   return {
-    bookingStage: payment.bookingStage || "booking_created",
+    bookingStage,
     targetList: payment.targetList || "BRS-Abandoned Checkouts",
     bookingId: getBackendRecordId(booking),
     apartment:
@@ -1181,10 +1187,8 @@ function getMarketingBookingProperties(booking = {}, payment = {}) {
     checkIn: booking.checkIn || booking.check_in || "",
     checkOut: booking.checkOut || booking.check_out || "",
     numberOfGuests: Number(booking.guests || booking.numberOfGuests || 0) || 0,
-    amountPaid:
-      Number(
-        payment.amountPaid || booking.amountPaid || booking.totalAmount || 0,
-      ) || 0,
+    amountPaid,
+    totalAmount: Number(booking.totalAmount || booking.total_amount || 0) || 0,
     paymentReference:
       payment.paymentReference || booking.paymentReference || "",
     customerType: payment.customerType || "new",
