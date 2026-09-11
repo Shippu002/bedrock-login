@@ -71,6 +71,127 @@
   text-align: right;
 }
 
+.apartment-demand-signals {
+  margin: 0 0 24px;
+  border: 1px solid #eadfd5;
+  border-radius: 16px;
+  background: #fffaf6;
+  padding: 14px;
+}
+
+.apartment-demand-signals__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.apartment-demand-signals__eyebrow {
+  color: #a65f36;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.apartment-demand-signals__note {
+  color: #8a7467;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: right;
+}
+
+.apartment-demand-signals__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.apartment-demand-signal {
+  min-width: 0;
+  border: 1px solid #f0e5dc;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.apartment-demand-signal strong,
+.apartment-demand-signal span {
+  display: block;
+  font-family: "Urbanist", Arial, sans-serif;
+}
+
+.apartment-demand-signal strong {
+  overflow-wrap: anywhere;
+  color: #202a45;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 20px;
+}
+
+.apartment-demand-signal span {
+  margin-top: 2px;
+  color: #667085;
+  font-size: 12px;
+  line-height: 17px;
+}
+
+.apartment-booking-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-height: 0;
+  margin-top: 0;
+  overflow: hidden;
+  color: #475467;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+  opacity: 0;
+  transition:
+    max-height 0.25s ease,
+    margin-top 0.25s ease,
+    opacity 0.25s ease;
+}
+
+.apartment-booking-notice--visible {
+  max-height: 44px;
+  margin-top: 12px;
+  opacity: 1;
+}
+
+.apartment-booking-notice__dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #c58a68;
+}
+
+.apartment-booking-notice button {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #667085;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 20px;
+}
+
+.apartment-booking-notice button:hover,
+.apartment-booking-notice button:focus-visible {
+  background: #f3e9e1;
+  outline: none;
+}
+
 .apartment-date-unavailable {
   margin: 12px 0 18px;
   border: 1px solid #fecaca;
@@ -1088,6 +1209,19 @@
   }
 
   .apartment-gallery {
+    grid-template-columns: 1fr;
+  }
+
+  .apartment-demand-signals__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .apartment-demand-signals__note {
+    text-align: left;
+  }
+
+  .apartment-demand-signals__grid {
     grid-template-columns: 1fr;
   }
 

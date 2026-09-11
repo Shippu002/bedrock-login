@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { FiBell, FiChevronDown, FiHome, FiMenu } from "react-icons/fi";
+import {
+  FiBell,
+  FiChevronDown,
+  FiHome,
+  FiMenu,
+  FiSend,
+} from "react-icons/fi";
 import bedrockLogo from "../assets/bedrock-logo.svg";
 import AppImage from "./AppImage";
 import ProfileMenu from "./ProfileMenu";
@@ -454,6 +460,21 @@ export default function Header({
             <span className="nav-link-label">Orders</span>
             <span className="nav-link-icon-wrap nav-link-icon-wrap-hidden">
               <FiChevronDown className="nav-icon" />
+            </span>
+          </button>
+
+          <button
+            className="nav-flight-cta"
+            type="button"
+            disabled
+            title="Coming soon"
+          >
+            <FiSend className="nav-flight-cta__icon" aria-hidden="true" />
+            <span className="nav-flight-cta__copy">
+              <span className="nav-flight-cta__label">
+                Book a flight now, pay later
+              </span>
+              <span className="nav-flight-cta__status">Coming soon</span>
             </span>
           </button>
         </nav>

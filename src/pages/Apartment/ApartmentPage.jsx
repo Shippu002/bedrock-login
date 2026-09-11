@@ -153,6 +153,102 @@ function PolicyAgreementText({ onOpenPolicy }) {
   );
 }
 
+function getPreviewDemandData(apartment) {
+  const seed = String(apartment?.id || apartment?.title || "apartment")
+    .split("")
+    .reduce((total, character) => total + character.charCodeAt(0), 0);
+
+  return {
+    bookedToday: 2 + (seed % 5),
+    bookedThisWeek: 7 + (seed % 8),
+    available: 1 + (seed % 3),
+    viewers: 3 + (seed % 5),
+    lastBookedMinutesAgo: 12 + (seed % 29),
+    nights: 2 + (seed % 4),
+  };
+}
+
+function ApartmentDemandSignals({ apartment, hasBookingSelection }) {
+  const previewData = useMemo(() => getPreviewDemandData(apartment), [apartment]);
+  const [noticeIndex, setNoticeIndex] = useState(0);
+  const [isNoticeVisible, setIsNoticeVisible] = useState(true);
+
+  const notices = useMemo(
+    () => [
+      `Recently booked - this apartment was reserved for ${previewData.nights} nights.`,
+      `Popular right now - ${previewData.viewers} people are viewing this apartment.`,
+      `Booked ${previewData.bookedToday} times today.`,
+    ],
+    [previewData],
+  );
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNoticeIndex((current) => (current + 1) % notices.length);
+      setIsNoticeVisible(true);
+    }, 80000);
+
+    return () => window.clearInterval(intervalId);
+  }, [notices.length, apartment?.id]);
+
+  return (
+    <section
+      className="apartment-demand-signals"
+      aria-label="Apartment booking activity preview"
+    >
+      <div className="apartment-demand-signals__header">
+        <span className="apartment-demand-signals__eyebrow">Preview data</span>
+        <span className="apartment-demand-signals__note">
+          Live booking activity will appear here soon.
+        </span>
+      </div>
+
+      <div className="apartment-demand-signals__grid">
+        <div className="apartment-demand-signal">
+          <strong>{previewData.bookedThisWeek} bookings</strong>
+          <span>in the last 7 days</span>
+        </div>
+
+        <div className="apartment-demand-signal">
+          <strong>{previewData.viewers} people</strong>
+          <span>are viewing this apartment</span>
+        </div>
+
+        <div className="apartment-demand-signal apartment-demand-signal--availability">
+          <strong>
+            {hasBookingSelection
+              ? `${previewData.available} available`
+              : "Select your dates"}
+          </strong>
+          <span>
+            {hasBookingSelection
+              ? "for your selected dates"
+              : "to check availability"}
+          </span>
+        </div>
+      </div>
+
+      <div
+        className={`apartment-booking-notice ${
+          isNoticeVisible ? "apartment-booking-notice--visible" : ""
+        }`}
+        role="status"
+        aria-live="polite"
+      >
+        <span className="apartment-booking-notice__dot" aria-hidden="true" />
+        <span>{notices[noticeIndex]}</span>
+        <button
+          type="button"
+          onClick={() => setIsNoticeVisible(false)}
+          aria-label="Dismiss booking activity notice"
+        >
+          ×
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function ApartmentPage({
   mode,
   apartment,
@@ -961,6 +1057,12 @@ function ApartmentPage({
         {actionFeedback && (
           <p className="apartment-action-feedback">{actionFeedback}</p>
         )}
+
+        <ApartmentDemandSignals
+          key={apartment?.id || apartment?.title}
+          apartment={apartment}
+          hasBookingSelection={hasBookingSelection}
+        />
 
         <div className="apartment-detail-layout">
           <div className="apartment-detail-main">
