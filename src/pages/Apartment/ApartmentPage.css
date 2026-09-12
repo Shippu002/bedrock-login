@@ -1343,7 +1343,8 @@
   }
 
   .apartment-activity-popup--top {
-    top: 96px;
+    top: auto;
+    bottom: 176px;
     right: 16px;
   }
 

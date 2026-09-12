@@ -534,6 +534,8 @@
   }
 
   .nav-flight-cta {
+    flex: 0 0 260px;
+    justify-content: center;
     max-width: 205px;
     padding-right: 11px;
     padding-left: 10px;
@@ -541,6 +543,10 @@
 
   .nav-flight-cta__label {
     font-size: 12px;
+  }
+
+  .nav-flight-cta__status {
+    font-size: 10px;
   }
 
   .btn {
@@ -639,11 +645,30 @@
   }
 
   .nav-links {
+    display: grid;
     grid-column: 1 / -1;
     justify-self: center;
-    flex-wrap: wrap;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
     justify-content: center;
-    gap: 16px;
+    gap: 12px;
+  }
+
+  .nav-links > .nav-link,
+  .nav-links > .nav-dropdown {
+    justify-self: stretch;
+  }
+
+  .nav-links > .nav-link {
+    justify-content: center;
+  }
+
+  .nav-flight-cta {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: min(100%, 260px);
+    max-width: 260px;
   }
 
   .header-actions,

@@ -171,87 +171,6 @@ function getPreviewDemandData(apartment) {
   };
 }
 
-function ApartmentDemandSignals({ apartment, hasBookingSelection }) {
-  const previewData = useMemo(() => getPreviewDemandData(apartment), [apartment]);
-  const [noticeIndex, setNoticeIndex] = useState(0);
-  const [isNoticeVisible, setIsNoticeVisible] = useState(true);
-
-  const notices = useMemo(
-    () => [
-      `Recently booked - ${previewData.title} (${previewData.residence}) was reserved for ${previewData.nights} nights.`,
-      `Popular right now - ${previewData.viewers} people are viewing ${previewData.title}.`,
-      `${previewData.title} was booked ${previewData.bookedToday} times today.`,
-    ],
-    [previewData],
-  );
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      setNoticeIndex((current) => (current + 1) % notices.length);
-      setIsNoticeVisible(true);
-    }, 80000);
-
-    return () => window.clearInterval(intervalId);
-  }, [notices.length, apartment?.id]);
-
-  return (
-    <section
-      className="apartment-demand-signals"
-      aria-label="Apartment booking activity preview"
-    >
-      <div className="apartment-demand-signals__header">
-        <span className="apartment-demand-signals__eyebrow">Preview data</span>
-        <span className="apartment-demand-signals__note">
-          Live booking activity will appear here soon.
-        </span>
-      </div>
-
-      <div className="apartment-demand-signals__grid">
-        <div className="apartment-demand-signal">
-          <strong>{previewData.bookedThisWeek} bookings</strong>
-          <span>in the last 7 days</span>
-        </div>
-
-        <div className="apartment-demand-signal">
-          <strong>{previewData.viewers} people</strong>
-          <span>are viewing this apartment</span>
-        </div>
-
-        <div className="apartment-demand-signal apartment-demand-signal--availability">
-          <strong>
-            {hasBookingSelection
-              ? `${previewData.available} available`
-              : "Select your dates"}
-          </strong>
-          <span>
-            {hasBookingSelection
-              ? "for your selected dates"
-              : "to check availability"}
-          </span>
-        </div>
-      </div>
-
-      <div
-        className={`apartment-booking-notice ${
-          isNoticeVisible ? "apartment-booking-notice--visible" : ""
-        }`}
-        role="status"
-        aria-live="polite"
-      >
-        <span className="apartment-booking-notice__dot" aria-hidden="true" />
-        <span>{notices[noticeIndex]}</span>
-        <button
-          type="button"
-          onClick={() => setIsNoticeVisible(false)}
-          aria-label="Dismiss booking activity notice"
-        >
-          ×
-        </button>
-      </div>
-    </section>
-  );
-}
-
 function ApartmentActivityPopups({ apartment }) {
   const previewData = useMemo(() => getPreviewDemandData(apartment), [apartment]);
   const popupMessages = useMemo(
@@ -1155,12 +1074,6 @@ function ApartmentPage({
         {actionFeedback && (
           <p className="apartment-action-feedback">{actionFeedback}</p>
         )}
-
-        <ApartmentDemandSignals
-          key={apartment?.id || apartment?.title}
-          apartment={apartment}
-          hasBookingSelection={hasBookingSelection}
-        />
 
         <ApartmentActivityPopups
           key={`activity-${apartment?.id || apartment?.title}`}

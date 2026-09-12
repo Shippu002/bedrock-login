@@ -810,7 +810,8 @@
 
 @media (max-width: 760px) {
   .homepage-activity-popup--top {
-    top: 96px;
+    top: auto;
+    bottom: 176px;
     right: 16px;
   }
 
