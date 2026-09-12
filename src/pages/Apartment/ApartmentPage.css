@@ -192,6 +192,123 @@
   outline: none;
 }
 
+.apartment-activity-popups {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+}
+
+.apartment-activity-popup {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: min(320px, calc(100vw - 32px));
+  min-height: 52px;
+  box-sizing: border-box;
+  border: 1px solid #eadfd5;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.97);
+  padding: 11px 12px;
+  color: #202a45;
+  font-family: "Urbanist", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 17px;
+  box-shadow: 0 16px 36px rgba(32, 42, 69, 0.16);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(12px) scale(0.96);
+}
+
+.apartment-activity-popup--top {
+  top: 112px;
+  right: 24px;
+}
+
+.apartment-activity-popup--bottom {
+  bottom: 28px;
+  left: 24px;
+  transform: translateY(12px) scale(0.96);
+}
+
+.apartment-activity-popup--visible {
+  pointer-events: auto;
+  animation: apartment-activity-popup-in 0.45s ease forwards;
+}
+
+.apartment-activity-popup--bottom.apartment-activity-popup--visible {
+  animation-name: apartment-activity-popup-in-bottom;
+}
+
+.apartment-activity-popup__dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #c58a68;
+  box-shadow: 0 0 0 4px #fff1e7;
+}
+
+.apartment-activity-popup button {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #667085;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 20px;
+}
+
+.apartment-activity-popup button:hover,
+.apartment-activity-popup button:focus-visible {
+  background: #f3e9e1;
+  outline: none;
+}
+
+@keyframes apartment-activity-popup-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(3px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes apartment-activity-popup-in-bottom {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apartment-activity-popup--visible {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .apartment-date-unavailable {
   margin: 12px 0 18px;
   border: 1px solid #fecaca;
@@ -1223,6 +1340,16 @@
 
   .apartment-demand-signals__grid {
     grid-template-columns: 1fr;
+  }
+
+  .apartment-activity-popup--top {
+    top: 96px;
+    right: 16px;
+  }
+
+  .apartment-activity-popup--bottom {
+    bottom: 88px;
+    left: 16px;
   }
 
   .apartment-gallery__hero {

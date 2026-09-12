@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FiChevronLeft, FiMapPin, FiShoppingBag } from "react-icons/fi";
 import Header from "../../components/Header";
 import SearchBar from "../../components/SearchBar";
@@ -1533,6 +1533,137 @@ function ShopDirectoryPage({ categories = [], onBack, onShopSelect }) {
         )}
       </div>
     </section>
+  );
+}
+
+function getHomepageActivityData(apartment, index) {
+  const seed = String(apartment?.id || apartment?.title || index)
+    .split("")
+    .reduce((total, character) => total + character.charCodeAt(0), 0);
+
+  return {
+    title: apartment?.title || "Featured apartment",
+    residence:
+      apartment?.residenceName || apartment?.residence || "Bedrock Residence",
+    bookedToday: 3 + (seed % 6),
+    bookedThisWeek: 9 + (seed % 13),
+    bookedThisMonth: 24 + (seed % 28),
+    viewers: 2 + (seed % 7),
+  };
+}
+
+function HomepageActivityPopups({ apartments = [] }) {
+  const activityOptions = useMemo(
+    () =>
+      apartments.slice(0, 8).map((apartment, index) => {
+        const data = getHomepageActivityData(apartment, index);
+
+        return {
+          ...data,
+          messages: [
+            `${data.title} (${data.residence}) was booked ${data.bookedToday} times today.`,
+            `Popular choice: ${data.title} (${data.residence}) has ${data.bookedThisWeek} bookings this week.`,
+            `${data.title} has ${data.bookedThisMonth} bookings this month.`,
+            `Popular right now: ${data.viewers} people are viewing ${data.title}.`,
+          ],
+        };
+      }),
+    [apartments],
+  );
+  const [popups, setPopups] = useState(() => [
+    { message: activityOptions[0]?.messages[0] || "", visible: true },
+    { message: activityOptions[1]?.messages[1] || "", visible: false },
+  ]);
+
+  useEffect(() => {
+    if (activityOptions.length === 0) return undefined;
+
+    let isCancelled = false;
+    const timers = [];
+
+    function randomDelay(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function getRandomMessage() {
+      const apartment =
+        activityOptions[Math.floor(Math.random() * activityOptions.length)];
+
+      return apartment.messages[
+        Math.floor(Math.random() * apartment.messages.length)
+      ];
+    }
+
+    function schedulePopup(slot, delay) {
+      const showTimer = window.setTimeout(() => {
+        if (isCancelled) return;
+
+        setPopups((current) =>
+          current.map((popup, index) =>
+            index === slot
+              ? { message: getRandomMessage(), visible: true }
+              : popup,
+          ),
+        );
+
+        const hideTimer = window.setTimeout(() => {
+          if (isCancelled) return;
+
+          setPopups((current) =>
+            current.map((popup, index) =>
+              index === slot ? { ...popup, visible: false } : popup,
+            ),
+          );
+        }, 6500);
+        timers.push(hideTimer);
+        schedulePopup(slot, randomDelay(18000, 36000));
+      }, delay);
+
+      timers.push(showTimer);
+    }
+
+    schedulePopup(0, randomDelay(16000, 26000));
+    schedulePopup(1, randomDelay(7000, 15000));
+
+    return () => {
+      isCancelled = true;
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [activityOptions]);
+
+  if (activityOptions.length === 0) return null;
+
+  return (
+    <div className="homepage-activity-popups" aria-live="polite">
+      {popups.map((popup, index) => (
+        <div
+          className={`homepage-activity-popup homepage-activity-popup--${
+            index === 0 ? "top" : "bottom"
+          } ${popup.visible ? "homepage-activity-popup--visible" : ""}`}
+          key={`${index}-${popup.message}`}
+          role="status"
+        >
+          <span className="homepage-activity-popup__dot" aria-hidden="true" />
+          <span className="homepage-activity-popup__content">
+            <span className="homepage-activity-popup__tag">Preview activity</span>
+            <span>{popup.message}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              setPopups((current) =>
+                current.map((item, itemIndex) =>
+                  itemIndex === index ? { ...item, visible: false } : item,
+                ),
+              )
+            }
+            aria-label="Dismiss booking activity notification"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -5333,6 +5464,18 @@ function HomePage() {
 
             {activePage === "home" && (
               <PromoBanner promotions={homePromotions} />
+            )}
+
+            {activePage === "home" && (
+              <HomepageActivityPopups
+                key={filteredListingSections
+                  .flatMap((section) => section.items || [])
+                  .map((apartment) => apartment.id || apartment.title)
+                  .join("|")}
+                apartments={filteredListingSections.flatMap(
+                  (section) => section.items || [],
+                )}
+              />
             )}
 
             {activePage === "paymentSuccess" ? (

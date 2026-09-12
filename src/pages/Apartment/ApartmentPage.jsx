@@ -159,6 +159,9 @@ function getPreviewDemandData(apartment) {
     .reduce((total, character) => total + character.charCodeAt(0), 0);
 
   return {
+    title: apartment?.title || "This apartment",
+    residence:
+      apartment?.residenceName || apartment?.residence || "Bedrock Residence",
     bookedToday: 2 + (seed % 5),
     bookedThisWeek: 7 + (seed % 8),
     available: 1 + (seed % 3),
@@ -175,9 +178,9 @@ function ApartmentDemandSignals({ apartment, hasBookingSelection }) {
 
   const notices = useMemo(
     () => [
-      `Recently booked - this apartment was reserved for ${previewData.nights} nights.`,
-      `Popular right now - ${previewData.viewers} people are viewing this apartment.`,
-      `Booked ${previewData.bookedToday} times today.`,
+      `Recently booked - ${previewData.title} (${previewData.residence}) was reserved for ${previewData.nights} nights.`,
+      `Popular right now - ${previewData.viewers} people are viewing ${previewData.title}.`,
+      `${previewData.title} was booked ${previewData.bookedToday} times today.`,
     ],
     [previewData],
   );
@@ -246,6 +249,101 @@ function ApartmentDemandSignals({ apartment, hasBookingSelection }) {
         </button>
       </div>
     </section>
+  );
+}
+
+function ApartmentActivityPopups({ apartment }) {
+  const previewData = useMemo(() => getPreviewDemandData(apartment), [apartment]);
+  const popupMessages = useMemo(
+    () => [
+      `Recently booked - last booking was ${previewData.lastBookedMinutesAgo} minutes ago.`,
+      `Booked ${previewData.bookedToday} times today.`,
+      `Popular choice - ${previewData.bookedThisWeek} bookings this week.`,
+      `Popular right now - ${previewData.viewers} people are viewing this apartment.`,
+    ],
+    [previewData],
+  );
+  const [popups, setPopups] = useState(() => [
+    { message: popupMessages[0], visible: true },
+    { message: popupMessages[1], visible: false },
+  ]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    const timers = [];
+
+    function randomDelay(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function schedulePopup(slot, delay) {
+      const showTimer = window.setTimeout(() => {
+        if (isCancelled) return;
+
+        const nextMessage =
+          popupMessages[Math.floor(Math.random() * popupMessages.length)];
+
+        setPopups((current) =>
+          current.map((popup, index) =>
+            index === slot
+              ? { message: nextMessage, visible: true }
+              : popup,
+          ),
+        );
+
+        const hideTimer = window.setTimeout(() => {
+          if (isCancelled) return;
+
+          setPopups((current) =>
+            current.map((popup, index) =>
+              index === slot ? { ...popup, visible: false } : popup,
+            ),
+          );
+        }, 6500);
+        timers.push(hideTimer);
+        schedulePopup(slot, randomDelay(18000, 36000));
+      }, delay);
+
+      timers.push(showTimer);
+    }
+
+    schedulePopup(0, randomDelay(16000, 26000));
+    schedulePopup(1, randomDelay(7000, 15000));
+
+    return () => {
+      isCancelled = true;
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [popupMessages]);
+
+  return (
+    <div className="apartment-activity-popups" aria-live="polite">
+      {popups.map((popup, index) => (
+        <div
+          className={`apartment-activity-popup apartment-activity-popup--${
+            index === 0 ? "top" : "bottom"
+          } ${popup.visible ? "apartment-activity-popup--visible" : ""}`}
+          key={`${index}-${popup.message}`}
+          role="status"
+        >
+          <span className="apartment-activity-popup__dot" aria-hidden="true" />
+          <span>{popup.message}</span>
+          <button
+            type="button"
+            onClick={() =>
+              setPopups((current) =>
+                current.map((item, itemIndex) =>
+                  itemIndex === index ? { ...item, visible: false } : item,
+                ),
+              )
+            }
+            aria-label="Dismiss activity notification"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -1062,6 +1160,11 @@ function ApartmentPage({
           key={apartment?.id || apartment?.title}
           apartment={apartment}
           hasBookingSelection={hasBookingSelection}
+        />
+
+        <ApartmentActivityPopups
+          key={`activity-${apartment?.id || apartment?.title}`}
+          apartment={apartment}
         />
 
         <div className="apartment-detail-layout">
